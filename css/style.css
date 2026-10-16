@@ -307,136 +307,166 @@ h1 {
   padding-bottom: 3px;
 }
 
-/* ====================================
-   NIGHTMAR'S PRODUCTION — VHS EFFECT
-   ==================================== */
+/* ==========================================
+   NIGHTMAR'S PRODUCTION
+   VHS / CRT EFFECT
+   ========================================== */
 
-/* Горизонтальные полосы */
+/* CRT SCANLINES */
 
 body::before {
   content: "";
   position: fixed;
   inset: 0;
 
-  pointer-events: none;
   z-index: 9999;
+  pointer-events: none;
 
   background: repeating-linear-gradient(
     to bottom,
-    transparent 0px,
-    transparent 3px,
-    rgba(0, 0, 0, 0.18) 4px
+    rgba(0, 0, 0, 0) 0px,
+    rgba(0, 0, 0, 0) 2px,
+    rgba(0, 0, 0, 0.35) 3px,
+    rgba(0, 0, 0, 0.35) 4px
   );
 
-  opacity: 0.35;
+  opacity: 0.55;
 }
 
-/* Лёгкое мерцание экрана */
+/* VHS MOVING DISTORTION */
 
 body::after {
   content: "";
   position: fixed;
-  inset: 0;
 
-  pointer-events: none;
+  top: -30%;
+  left: 0;
+
+  width: 100%;
+  height: 25%;
+
   z-index: 9998;
+  pointer-events: none;
 
-  background: rgba(255, 255, 255, 0.015);
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(255, 255, 255, 0.035),
+    rgba(255, 255, 255, 0.065),
+    transparent
+  );
 
-  animation: vhs-flicker 0.15s infinite;
+  animation: vhs-tracking 9s linear infinite;
 }
 
-/* Анимация мерцания */
+/* TRACKING ANIMATION */
 
-@keyframes vhs-flicker {
+@keyframes vhs-tracking {
   0% {
-    opacity: 0.02;
+    transform: translateY(-100vh);
+    opacity: 0;
   }
 
-  20% {
-    opacity: 0.04;
+  15% {
+    opacity: 0.35;
   }
 
-  40% {
-    opacity: 0.01;
+  50% {
+    opacity: 0.7;
   }
 
-  60% {
-    opacity: 0.03;
-  }
-
-  80% {
-    opacity: 0.02;
+  85% {
+    opacity: 0.35;
   }
 
   100% {
-    opacity: 0.04;
+    transform: translateY(160vh);
+    opacity: 0;
   }
 }
 
-/* Лёгкое свечение текста */
+/* RGB SPLIT */
 
 h1,
 h2,
-.logo {
+.logo,
+.book-title {
   text-shadow:
-    1px 0 rgba(255, 0, 0, 0.12),
-    -1px 0 rgba(0, 180, 255, 0.08);
+    1px 0 rgba(255, 0, 0, 0.35),
+    -1px 0 rgba(0, 200, 255, 0.25);
 }
 
-/* VHS-эффект при наведении */
+/* CRT GLOW */
 
-.book-card:hover {
-  text-shadow:
-    1px 0 rgba(255, 0, 0, 0.25),
-    -1px 0 rgba(0, 180, 255, 0.2);
+h1 {
+  filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.08));
 }
 
-/* Учитываем настройки доступности */
-
-@media (prefers-reduced-motion: reduce) {
-  body::after {
-    animation: none;
-  }
-}
-
-/* Индикатор записи */
+/* REC INDICATOR */
 
 .vhs-rec {
-  position: fixed;
-  top: 20px;
-  right: 25px;
+  top: auto;
+  bottom: 14px;
+  right: 14px;
 
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  padding: 5px 8px;
 
-  color: #b30000;
-  font-family: "Courier New", monospace;
-  font-size: 13px;
-  letter-spacing: 3px;
-
-  z-index: 9997;
-  pointer-events: none;
+  font-size: 10px;
+  letter-spacing: 1px;
 }
+
+/* REC DOT */
 
 .rec-dot {
   width: 7px;
   height: 7px;
-  background: #b30000;
+
+  flex-shrink: 0;
+
+  background: #ff3030;
   border-radius: 50%;
 
-  animation: rec-blink 1.5s infinite;
+  box-shadow: 0 0 6px rgba(255, 0, 0, 0.6);
+
+  animation: rec-blink 1.3s infinite;
 }
 
 @keyframes rec-blink {
   50% {
-    opacity: 0.2;
+    opacity: 0.15;
   }
 }
 
+/* MOBILE */
+
+@media (max-width: 640px) {
+
+  .vhs-rec {
+    top: 8px;
+    right: 8px;
+
+    padding: 3px 6px;
+
+    font-size: 9px;
+    letter-spacing: 1px;
+  }
+
+  .rec-dot {
+    width: 5px;
+    height: 5px;
+  }
+
+}
+
+/* ACCESSIBILITY */
+
 @media (prefers-reduced-motion: reduce) {
+  body::after,
   .rec-dot {
     animation: none;
+  }
+
+  body::after {
+    display: none;
   }
 }
