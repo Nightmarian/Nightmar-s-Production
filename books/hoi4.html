@@ -182,31 +182,31 @@
   </style>
 
 <style>
-  html,
-  body {
+  html {
     background: #0a0a0a !important;
     margin: 0 !important;
     padding: 0 !important;
   }
 
   body {
+    background: #0a0a0a !important;
     color: #c9c9c9 !important;
+
     font-family: "Segoe UI", Arial, sans-serif !important;
     line-height: 1.8 !important;
-    padding: 56px 20px 90px !important;
-  }
 
-  /* Центрируем всё, что есть внутри body */
-  body * {
+    /* Центрирование всей книги */
+    width: 100% !important;
     max-width: 720px !important;
-    margin-left: auto !important;
-    margin-right: auto !important;
+
+    margin: 0 auto !important;
+    padding: 56px 20px 90px !important;
+
+    box-sizing: border-box !important;
   }
 
-  /* Заголовки и текст */
-  h1,
-  h2,
-  h3 {
+  /* Заголовки */
+  h1, h2, h3 {
     color: #f2f2f2 !important;
     font-family: "Courier New", monospace !important;
     line-height: 1.25 !important;
@@ -229,8 +229,8 @@
     margin: 32px 0 14px !important;
   }
 
-  p,
-  li {
+  /* Основной текст */
+  p, li {
     color: #c9c9c9 !important;
     font-size: 17px !important;
     line-height: 1.8 !important;
@@ -244,6 +244,7 @@
     color: #e2e2e2 !important;
   }
 
+  /* Изображения */
   img {
     max-width: 100% !important;
     height: auto !important;
@@ -251,29 +252,35 @@
     margin: 24px auto !important;
   }
 
+  /* ПК */
   @media (min-width: 900px) {
     body {
       padding-top: 90px !important;
     }
 
-    p,
-    li {
+    p, li {
       font-size: 18px !important;
     }
   }
 
-  body > div,
-  body > main,
-  body > section,
-  body > article {
-    width: 100% !important;
-    max-width: 720px !important;
-    margin-left: auto !important;
-    margin-right: auto !important;
-    padding-left: 0 !important;
-    padding-right: 0 !important;
+  /* Телефоны */
+  @media (max-width: 600px) {
+    body {
+      padding: 20px 16px 60px !important;
+    }
+
+    h1 {
+      font-size: 28px !important;
+    }
+
+    h2 {
+      font-size: 23px !important;
+    }
+
+    p, li {
+      font-size: 16px !important;
+    }
   }
-  
 </style>
 
   
