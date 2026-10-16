@@ -182,37 +182,41 @@
   </style>
 
 <style>
-  html {
-    background: #0a0a0a;
+  html,
+  body {
+    background: #0a0a0a !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
   body {
-    background: #0a0a0a !important;
     color: #c9c9c9 !important;
     font-family: "Segoe UI", Arial, sans-serif !important;
-    margin: 0 !important;
-    padding: 56px 20px 90px !important;
     line-height: 1.8 !important;
+    padding: 56px 20px 90px !important;
   }
 
-  /* Центральная колонка для чтения */
-  body > * {
+  /* Центрируем всё, что есть внутри body */
+  body * {
     max-width: 720px !important;
     margin-left: auto !important;
     margin-right: auto !important;
   }
 
+  /* Заголовки и текст */
   h1,
   h2,
   h3 {
     color: #f2f2f2 !important;
     font-family: "Courier New", monospace !important;
     line-height: 1.25 !important;
+    text-align: left !important;
   }
 
   h1 {
     font-size: clamp(30px, 4vw, 38px) !important;
-    margin: 0 0 28px !important;
+    margin-top: 0 !important;
+    margin-bottom: 28px !important;
   }
 
   h2 {
@@ -225,10 +229,14 @@
     margin: 32px 0 14px !important;
   }
 
-  p {
+  p,
+  li {
     color: #c9c9c9 !important;
     font-size: 17px !important;
     line-height: 1.8 !important;
+  }
+
+  p {
     margin-bottom: 20px !important;
   }
 
@@ -245,10 +253,11 @@
 
   @media (min-width: 900px) {
     body {
-      padding-top: 80px !important;
+      padding-top: 90px !important;
     }
 
-    p {
+    p,
+    li {
       font-size: 18px !important;
     }
   }
