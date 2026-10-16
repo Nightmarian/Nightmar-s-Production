@@ -1,6 +1,8 @@
 async function loadLibrary() {
 
-  const container = document.querySelector(".book-grid");
+ const response = await fetch("books.json", {
+  cache: "no-store"
+});
 
   try {
 
