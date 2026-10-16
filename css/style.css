@@ -307,166 +307,133 @@ h1 {
   padding-bottom: 3px;
 }
 
-/* ==========================================
-   NIGHTMAR'S PRODUCTION
-   VHS / CRT EFFECT
-   ========================================== */
+/* ===================================
+   NIGHTMAR VHS SYSTEM
+   =================================== */
 
-/* CRT SCANLINES */
-
-body::before {
-  content: "";
+.vhs-overlay {
   position: fixed;
   inset: 0;
 
-  z-index: 9999;
+  width: 100%;
+  height: 100%;
+
   pointer-events: none;
+  overflow: hidden;
+
+  z-index: 9999;
+}
+
+/* ГОРИЗОНТАЛЬНЫЕ ПОЛОСЫ */
+
+.vhs-scanlines {
+  position: absolute;
+  inset: 0;
 
   background: repeating-linear-gradient(
     to bottom,
-    rgba(0, 0, 0, 0) 0px,
-    rgba(0, 0, 0, 0) 2px,
-    rgba(0, 0, 0, 0.35) 3px,
-    rgba(0, 0, 0, 0.35) 4px
+    transparent 0px,
+    transparent 2px,
+    rgba(255, 255, 255, 0.12) 3px,
+    transparent 4px
   );
 
-  opacity: 0.55;
+  opacity: 0.8;
 }
 
-/* VHS MOVING DISTORTION */
+/* АНАЛОГОВЫЙ ШУМ */
 
-body::after {
-  content: "";
-  position: fixed;
+.vhs-noise {
+  position: absolute;
+  inset: -50%;
 
-  top: -30%;
+  width: 200%;
+  height: 200%;
+
+  opacity: 0.12;
+
+  background-image: url("https://upload.wikimedia.org/wikipedia/commons/5/5c/Image_gaussian_noise_example.png");
+
+  background-repeat: repeat;
+
+  animation: vhs-noise-animation 0.15s steps(4) infinite;
+}
+
+@keyframes vhs-noise-animation {
+  0% {
+    transform: translate(0, 0);
+  }
+
+  25% {
+    transform: translate(-2%, 1%);
+  }
+
+  50% {
+    transform: translate(1%, -2%);
+  }
+
+  75% {
+    transform: translate(-1%, 2%);
+  }
+
+  100% {
+    transform: translate(0, 0);
+  }
+}
+
+/* ДВИЖУЩАЯСЯ ПОЛОСА ПОМЕХ */
+
+.vhs-tracking {
+  position: absolute;
+
   left: 0;
+  top: -20%;
 
   width: 100%;
-  height: 25%;
-
-  z-index: 9998;
-  pointer-events: none;
+  height: 12%;
 
   background: linear-gradient(
     to bottom,
     transparent,
-    rgba(255, 255, 255, 0.035),
-    rgba(255, 255, 255, 0.065),
+    rgba(255, 255, 255, 0.08),
+    rgba(255, 255, 255, 0.18),
     transparent
   );
 
-  animation: vhs-tracking 9s linear infinite;
+  animation: vhs-tracking-animation 7s linear infinite;
 }
 
-/* TRACKING ANIMATION */
-
-@keyframes vhs-tracking {
+@keyframes vhs-tracking-animation {
   0% {
-    transform: translateY(-100vh);
-    opacity: 0;
-  }
-
-  15% {
-    opacity: 0.35;
-  }
-
-  50% {
-    opacity: 0.7;
-  }
-
-  85% {
-    opacity: 0.35;
+    top: -20%;
   }
 
   100% {
-    transform: translateY(160vh);
-    opacity: 0;
+    top: 120%;
   }
 }
 
-/* RGB SPLIT */
-
-h1,
-h2,
-.logo,
-.book-title {
-  text-shadow:
-    1px 0 rgba(255, 0, 0, 0.35),
-    -1px 0 rgba(0, 200, 255, 0.25);
-}
-
-/* CRT GLOW */
-
-h1 {
-  filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.08));
-}
-
-/* REC INDICATOR */
-
-.vhs-rec {
-  top: auto;
-  bottom: 14px;
-  right: 14px;
-
-  padding: 5px 8px;
-
-  font-size: 10px;
-  letter-spacing: 1px;
-}
-
-/* REC DOT */
-
-.rec-dot {
-  width: 7px;
-  height: 7px;
-
-  flex-shrink: 0;
-
-  background: #ff3030;
-  border-radius: 50%;
-
-  box-shadow: 0 0 6px rgba(255, 0, 0, 0.6);
-
-  animation: rec-blink 1.3s infinite;
-}
-
-@keyframes rec-blink {
-  50% {
-    opacity: 0.15;
-  }
-}
-
-/* MOBILE */
+/* МОБИЛЬНАЯ ОПТИМИЗАЦИЯ */
 
 @media (max-width: 640px) {
-
-  .vhs-rec {
-    top: 8px;
-    right: 8px;
-
-    padding: 3px 6px;
-
-    font-size: 9px;
-    letter-spacing: 1px;
+  .vhs-scanlines {
+    opacity: 0.45;
   }
 
-  .rec-dot {
-    width: 5px;
-    height: 5px;
+  .vhs-noise {
+    opacity: 0.07;
   }
-
 }
 
-/* ACCESSIBILITY */
+/* УМЕНЬШЕНИЕ АНИМАЦИИ */
 
 @media (prefers-reduced-motion: reduce) {
-  body::after,
-  .rec-dot {
+  .vhs-noise,
+  .vhs-tracking {
     animation: none;
   }
 
-  body::after {
+  .vhs-tracking {
     display: none;
   }
 }
