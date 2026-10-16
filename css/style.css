@@ -306,3 +306,96 @@ h1 {
   border-bottom: 1px solid var(--accent);
   padding-bottom: 3px;
 }
+
+/* ====================================
+   NIGHTMAR'S PRODUCTION — VHS EFFECT
+   ==================================== */
+
+/* Горизонтальные полосы */
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+
+  pointer-events: none;
+  z-index: 9999;
+
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 3px,
+    rgba(0, 0, 0, 0.18) 4px
+  );
+
+  opacity: 0.35;
+}
+
+/* Лёгкое мерцание экрана */
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+
+  pointer-events: none;
+  z-index: 9998;
+
+  background: rgba(255, 255, 255, 0.015);
+
+  animation: vhs-flicker 0.15s infinite;
+}
+
+/* Анимация мерцания */
+
+@keyframes vhs-flicker {
+  0% {
+    opacity: 0.02;
+  }
+
+  20% {
+    opacity: 0.04;
+  }
+
+  40% {
+    opacity: 0.01;
+  }
+
+  60% {
+    opacity: 0.03;
+  }
+
+  80% {
+    opacity: 0.02;
+  }
+
+  100% {
+    opacity: 0.04;
+  }
+}
+
+/* Лёгкое свечение текста */
+
+h1,
+h2,
+.logo {
+  text-shadow:
+    1px 0 rgba(255, 0, 0, 0.12),
+    -1px 0 rgba(0, 180, 255, 0.08);
+}
+
+/* VHS-эффект при наведении */
+
+.book-card:hover {
+  text-shadow:
+    1px 0 rgba(255, 0, 0, 0.25),
+    -1px 0 rgba(0, 180, 255, 0.2);
+}
+
+/* Учитываем настройки доступности */
+
+@media (prefers-reduced-motion: reduce) {
+  body::after {
+    animation: none;
+  }
+}
