@@ -1,12 +1,18 @@
 async function loadLibrary() {
 
- const response = await fetch("books.json", {
-  cache: "no-store"
-});
+  const container = document.querySelector(".book-grid");
+
+  if (!container) {
+    console.error("Контейнер библиотеки не найден!");
+    return;
+  }
 
   try {
 
-    const response = await fetch("books.json");
+    // Загружаем актуальный список книг
+    const response = await fetch("books.json", {
+      cache: "no-store"
+    });
 
     if (!response.ok) {
       throw new Error("Ошибка загрузки книг");
@@ -14,8 +20,10 @@ async function loadLibrary() {
 
     const books = await response.json();
 
+    // Очищаем старые карточки
     container.innerHTML = "";
 
+    // Создаём карточки книг
     books.forEach(book => {
 
       const card = document.createElement("a");
@@ -49,12 +57,14 @@ async function loadLibrary() {
 
   } catch (error) {
 
-    console.error(error);
+    console.error("Ошибка библиотеки:", error);
 
     container.textContent =
-      "Ошибка загрузки библиотеки.";
+      "Не удалось загрузить библиотеку.";
 
   }
+
 }
 
+// Запускаем загрузку библиотеки
 loadLibrary();
