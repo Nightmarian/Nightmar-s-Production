@@ -399,3 +399,44 @@ h2,
     animation: none;
   }
 }
+
+/* Индикатор записи */
+
+.vhs-rec {
+  position: fixed;
+  top: 20px;
+  right: 25px;
+
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  color: #b30000;
+  font-family: "Courier New", monospace;
+  font-size: 13px;
+  letter-spacing: 3px;
+
+  z-index: 9997;
+  pointer-events: none;
+}
+
+.rec-dot {
+  width: 7px;
+  height: 7px;
+  background: #b30000;
+  border-radius: 50%;
+
+  animation: rec-blink 1.5s infinite;
+}
+
+@keyframes rec-blink {
+  50% {
+    opacity: 0.2;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rec-dot {
+    animation: none;
+  }
+}
