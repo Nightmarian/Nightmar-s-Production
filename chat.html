@@ -1,1 +1,119 @@
+<!DOCTYPE html>
+<html lang="ru">
 
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Канал связи — Nightmar’s Production</title>
+
+  <link rel="stylesheet" href="css/style.css?v=5">
+  <link rel="stylesheet" href="css/chat.css?v=1">
+</head>
+
+<body>
+
+
+  <!-- HEADER -->
+
+  <header class="site-header">
+
+    <div class="header-inner">
+
+      <a class="logo" href="index.html">
+        <span class="logo-mark">☠</span>
+        Nightmar’s Production
+      </a>
+
+      <nav class="nav">
+        <a href="index.html">Главная</a>
+        <a href="library.html">Библиотека</a>
+        <a href="chat.html" class="active">Связь</a>
+        <a href="decode.html">Обезопасить и сохранить</a>
+        <a href="files.html">Архив</a>
+      </nav>
+
+    </div>
+
+  </header>
+
+  <!-- CHAT -->
+
+  <main class="chat-page">
+
+    <p class="eyebrow">Защищённый канал</p>
+
+    <h1>Канал связи</h1>
+
+    <p class="subtitle">
+      Терминал обмена сообщениями Nightmar’s Production.
+    </p>
+
+    <section class="chat-terminal">
+
+      <div class="chat-header">
+        <span>CHANNEL: GENERAL</span>
+        <span class="chat-online">● LIVE</span>
+      </div>
+
+      <div id="messages" class="chat-messages">
+        <div class="system-message">
+          Установка соединения...
+        </div>
+      </div>
+
+      <form id="chat-form" class="chat-form">
+
+        <label for="username">Ваше Прозвище</label>
+
+        <input
+          type="text"
+          id="username"
+          maxlength="30"
+          placeholder="Ghost_047"
+          required
+        >
+
+        <label for="message-input">СООБЩЕНИЕ</label>
+
+        <div class="message-row">
+
+          <input
+            type="text"
+            id="message-input"
+            maxlength="500"
+            placeholder="Введите сообщение..."
+            required
+          >
+
+          <button type="submit" id="send-button">
+            SEND
+          </button>
+
+        </div>
+
+      </form>
+
+    </section>
+
+  </main>
+
+  <!-- FOOTER -->
+
+  <footer class="site-footer">
+    <p>Nightmar’s Production © 2026</p>
+    <p class="muted">
+      Секретная «Популярная военная база»
+    </p>
+  </footer>
+
+  <!-- SUPABASE -->
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- CHAT SCRIPT -->
+
+  <script src="scripts/chat.js"></script>
+
+</body>
+</html>
