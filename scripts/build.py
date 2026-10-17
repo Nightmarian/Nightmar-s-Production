@@ -151,6 +151,29 @@ def process_books():
             f"title={title}"
         ], check=True)
 
+
+# Добавляем кнопку возвращения в библиотеку
+
+html = output_file.read_text(encoding="utf-8")
+
+back_button = '''
+<a href="../library.html" class="back-to-library">
+  ← Вернуться в библиотеку
+</a>
+'''
+
+html = html.replace(
+    "<body>",
+    "<body>\n" + back_button,
+    1
+)
+
+output_file.write_text(
+    html,
+    encoding="utf-8"
+)
+        
+
         books.append({
             "id": next_id,
             "title": title,
