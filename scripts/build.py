@@ -194,5 +194,34 @@ output_file.write_text(
     print("Библиотека синхронизирована!")
 
 
+def add_navigation_to_books():
+
+    back_button = '''
+<a href="../library.html" class="back-to-library">
+  ← Вернуться в библиотеку
+</a>
+'''
+
+    for html_file in BOOKS.glob("*.html"):
+
+        html = html_file.read_text(encoding="utf-8")
+
+        if 'class="back-to-library"' in html:
+            continue
+
+        html = html.replace(
+            "<body>",
+            "<body>\n" + back_button,
+            1
+        )
+
+        html_file.write_text(
+            html,
+            encoding="utf-8"
+        )
+
+
+
 if __name__ == "__main__":
     process_books()
+    add_navigation_to_books()
