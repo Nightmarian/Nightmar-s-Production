@@ -413,17 +413,7 @@ h1 {
   }
 }
 
-/* МОБИЛЬНАЯ ОПТИМИЗАЦИЯ */
 
-@media (max-width: 640px) {
-  .vhs-scanlines {
-    opacity: 0.45;
-  }
-
-  .vhs-noise {
-    opacity: 0.07;
-  }
-}
 
 /* УМЕНЬШЕНИЕ АНИМАЦИИ */
 
@@ -435,5 +425,96 @@ h1 {
 
   .vhs-tracking {
     display: none;
+  }
+}
+
+
+/* =====================================
+   REC INDICATOR — FINAL
+   ===================================== */
+
+.vhs-rec {
+  position: fixed !important;
+
+  top: auto !important;
+  right: auto !important;
+
+  bottom: 22px !important;
+  left: 22px !important;
+
+  display: flex !important;
+  align-items: center !important;
+  gap: 9px !important;
+
+  padding: 8px 12px !important;
+
+  background: rgba(0, 0, 0, 0.75) !important;
+  border: 1px solid rgba(255, 0, 0, 0.4) !important;
+
+  color: #ff3030 !important;
+
+  font-family: "Courier New", monospace !important;
+  font-size: 13px !important;
+  font-weight: bold !important;
+  letter-spacing: 2px !important;
+
+  z-index: 10001 !important;
+
+  pointer-events: none !important;
+}
+
+/* Красная точка */
+
+.vhs-rec .rec-dot {
+  display: block !important;
+
+  width: 9px !important;
+  height: 9px !important;
+
+  min-width: 9px !important;
+  min-height: 9px !important;
+
+  background: #ff2020 !important;
+  border-radius: 50% !important;
+
+  box-shadow: 0 0 8px #ff0000 !important;
+
+  animation: rec-blink 1.2s infinite;
+}
+
+@keyframes rec-blink {
+  0%, 100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.2;
+  }
+}
+
+/* Телефон */
+
+@media (max-width: 640px) {
+  .vhs-rec {
+    bottom: 14px !important;
+    left: 14px !important;
+
+    padding: 6px 9px !important;
+
+    font-size: 11px !important;
+  }
+
+  .vhs-rec .rec-dot {
+    width: 7px !important;
+    height: 7px !important;
+
+    min-width: 7px !important;
+    min-height: 7px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vhs-rec .rec-dot {
+    animation: none;
   }
 }
