@@ -126,3 +126,27 @@
   }
 
 }
+
+/* Предупреждение об удалении сообщений */
+
+.chat-warning {
+  padding: 10px 20px;
+
+  background: rgba(179, 0, 0, 0.06);
+  border-bottom: 1px solid #262626;
+
+  color: #777;
+
+  font-family: "Courier New", monospace;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .chat-warning {
+    padding: 10px 12px;
+    font-size: 10px;
+  }
+}
