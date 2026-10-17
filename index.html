@@ -1,51 +1,115 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"
+  >
+
   <title>Nightmar's Production</title>
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <!-- Шрифты -->
+  <link
+    rel="preconnect"
+    href="https://fonts.googleapis.com"
+  >
 
-  
-  <link rel="stylesheet" href="css/style.css">
+  <link
+    rel="preconnect"
+    href="https://fonts.gstatic.com"
+    crossorigin
+  >
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Inter:wght@400;600;700&display=swap"
+    rel="stylesheet"
+  >
+
+  <!-- Основные стили -->
+  <link rel="stylesheet" href="css/style.css?v=3">
+
 </head>
+
 <body>
 
-<div class="vhs-overlay" aria-hidden="true">
-  <div class="vhs-scanlines"></div>
-  <div class="vhs-noise"></div>
-  <div class="vhs-tracking"></div>
-</div>
+  <!-- =================================
+       VHS EFFECT
+       ================================= -->
 
-  
-<div class="vhs-rec">
-  <span class="rec-dot"></span>
-  REC
-</div>
-  
+  <div class="vhs-overlay" aria-hidden="true">
+
+    <div class="vhs-scanlines"></div>
+
+    <div class="vhs-noise"></div>
+
+    <div class="vhs-tracking"></div>
+
+  </div>
+
+  <!-- =================================
+       REC INDICATOR
+       ================================= -->
+
+  <div class="vhs-rec" aria-hidden="true">
+
+    <span class="rec-dot"></span>
+
+    <span class="rec-text">REC</span>
+
+  </div>
+
+  <!-- =================================
+       HEADER
+       ================================= -->
 
   <header class="site-header">
+
     <div class="header-inner">
+
       <a class="logo" href="index.html">
+
         <span class="logo-mark">☠</span>
+
         Nightmar’s Production
+
       </a>
 
-<nav class="nav">
-  <a href="index.html" class="active">Главная</a>
-  <a href="library.html">Библиотека</a>
-  <a href="decode.html">Обезопасить и сохранить</a>
-  <a href="files.html">Архив</a>
-</nav>
-      
+      <nav class="nav">
+
+        <a href="index.html" class="active">
+          Главная
+        </a>
+
+        <a href="library.html">
+          Библиотека
+        </a>
+
+        <a href="decode.html">
+          Обезопасить и сохранить
+        </a>
+
+        <a href="files.html">
+          Архив
+        </a>
+
+      </nav>
+
     </div>
+
   </header>
 
+  <!-- =================================
+       MAIN CONTENT
+       ================================= -->
+
   <main class="hero">
-    <p class="eyebrow">Nightmar’s Production</p>
+
+    <p class="eyebrow">
+      Nightmar’s Production
+    </p>
 
     <h1>
       Данные, скрытые<br>
@@ -56,28 +120,52 @@
       Там где давно нет света, а только тьма, пустота, отчаянье и т.д...
     </p>
 
+    <!-- SYSTEM STATUS -->
+
     <div class="status-box">
-      <div class="status-title">Состояние системы</div>
+
+      <div class="status-title">
+        Состояние системы
+      </div>
 
       <div class="status-line">
+
         <span class="dot offline"></span>
+
         Сервер обработки — <b>не подключён</b>
+
       </div>
 
       <div class="status-line">
+
         <span class="dot online"></span>
+
         Интерфейс — <b>готов</b>
+
       </div>
+
     </div>
 
     <a href="decode.html" class="button">
       Обезопасить и сохранить
     </a>
+
   </main>
 
+  <!-- =================================
+       FOOTER
+       ================================= -->
+
   <footer class="site-footer">
-    <p>Nightmar’s Production © 2026</p>
-    <p class="muted">Секретная «Популярная военная база»</p>
+
+    <p>
+      Nightmar’s Production © 2026
+    </p>
+
+    <p class="muted">
+      Секретная «Популярная военная база»
+    </p>
+
   </footer>
 
 </body>
