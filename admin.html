@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Панель управления — Nightmar’s Production</title>
+
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/admin.css">
+</head>
+
+<body>
+
+  <header class="site-header">
+    <div class="header-inner">
+
+      <a class="logo" href="index.html">
+        <span class="logo-mark">☠</span>
+        Nightmar’s Production
+      </a>
+
+      <nav class="nav">
+        <a href="index.html">Главная</a>
+        <a href="library.html">Библиотека</a>
+        <a href="chat.html">Связь</a>
+      </nav>
+
+    </div>
+  </header>
+
+  <main class="admin-page">
+
+    <p class="eyebrow">Система управления</p>
+
+    <h1>Панель администратора</h1>
+
+    <p class="subtitle">
+      Управление документами Nightmar’s Production.
+    </p>
+
+    <div class="admin-warning">
+      ⚠ Управление файлами выполняется через GitHub.
+      Для изменения библиотеки потребуется доступ к репозиторию.
+    </div>
+
+    <section class="admin-section">
+
+      <div class="admin-section-title">
+        БИБЛИОТЕКА
+      </div>
+
+      <div id="admin-books" class="admin-books">
+        Загрузка списка книг...
+      </div>
+
+    </section>
+
+    <section class="admin-section">
+
+      <div class="admin-section-title">
+        ДОБАВЛЕНИЕ КНИГ
+      </div>
+
+      <p class="admin-description">
+        Загрузите DOCX в папку books/source.
+        GitHub Actions автоматически обработает документ.
+      </p>
+
+      <a
+        class="admin-button"
+        href="https://github.com/Nightmarian/Nightmar-s-Production/upload/main/books/source"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        + ЗАГРУЗИТЬ КНИГУ
+      </a>
+
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <p>Nightmar’s Production © 2026</p>
+    <p class="muted">Секретная «Популярная военная база»</p>
+  </footer>
+
+  <script src="scripts/admin.js"></script>
+
+</body>
+</html>
