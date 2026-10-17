@@ -101,21 +101,101 @@ chatForm.addEventListener("submit", async (event) => {
 
 // REALTIME
 
-client
-  .channel("public-chat")
-  .on(
-    "postgres_changes",
-    {
-      event: "INSERT",
-      schema: "public",
-      table: "messages"
-    },
-    payload => {
-      displayMessage(payload.new);
-    }
-  )
-  .subscribe();
+// =====================================
+// NIGHTMAR CHAT — REALTIME SYSTEM
+// =====================================
 
-// START
+// Храним ID уже показанных сообщений
+const displayedMessages = new Set();
 
-loadMessages();
+// Добавляем сообщение без дубликатов
+function addMessage(message) {
+
+  if (displayedMessages.has(message.id)) {
+    return;
+  }
+
+  displayedMessages.add(message.id);
+
+  displayMessage(message);
+}
+
+// Загружаем актуальную историю
+async function refreshMessages() {
+
+  const { data, error } = await client
+    .from("messages")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(100);
+
+  if (error) {
+    console.error("Ошибка обновления:", error);
+    return;
+  }
+
+  // Сортируем по времени
+  data.reverse();
+
+  data.forEach(addMessage);
+}
+
+// Подключаем Realtime
+function connectRealtime() {
+
+  client
+    .channel("nightmar-chat-live")
+    .on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "messages"
+      },
+      payload => {
+
+        addMessage(payload.new);
+
+      }
+    )
+    .subscribe(status => {
+
+      console.log("Realtime:", status);
+
+      if (status === "SUBSCRIBED") {
+
+        refreshMessages();
+
+      }
+
+      if (status === "CHANNEL_ERROR") {
+
+        console.warn("Соединение потеряно");
+
+      }
+
+    });
+
+}
+
+// Когда пользователь возвращается на вкладку
+document.addEventListener("visibilitychange", () => {
+
+  if (!document.hidden) {
+    refreshMessages();
+  }
+
+});
+
+// Дополнительная проверка каждые 10 секунд
+setInterval(() => {
+
+  if (!document.hidden) {
+    refreshMessages();
+  }
+
+}, 10000);
+
+// Запуск
+connectRealtime();
+refreshMessages();
