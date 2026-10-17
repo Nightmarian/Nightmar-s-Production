@@ -16,5 +16,14 @@
     "type": "Книга",
     "file": "nightmare-production-spravochnik.html",
     "source": "Nightmare_Production_Справочник.docx"
+  },
+  {
+    "id": 3,
+    "title": "Обязательства дело плохое",
+    "author": "Неизвестен",
+    "year": "Не указан",
+    "type": "Книга",
+    "file": "obyazatelstva-delo-plohoe.html",
+    "source": "Обязательства дело плохое.docx"
   }
 ]
