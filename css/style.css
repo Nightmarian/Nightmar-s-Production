@@ -255,9 +255,16 @@ h1 {
 
 .book-grid {
   margin-top: 44px;
+
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+
+  grid-template-columns:
+    repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+
   gap: 18px;
+
+  width: 100%;
+  min-width: 0;
 }
 
 .book-card {
@@ -286,9 +293,16 @@ h1 {
 .book-title {
   font-family: var(--font-title);
   font-size: 22px;
-  line-height: 1.3;
+  line-height: 1.4;
   color: var(--text-strong);
   margin-bottom: 12px;
+
+  /* Перенос длинных названий */
+  overflow-wrap: anywhere;
+  word-break: normal;
+
+  /* Не выходим за границы карточки */
+  max-width: 100%;
 }
 
 .book-meta {
@@ -507,4 +521,10 @@ h1 {
   .vhs-rec .rec-dot {
     animation: none;
   }
+}
+
+.book-card {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
