@@ -11,7 +11,7 @@ DATABASE = ROOT / "books.json"
 
 
 def create_slug(name):
-    """Создаёт безопасное имя файла."""
+    """Преобразование названия в безопасное имя."""
 
     translit = {
         "а": "a", "б": "b", "в": "v",
@@ -58,12 +58,54 @@ def save_database(books):
 
 
 def process_books():
+
     SOURCE.mkdir(parents=True, exist_ok=True)
 
     books = load_database()
 
+    source_files = {
+        file.name: file
+        for file in SOURCE.glob("*.docx")
+    }
+
+    # ==================================
+    # УДАЛЕНИЕ КНИГ
+    # ==================================
+
+    updated_books = []
+
+    for book in books:
+
+        source = book.get("source")
+
+        # Проверяем только автоматически созданные книги
+        if source and source not in source_files:
+
+            print(f"Удаляем книгу: {book['title']}")
+
+            html_file = BOOKS / book["file"]
+
+            if html_file.exists():
+                html_file.unlink()
+
+            continue
+
+        updated_books.append(book)
+
+    books = updated_books
+
+    # ==================================
+    # ДОБАВЛЕНИЕ НОВЫХ КНИГ
+    # ==================================
+
+    existing_sources = {
+        book.get("source")
+        for book in books
+    }
+
     existing_files = {
-        book["file"] for book in books
+        book["file"]
+        for book in books
     }
 
     next_id = max(
@@ -71,31 +113,34 @@ def process_books():
         default=0
     ) + 1
 
-    for source_file in sorted(SOURCE.glob("*.docx")):
+    for source_name, source_file in sorted(source_files.items()):
 
-        title = source_file.stem
+        if source_name in existing_sources:
+            continue
+
+        title = source_file.stem.replace("_", " ").strip()
 
         slug = create_slug(title)
 
         if not slug:
-            print(f"Пропускаем файл с неподдерживаемым именем: {source_file.name}")
+            print(f"Пропускаем файл: {source_name}")
             continue
 
         output_name = slug + ".html"
-
-        output_file = BOOKS / output_name
 
         if output_name in existing_files:
             print(f"Книга уже существует: {title}")
             continue
 
+        output_file = BOOKS / output_name
+
         if output_file.exists():
-            print(f"HTML-файл уже существует: {output_name}")
+            print(f"HTML уже существует: {output_name}")
             continue
 
-        print(f"Обрабатываем: {title}")
+        print(f"Создаём книгу: {title}")
 
-        command = [
+        subprocess.run([
             "pandoc",
             str(source_file),
             "-o",
@@ -104,9 +149,7 @@ def process_books():
             "--css=../css/book.css",
             "--metadata",
             f"title={title}"
-        ]
-
-        subprocess.run(command, check=True)
+        ], check=True)
 
         books.append({
             "id": next_id,
@@ -114,17 +157,18 @@ def process_books():
             "author": "Неизвестен",
             "year": "Не указан",
             "type": "Книга",
-            "file": output_name
+            "file": output_name,
+            "source": source_name
         })
 
+        existing_sources.add(source_name)
         existing_files.add(output_name)
-        next_id += 1
 
-        print(f"Создана запись № {next_id - 1}")
+        next_id += 1
 
     save_database(books)
 
-    print("Библиотека обновлена!")
+    print("Библиотека синхронизирована!")
 
 
 if __name__ == "__main__":
