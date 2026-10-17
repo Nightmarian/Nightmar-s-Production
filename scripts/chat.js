@@ -60,7 +60,7 @@ async function loadMessages() {
   const { data, error } = await client
     .from("messages")
     .select("*")
-    .order("created_at", { ascending: true })
+    .order("created_at", { ascending: false })
     .limit(100);
 
   if (error) {
@@ -70,7 +70,7 @@ async function loadMessages() {
 
   messagesContainer.innerHTML = "";
 
-  data.forEach(displayMessage);
+  data.reverse().forEach(displayMessage);
 }
 
 // ОТПРАВКА
