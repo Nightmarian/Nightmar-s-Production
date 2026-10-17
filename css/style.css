@@ -430,57 +430,66 @@ h1 {
 
 
 /* =====================================
-   REC INDICATOR — FINAL
+   NIGHTMAR'S PRODUCTION — REC
+   Одинаковый стиль на ПК и телефоне
    ===================================== */
 
 .vhs-rec {
-  position: fixed !important;
+  position: fixed;
 
-  top: auto !important;
-  right: auto !important;
+  /* Левый нижний угол */
+  top: auto;
+  right: auto;
+  bottom: 14px;
+  left: 14px;
 
-  bottom: 22px !important;
-  left: 22px !important;
+  display: flex;
+  align-items: center;
+  gap: 9px;
 
-  display: flex !important;
-  align-items: center !important;
-  gap: 9px !important;
+  /* Компактный размер */
+  padding: 6px 9px;
 
-  padding: 8px 12px !important;
+  background: rgba(0, 0, 0, 0.75);
+  border: 1px solid rgba(255, 0, 0, 0.4);
 
-  background: rgba(0, 0, 0, 0.75) !important;
-  border: 1px solid rgba(255, 0, 0, 0.4) !important;
+  color: #ff3030;
 
-  color: #ff3030 !important;
+  font-family: "Courier New", monospace;
+  font-size: 11px;
+  font-weight: bold;
+  letter-spacing: 2px;
 
-  font-family: "Courier New", monospace !important;
-  font-size: 13px !important;
-  font-weight: bold !important;
-  letter-spacing: 2px !important;
+  z-index: 10001;
+  pointer-events: none;
 
-  z-index: 10001 !important;
-
-  pointer-events: none !important;
+  /* Не растягивается */
+  width: max-content;
+  height: max-content;
 }
 
-/* Красная точка */
+/* Красная мигающая точка */
 
 .vhs-rec .rec-dot {
-  display: block !important;
+  display: block;
 
-  width: 9px !important;
-  height: 9px !important;
+  width: 7px;
+  height: 7px;
 
-  min-width: 9px !important;
-  min-height: 9px !important;
+  min-width: 7px;
+  min-height: 7px;
 
-  background: #ff2020 !important;
-  border-radius: 50% !important;
+  flex-shrink: 0;
 
-  box-shadow: 0 0 8px #ff0000 !important;
+  background: #ff2020;
+  border-radius: 50%;
+
+  box-shadow: 0 0 8px #ff0000;
 
   animation: rec-blink 1.2s infinite;
 }
+
+/* Мигание */
 
 @keyframes rec-blink {
   0%, 100% {
@@ -492,26 +501,7 @@ h1 {
   }
 }
 
-/* Телефон */
-
-@media (max-width: 640px) {
-  .vhs-rec {
-    bottom: 14px !important;
-    left: 14px !important;
-
-    padding: 6px 9px !important;
-
-    font-size: 11px !important;
-  }
-
-  .vhs-rec .rec-dot {
-    width: 7px !important;
-    height: 7px !important;
-
-    min-width: 7px !important;
-    min-height: 7px !important;
-  }
-}
+/* Учитываем настройки доступности */
 
 @media (prefers-reduced-motion: reduce) {
   .vhs-rec .rec-dot {
