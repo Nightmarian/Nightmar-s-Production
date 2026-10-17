@@ -11,7 +11,7 @@ DATABASE = ROOT / "books.json"
 
 
 def create_slug(name):
-    """Преобразование названия в безопасное имя."""
+    """Создание безопасного имени HTML-файла."""
 
     translit = {
         "а": "a", "б": "b", "в": "v",
@@ -57,6 +57,41 @@ def save_database(books):
         )
 
 
+def add_navigation_to_books():
+    """Добавляет кнопку возвращения во все HTML-книги."""
+
+    back_button = '''
+<a href="../library.html" class="back-to-library">
+  ← Вернуться в библиотеку
+</a>
+'''
+
+    for html_file in BOOKS.glob("*.html"):
+
+        html = html_file.read_text(encoding="utf-8")
+
+        # Не добавляем кнопку повторно
+        if 'class="back-to-library"' in html:
+            continue
+
+        # Находим body даже с дополнительными атрибутами
+        updated_html = re.sub(
+            r"(<body\b[^>]*>)",
+            lambda match: match.group(1) + "\n" + back_button,
+            html,
+            count=1,
+            flags=re.IGNORECASE
+        )
+
+        if updated_html != html:
+            html_file.write_text(
+                updated_html,
+                encoding="utf-8"
+            )
+
+            print(f"Добавлена кнопка: {html_file.name}")
+
+
 def process_books():
 
     SOURCE.mkdir(parents=True, exist_ok=True)
@@ -78,7 +113,6 @@ def process_books():
 
         source = book.get("source")
 
-        # Проверяем только автоматически созданные книги
         if source and source not in source_files:
 
             print(f"Удаляем книгу: {book['title']}")
@@ -151,29 +185,6 @@ def process_books():
             f"title={title}"
         ], check=True)
 
-
-# Добавляем кнопку возвращения в библиотеку
-
-html = output_file.read_text(encoding="utf-8")
-
-back_button = '''
-<a href="../library.html" class="back-to-library">
-  ← Вернуться в библиотеку
-</a>
-'''
-
-html = html.replace(
-    "<body>",
-    "<body>\n" + back_button,
-    1
-)
-
-output_file.write_text(
-    html,
-    encoding="utf-8"
-)
-        
-
         books.append({
             "id": next_id,
             "title": title,
@@ -194,34 +205,8 @@ output_file.write_text(
     print("Библиотека синхронизирована!")
 
 
-def add_navigation_to_books():
-
-    back_button = '''
-<a href="../library.html" class="back-to-library">
-  ← Вернуться в библиотеку
-</a>
-'''
-
-    for html_file in BOOKS.glob("*.html"):
-
-        html = html_file.read_text(encoding="utf-8")
-
-        if 'class="back-to-library"' in html:
-            continue
-
-        html = html.replace(
-            "<body>",
-            "<body>\n" + back_button,
-            1
-        )
-
-        html_file.write_text(
-            html,
-            encoding="utf-8"
-        )
-
-
-
 if __name__ == "__main__":
+
     process_books()
+
     add_navigation_to_books()
