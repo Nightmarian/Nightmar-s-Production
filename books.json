@@ -6,6 +6,7 @@
     "year": "Не указан",
     "type": "Книга",
     "file": "moya-borba-s-hoi4-audiokniga.html"
+    "source": "Моя борьба с HOI4 Аудиокнига.docx"
   },
   {
     "id": 2,
@@ -14,5 +15,7 @@
     "year": "Не указан",
     "type": "Книга",
     "file": "nightmare-production-spravochnik.html"
+    "source": "Nightmare_Production_Справочник.docx"
+    
   }
 ]
