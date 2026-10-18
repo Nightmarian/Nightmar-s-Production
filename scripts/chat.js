@@ -1,8 +1,6 @@
 // NIGHTMAR'S PRODUCTION CHAT
 
 const SUPABASE_URL = "https://ipyqydrqctziltcuboop.supabase.co";
-
-// ВСТАВЬ СВОЙ PUBLISHABLE KEY
 const SUPABASE_KEY = "sb_publishable_0PNw-wO6K1oMyb8XhLhgpA_GoXJivQV";
 
 const client = window.supabase.createClient(
@@ -15,12 +13,14 @@ const chatForm = document.getElementById("chat-form");
 const usernameInput = document.getElementById("username");
 const messageInput = document.getElementById("message-input");
 
-usernameInput.value = localStorage.getItem("nightmar_username") || "";
+const displayedMessages = new Set();
+
+usernameInput.value =
+  localStorage.getItem("nightmar_username") || "";
 
 // ОТОБРАЖЕНИЕ СООБЩЕНИЙ
 
 function displayMessage(message) {
-
   const element = document.createElement("div");
   element.className = "chat-message";
 
@@ -32,13 +32,13 @@ function displayMessage(message) {
   username.textContent = message.username;
 
   const time = document.createElement("span");
-
-  time.textContent = new Date(
-    message.created_at
-  ).toLocaleTimeString("ru-RU", {
-    hour: "2-digit",
-    minute: "2-digit"
-  });
+  time.textContent = new Date(message.created_at).toLocaleTimeString(
+    "ru-RU",
+    {
+      hour: "2-digit",
+      minute: "2-digit"
+    }
+  );
 
   header.append(username, time);
 
@@ -49,14 +49,21 @@ function displayMessage(message) {
   element.append(header, content);
   messagesContainer.appendChild(element);
 
-  messagesContainer.scrollTop =
-    messagesContainer.scrollHeight;
+  messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+function addMessage(message) {
+  if (!message?.id || displayedMessages.has(message.id)) {
+    return;
+  }
+
+  displayedMessages.add(message.id);
+  displayMessage(message);
 }
 
 // ЗАГРУЗКА ИСТОРИИ
 
 async function loadMessages() {
-
   const { data, error } = await client
     .from("messages")
     .select("*")
@@ -64,19 +71,19 @@ async function loadMessages() {
     .limit(100);
 
   if (error) {
-    console.error(error);
+    console.error("Ошибка загрузки сообщений:", error);
     return;
   }
 
   messagesContainer.innerHTML = "";
+  displayedMessages.clear();
 
-  data.reverse().forEach(displayMessage);
+  data.reverse().forEach(addMessage);
 }
 
 // ОТПРАВКА
 
 chatForm.addEventListener("submit", async (event) => {
-
   event.preventDefault();
 
   const username = usernameInput.value.trim();
@@ -101,48 +108,7 @@ chatForm.addEventListener("submit", async (event) => {
 
 // REALTIME
 
-// =====================================
-// NIGHTMAR CHAT — REALTIME SYSTEM
-// =====================================
-
-// Храним ID уже показанных сообщений
-const displayedMessages = new Set();
-
-// Добавляем сообщение без дубликатов
-function addMessage(message) {
-
-  if (displayedMessages.has(message.id)) {
-    return;
-  }
-
-  displayedMessages.add(message.id);
-
-  displayMessage(message);
-}
-
-// Загружаем актуальную историю
-async function refreshMessages() {
-
-  const { data, error } = await client
-    .from("messages")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(100);
-
-  if (error) {
-    console.error("Ошибка обновления:", error);
-    return;
-  }
-
-  // Сортируем по времени
-  data.reverse();
-
-  data.forEach(addMessage);
-}
-
-// Подключаем Realtime
 function connectRealtime() {
-
   client
     .channel("nightmar-chat-live")
     .on(
@@ -152,50 +118,30 @@ function connectRealtime() {
         schema: "public",
         table: "messages"
       },
-      payload => {
-
+      (payload) => {
         addMessage(payload.new);
-
       }
     )
-    .subscribe(status => {
-
+    .subscribe((status) => {
       console.log("Realtime:", status);
 
       if (status === "SUBSCRIBED") {
-
-        refreshMessages();
-
+        console.log("Realtime подключён");
       }
 
-      if (status === "CHANNEL_ERROR") {
-
-        console.warn("Соединение потеряно");
-
+      if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+        console.warn("Проблема с Realtime-соединением:", status);
       }
-
     });
-
 }
 
-// Когда пользователь возвращается на вкладку
+// При возврате на вкладку обновляем историю один раз
 document.addEventListener("visibilitychange", () => {
-
   if (!document.hidden) {
-    refreshMessages();
+    loadMessages();
   }
-
 });
 
-// Дополнительная проверка каждые 10 секунд
-setInterval(() => {
-
-  if (!document.hidden) {
-    refreshMessages();
-  }
-
-}, 10000);
-
-// Запуск
+// Запуск: сначала история, затем Realtime
+loadMessages();
 connectRealtime();
-refreshMessages();
