@@ -15,10 +15,12 @@ const messageInput = document.getElementById("message-input");
 
 const displayedMessages = new Set();
 
+let realtimeChannel = null;
+let reconnectAttempts = 0;
+let reconnectTimer = null;
+
 usernameInput.value =
   localStorage.getItem("nightmar_username") || "";
-
-// ОТОБРАЖЕНИЕ СООБЩЕНИЙ
 
 function displayMessage(message) {
   const element = document.createElement("div");
@@ -61,8 +63,6 @@ function addMessage(message) {
   displayMessage(message);
 }
 
-// ЗАГРУЗКА ИСТОРИИ
-
 async function loadMessages() {
   const { data, error } = await client
     .from("messages")
@@ -80,8 +80,6 @@ async function loadMessages() {
 
   data.reverse().forEach(addMessage);
 }
-
-// ОТПРАВКА
 
 chatForm.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -104,24 +102,17 @@ chatForm.addEventListener("submit", async (event) => {
   }
 
   messageInput.value = "";
+  loadMessages();
 });
 
-// REALTIME
-
-let realtimeChannel = null;
-
-let realtimeChannel = null;
-let reconnectAttempts = 0;
-let reconnectTimer = null;
-
 async function connectRealtime() {
-  // Не создаём несколько подключений одновременно
   if (realtimeChannel) {
     try {
       await client.removeChannel(realtimeChannel);
     } catch (error) {
       console.warn("Не удалось удалить старый канал:", error);
     }
+
     realtimeChannel = null;
   }
 
@@ -162,8 +153,10 @@ function scheduleReconnect() {
 
   reconnectAttempts++;
 
-  // 3, 6, 12, 24 секунды, максимум 60
-  const delay = Math.min(3000 * 2 ** (reconnectAttempts - 1), 60000);
+  const delay = Math.min(
+    3000 * 2 ** (reconnectAttempts - 1),
+    60000
+  );
 
   console.warn(
     Realtime недоступен. Переподключение через ${delay / 1000} сек.
@@ -174,6 +167,12 @@ function scheduleReconnect() {
     connectRealtime();
   }, delay);
 }
+
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) {
+    loadMessages();
+  }
+});
 
 loadMessages();
 connectRealtime();
