@@ -108,8 +108,14 @@ chatForm.addEventListener("submit", async (event) => {
 
 // REALTIME
 
+let realtimeChannel = null;
+
 function connectRealtime() {
-  client
+  if (realtimeChannel) {
+    client.removeChannel(realtimeChannel);
+  }
+
+  realtimeChannel = client
     .channel("nightmar-chat-live")
     .on(
       "postgres_changes",
@@ -122,18 +128,26 @@ function connectRealtime() {
         addMessage(payload.new);
       }
     )
-    .subscribe((status) => {
-      console.log("Realtime:", status);
+    .subscribe((status, err) => {
+      console.log("Realtime status:", status);
 
       if (status === "SUBSCRIBED") {
-        console.log("Realtime подключён");
+        loadMessages();
       }
 
-      if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-        console.warn("Проблема с Realtime-соединением:", status);
+      if (
+        status === "CHANNEL_ERROR" ||
+        status === "TIMED_OUT" ||
+        status === "CLOSED"
+      ) {
+        console.warn("Realtime отключён, переподключение через 3 сек...", err);
+
+        setTimeout(() => {
+          connectRealtime();
+        }, 3000);
       }
     });
-}
+
 
 // При возврате на вкладку обновляем историю один раз
 document.addEventListener("visibilitychange", () => {
@@ -143,5 +157,5 @@ document.addEventListener("visibilitychange", () => {
 });
 
 // Запуск: сначала история, затем Realtime
-loadMessages();
+
 connectRealtime();
