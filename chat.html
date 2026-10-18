@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <title>Канал связи — Nightmar’s Production</title>
+  <title>Канал связи — Nightmar's Production</title>
 
   <link rel="icon" type="image/png" href="assets/favicon.png">
 
@@ -15,7 +15,6 @@
 
 <body>
 
-
   <!-- HEADER -->
 
   <header class="site-header">
@@ -24,7 +23,7 @@
 
       <a class="logo" href="index.html">
         <span class="logo-mark">☠</span>
-        Nightmar’s Production
+        Nightmar's Production
       </a>
 
       <nav class="nav">
@@ -48,20 +47,19 @@
     <h1>Канал связи</h1>
 
     <p class="subtitle">
-      Терминал обмена сообщениями Nightmar’s Production.
+      Терминал обмена сообщениями Nightmar's Production.
     </p>
 
     <section class="chat-terminal">
 
       <div class="chat-header">
         <span>Общий ЧАТ</span>
-        <span class="chat-online">● LIVE</span>
+        <span class="chat-online" id="status">● CONNECTING...</span>
       </div>
 
-<div class="chat-warning">
-  ⚠ История сообщений автоматически исчезнет через 30 дней.
-</div>
-      
+      <div class="chat-warning">
+        ⚠ История сообщений хранится 30 дней.
+      </div>
 
       <div id="messages" class="chat-messages">
         <div class="system-message">
@@ -108,15 +106,16 @@
   <!-- FOOTER -->
 
   <footer class="site-footer">
-    <p>Nightmar’s Production © 2026</p>
+    <p>Nightmar's Production © 2026</p>
     <p class="muted">
       Секретная «Популярная военная база»
     </p>
   </footer>
 
-  <!-- SUPABASE -->
+  <!-- FIREBASE -->
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.5.2/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.5.2/firebase-database.js"></script>
 
   <!-- CHAT SCRIPT -->
 
