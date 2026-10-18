@@ -110,9 +110,19 @@ chatForm.addEventListener("submit", async (event) => {
 
 let realtimeChannel = null;
 
-function connectRealtime() {
+let realtimeChannel = null;
+let reconnectAttempts = 0;
+let reconnectTimer = null;
+
+async function connectRealtime() {
+  // Не создаём несколько подключений одновременно
   if (realtimeChannel) {
-    client.removeChannel(realtimeChannel);
+    try {
+      await client.removeChannel(realtimeChannel);
+    } catch (error) {
+      console.warn("Не удалось удалить старый канал:", error);
+    }
+    realtimeChannel = null;
   }
 
   realtimeChannel = client
@@ -129,10 +139,12 @@ function connectRealtime() {
       }
     )
     .subscribe((status, err) => {
-      console.log("Realtime status:", status);
+      console.log("Realtime status:", status, err || "");
 
       if (status === "SUBSCRIBED") {
+        reconnectAttempts = 0;
         loadMessages();
+        return;
       }
 
       if (
@@ -140,22 +152,28 @@ function connectRealtime() {
         status === "TIMED_OUT" ||
         status === "CLOSED"
       ) {
-        console.warn("Realtime отключён, переподключение через 3 сек...", err);
-
-        setTimeout(() => {
-          connectRealtime();
-        }, 3000);
+        scheduleReconnect();
       }
     });
+}
 
+function scheduleReconnect() {
+  if (reconnectTimer) return;
 
-// При возврате на вкладку обновляем историю один раз
-document.addEventListener("visibilitychange", () => {
-  if (!document.hidden) {
-    loadMessages();
-  }
-});
+  reconnectAttempts++;
 
-// Запуск: сначала история, затем Realtime
+  // 3, 6, 12, 24 секунды, максимум 60
+  const delay = Math.min(3000 * 2 ** (reconnectAttempts - 1), 60000);
 
+  console.warn(
+    Realtime недоступен. Переподключение через ${delay / 1000} сек.
+  );
+
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    connectRealtime();
+  }, delay);
+}
+
+loadMessages();
 connectRealtime();
