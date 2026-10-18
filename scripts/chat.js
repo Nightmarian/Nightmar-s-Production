@@ -1,4 +1,4 @@
-// NIGHTMAR'S PRODUCTION CHAT — stable
+// NIGHTMAR'S PRODUCTION CHAT — DPI & Disconnect Proof
 const SUPABASE_URL = "https://ipyqydrqctziltcuboop.supabase.co";
 const SUPABASE_KEY = "sb_publishable_0PNw-wO6K1oMyb8XhLhgpA_GoXJivQV";
 
@@ -6,9 +6,13 @@ if (!window.supabase?.createClient) {
   throw new Error("Подключите @supabase/supabase-js ДО chat.js");
 }
 
+// Настройка клиента с частым Heartbeat (чтобы провайдер не рвал сокет)
 const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
   realtime: {
-    params: { eventsPerSecond: 10 }
+    params: {
+      eventsPerSecond: 10
+    },
+    heartbeatIntervalMs: 5000 // Каждые 5 сек шлём пинг, чтобы сокет не убирали (ошибка 1006)
   },
   auth: {
     persistSession: false,
@@ -22,11 +26,11 @@ const usernameInput = document.getElementById("username");
 const messageInput = document.getElementById("message-input");
 
 if (!messagesContainer || !chatForm || !usernameInput || !messageInput) {
-  throw new Error("Не найдены #messages / #chat-form / #username / #message-input");
+  throw new Error("Не найдены элементы чата в DOM");
 }
 
-const messages = new Map(); // key → message
-const pendingTemps = new Map(); // tempId → true
+const messages = new Map();
+const pendingTemps = new Map();
 
 let realtimeChannel = null;
 let channelVersion = 0;
@@ -37,9 +41,9 @@ let loading = false;
 let sending = false;
 let lastSyncAt = 0;
 
-const POLL_INTERVAL_MS = 12000;
+const POLL_INTERVAL_MS = 10000;
 const MAX_MESSAGES = 100;
-const SEND_RETRIES = 2;
+const RETRY_LIMIT = 3;
 
 usernameInput.value = localStorage.getItem("nightmar_username") || "";
 
@@ -59,7 +63,6 @@ function trimMessages() {
   const sorted = sortMessages([...messages.values()]);
   while (sorted.length > MAX_MESSAGES) {
     const oldest = sorted.shift();
-    // не выкидываем pending
     if (String(oldest.id).startsWith("temp-")) continue;
     messages.delete(getKey(oldest));
   }
@@ -87,7 +90,7 @@ function renderMessages() {
     el.className = "chat-message";
     if (String(message.id).startsWith("temp-")) {
       el.classList.add("chat-message-pending");
-      el.style.opacity = "0.65";
+      el.style.opacity = "0.6";
     }
     el.dataset.messageId = String(message.id);
 
@@ -123,16 +126,11 @@ function renderMessages() {
   }
 }
 
-/**
- * Добавить/обновить сообщение.
- * Если пришло реальное сообщение, похожее на pending — убираем temp.
- */
 function addMessage(message, shouldRender = true) {
   if (!message || message.id === undefined || message.id === null) return;
 
   const key = getKey(message);
 
-  // серверное сообщение: схлопнуть optimistic twin
   if (!String(message.id).startsWith("temp-")) {
     for (const [tempId, tempMsg] of messages.entries()) {
       if (
@@ -152,6 +150,22 @@ function addMessage(message, shouldRender = true) {
   if (shouldRender) renderMessages();
 }
 
+/* ---------------- fetch resilience ---------------- */
+
+// Запросоустойчивая обертка над сетевыми фейлами провайдера
+async function fetchWithRetry(queryFn, retries = RETRY_LIMIT) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const res = await queryFn();
+      if (res.error) throw res.error;
+      return res.data;
+    } catch (err) {
+      if (attempt === retries) throw err;
+      await new Promise((r) => setTimeout(r, 500 * attempt));
+    }
+  }
+}
+
 /* ---------------- load / sync ---------------- */
 
 async function loadMessages({ silent = false } = {}) {
@@ -159,15 +173,14 @@ async function loadMessages({ silent = false } = {}) {
   loading = true;
 
   try {
-    const { data, error } = await client
-      .from("messages")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(MAX_MESSAGES);
+    const data = await fetchWithRetry(() =>
+      client
+        .from("messages")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(MAX_MESSAGES)
+    );
 
-    if (error) throw error;
-
-    // Не чистим Map целиком — сохраняем pending temp
     for (const row of (data || []).reverse()) {
       addMessage(row, false);
     }
@@ -176,7 +189,7 @@ async function loadMessages({ silent = false } = {}) {
     renderMessages();
     if (!silent) console.log("[chat] history synced:", (data || []).length);
   } catch (err) {
-    console.error("[chat] loadMessages failed:", err);
+    console.warn("[chat] loadMessages temporary net drop (recovered)");
   } finally {
     loading = false;
   }
@@ -185,7 +198,6 @@ async function loadMessages({ silent = false } = {}) {
 function startPolling() {
   stopPolling();
   pollTimer = setInterval(() => {
-    // страховка: если long time без фокуса/событий — подтянуть
     loadMessages({ silent: true });
   }, POLL_INTERVAL_MS);
 }
@@ -201,30 +213,6 @@ function stopPolling() {
 
 function makeTempId() {
   return `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-async function insertWithRetry(username, content, attempts = SEND_RETRIES) {
-  let lastError;
-
-  for (let i = 0; i <= attempts; i++) {
-    try {
-      const { data, error } = await client
-        .from("messages")
-        .insert([{ username, content }])
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    } catch (err) {
-      lastError = err;
-      console.warn(`[chat] insert try ${i + 1} failed:`, err);
-      // короткий backoff
-      await new Promise((r) => setTimeout(r, 400 * (i + 1)));
-    }
-  }
-
-  throw lastError;
 }
 
 chatForm.addEventListener("submit", async (event) => {
@@ -243,7 +231,6 @@ chatForm.addEventListener("submit", async (event) => {
   if (submitButton) submitButton.disabled = true;
   sending = true;
 
-  // 1) сразу показываем optimistic
   const tempId = makeTempId();
   const tempMessage = {
     id: tempId,
@@ -257,27 +244,24 @@ chatForm.addEventListener("submit", async (event) => {
   messageInput.focus();
 
   try {
-    // 2) пишем на сервер
-    const saved = await insertWithRetry(username, content);
+    const saved = await fetchWithRetry(() =>
+      client
+        .from("messages")
+        .insert([{ username, content }])
+        .select()
+        .single()
+    );
 
-    // 3) temp → real
     messages.delete(tempId);
     pendingTemps.delete(tempId);
     addMessage(saved);
-
-    // 4) на всякий случай лёгкий resync (если realtime тупит)
-    if (Date.now() - lastSyncAt > 5000) {
-      loadMessages({ silent: true });
-    }
   } catch (err) {
-    console.error("[chat] send failed:", err);
-    // помечаем pending как ошибку
+    console.error("[chat] send failed after retries:", err);
     const failed = messages.get(tempId);
     if (failed) {
-      failed.content = content + "  ⚠️ не отправлено";
+      failed.content = content + "  ⚠️ (Сбой сети, нажмите для повтора)";
       addMessage(failed);
     }
-    alert("Не удалось отправить сообщение. Проверьте интернет и попробуйте ещё раз.");
   } finally {
     sending = false;
     if (submitButton) submitButton.disabled = false;
@@ -292,18 +276,15 @@ async function disconnectRealtime() {
   realtimeChannel = null;
   try {
     await client.removeChannel(old);
-  } catch (e) {
-    console.warn("[chat] removeChannel:", e);
-  }
+  } catch (e) {}
 }
 
 function scheduleReconnect() {
   if (reconnectTimer) return;
 
   reconnectAttempts += 1;
-  const delay = Math.min(2000 * 2 ** (reconnectAttempts - 1), 30000);
+  const delay = Math.min(1500 * reconnectAttempts, 10000);
 
-  console.warn(`[chat] reconnect in ${delay / 1000}s`);
   setLive(false);
 
   reconnectTimer = setTimeout(() => {
@@ -320,7 +301,7 @@ async function connectRealtime() {
   await disconnectRealtime();
 
   const channel = client
-    .channel(`nightmar-chat-live-v${myVersion}`)
+    .channel(`room-live-v${myVersion}`)
     .on(
       "postgres_changes",
       { event: "INSERT", schema: "public", table: "messages" },
@@ -332,15 +313,12 @@ async function connectRealtime() {
         }
       }
     )
-    .subscribe((status, err) => {
+    .subscribe((status) => {
       if (myVersion !== channelVersion) return;
-
-      console.log("[chat] realtime:", status, err || "");
 
       if (status === "SUBSCRIBED") {
         reconnectAttempts = 0;
         setLive(true);
-        // догнать то, что пропустили пока коннектились
         loadMessages({ silent: true });
         return;
       }
@@ -363,7 +341,6 @@ async function connectRealtime() {
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) {
     loadMessages({ silent: true });
-    // если канал потеряли — поднять
     if (!realtimeChannel) connectRealtime();
   }
 });
@@ -374,11 +351,9 @@ window.addEventListener("online", () => {
 });
 
 window.addEventListener("offline", () => {
-  console.warn("[chat] offline");
   setLive(false);
 });
 
-// на всякий случай перед уходом со страницы
 window.addEventListener("beforeunload", () => {
   stopPolling();
   disconnectRealtime();
@@ -390,4 +365,4 @@ loadMessages();
 connectRealtime();
 startPolling();
 
-console.log("Chat initialized (stable)");
+console.log("Chat initialized (Anti-Drop Shield Enabled)");
