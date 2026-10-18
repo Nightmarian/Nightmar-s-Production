@@ -1,3 +1,7 @@
+// ============================================
+// NIGHTMAR'S PRODUCTION CHAT - OPTIMIZED
+// ============================================
+
 const SUPABASE_URL = "https://ipyqydrqctziltcuboop.supabase.co";
 const SUPABASE_KEY = "sb_publishable_0PNw-wO6K1oMyb8XhLhgpA_GoXJivQV";
 
@@ -11,56 +15,74 @@ const sendButton = document.getElementById("send-button");
 
 usernameInput.value = localStorage.getItem("nightmar_username") || "";
 
-let lastMessageId = 0;
-let isLoading = false;
-let realtimeConnected = false;
-
 // ============================================
-// ОПТИМИЗАЦИЯ 1: Локальный кэш в IndexedDB
+// РЕЖИМ ОФФЛАЙН + КЭШИРОВАНИЕ
 // ============================================
 
-const openIndexedDB = () => {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open("NightmarChat", 1);
-    
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve(request.result);
-    
-    request.onupgradeneeded = (e) => {
-      const db = e.target.result;
-      if (!db.objectStoreNames.contains("messages")) {
-        db.createObjectStore("messages", { keyPath: "id" });
-      }
-    };
-  });
-};
+let messageQueue = [];
+let isOnline = navigator.onLine;
+let syncing = false;
 
-const cacheMessage = async (message) => {
+// Слушаем потерю интернета
+window.addEventListener("online", syncMessages);
+window.addEventListener("offline", () => {
+  isOnline = false;
+  updateStatus();
+});
+
+window.addEventListener("online", () => {
+  isOnline = true;
+  updateStatus();
+  syncMessages();
+});
+
+function updateStatus() {
+  const status = document.querySelector(".chat-online");
+  if (isOnline) {
+    status.textContent = "● LIVE";
+    status.style.color = "#b30000";
+  } else {
+    status.textContent = "● OFFLINE";
+    status.style.color = "#999";
+  }
+}
+
+updateStatus();
+
+// ============================================
+// LOCALFORAGE для кэша (быстрее чем IndexedDB)
+// ============================================
+
+async function cacheMessage(msg) {
   try {
-    const db = await openIndexedDB();
-    const tx = db.transaction("messages", "readwrite");
-    tx.objectStore("messages").put(message);
+    const cached = await localforage.getItem("messages") || [];
+    cached.push(msg);
+    // Храните только последние 200 сообщений
+    const trimmed = cached.slice(-200);
+    await localforage.setItem("messages", trimmed);
   } catch (e) {
     console.error("Cache error:", e);
   }
-};
+}
 
-const getCachedMessages = async () => {
+async function getCachedMessages() {
   try {
-    const db = await openIndexedDB();
-    const tx = db.transaction("messages", "readonly");
-    return new Promise((resolve) => {
-      const request = tx.objectStore("messages").getAll();
-      request.onsuccess = () => resolve(request.result.sort((a, b) => a.id - b.id));
-    });
+    return await localforage.getItem("messages") || [];
   } catch (e) {
-    console.error("Cache read error:", e);
     return [];
   }
-};
+}
+
+async function clearCache() {
+  try {
+    await localforage.removeItem("messages");
+  } catch (e) {
+    console.error("Clear cache error:", e);
+  }
+}
 
 // ============================================
-// ОПТИМИЗАЦИЯ 2: Отправка сообщений быстрее
+// ОТПРАВКА С ОЧЕРЕДЬЮ
 // ============================================
 
 chatForm.addEventListener("submit", async (event) => {
@@ -73,8 +95,7 @@ chatForm.addEventListener("submit", async (event) => {
 
   localStorage.setItem("nightmar_username", username);
 
-  // СРАЗУ покажите сообщение (optimistic update)
-  const optimisticMessage = {
+  const msg = {
     id: Date.now(),
     username,
     content,
@@ -82,62 +103,89 @@ chatForm.addEventListener("submit", async (event) => {
     pending: true
   };
 
-  displayMessage(optimisticMessage);
+  // СРАЗУ покажите
+  displayMessage(msg);
   messageInput.value = "";
   sendButton.disabled = true;
 
-  // Отправляйте в фоне
-  setTimeout(async () => {
-    const { error, data } = await client
-      .from("messages")
-      .insert([{ username, content }])
-      .select();
+  // Добавьте в очередь
+  messageQueue.push(msg);
 
-    if (error) {
-      console.error("Ошибка отправки:", error);
-      alert("Ошибка отправки сообщения");
-      
-      // Удалите оптимистичное сообщение
-      const elem = document.getElementById(`msg-${optimisticMessage.id}`);
-      if (elem) elem.remove();
-    } else if (data && data[0]) {
-      // Замените оптимистичное сообщение на реальное
-      const oldElem = document.getElementById(`msg-${optimisticMessage.id}`);
-      if (oldElem) oldElem.remove();
-      
-      displayMessage(data[0]);
-      await cacheMessage(data[0]);
-    }
-    
-    sendButton.disabled = false;
-  }, 0);
+  if (isOnline) {
+    // Отправляйте асинхронно
+    setTimeout(() => sendToSupabase(msg), 100);
+  } else {
+    // Сохраните локально
+    await cacheMessage(msg);
+  }
 });
 
+async function sendToSupabase(msg) {
+  try {
+    const { error, data } = await client
+      .from("messages")
+      .insert([{
+        username: msg.username,
+        content: msg.content
+      }])
+      .select();
+
+    if (error) throw error;
+
+    // Обновите ID сообщения
+    const elem = document.getElementById(`msg-${msg.id}`);
+    if (elem && data && data[0]) {
+      elem.id = `msg-${data[0].id}`;
+      elem.classList.remove("pending");
+    }
+
+    messageQueue = messageQueue.filter(m => m.id !== msg.id);
+    await cacheMessage(msg);
+
+  } catch (error) {
+    console.error("Send error:", error);
+  } finally {
+    sendButton.disabled = false;
+  }
+}
+
+async function syncMessages() {
+  if (syncing || messageQueue.length === 0) return;
+  
+  syncing = true;
+
+  for (const msg of messageQueue) {
+    await sendToSupabase(msg);
+    await new Promise(r => setTimeout(r, 500)); // Небольшая задержка
+  }
+
+  syncing = false;
+}
+
 // ============================================
-// ОПТИМИЗАЦИЯ 3: Умное отображение
+// ОТОБРАЖЕНИЕ СООБЩЕНИЙ
 // ============================================
 
 const displayedIds = new Set();
 
-function displayMessage(message) {
-  if (displayedIds.has(message.id)) return;
+function displayMessage(msg) {
+  if (displayedIds.has(msg.id)) return;
 
-  displayedIds.add(message.id);
-  lastMessageId = Math.max(lastMessageId, message.id || 0);
+  displayedIds.add(msg.id);
 
   const element = document.createElement("div");
-  element.className = "chat-message" + (message.pending ? " pending" : "");
-  element.id = `msg-${message.id}`;
+  element.className = "chat-message" + (msg.pending ? " pending" : "");
+  element.id = `msg-${msg.id}`;
 
   const header = document.createElement("div");
   header.className = "chat-message-header";
 
   const username = document.createElement("span");
   username.className = "chat-username";
-  username.textContent = message.username;
+  username.textContent = msg.username;
 
   const time = document.createElement("span");
-  time.textContent = new Date(message.created_at).toLocaleTimeString("ru-RU", {
+  time.textContent = new Date(msg.created_at).toLocaleTimeString("ru-RU", {
     hour: "2-digit",
     minute: "2-digit"
   });
@@ -146,91 +194,79 @@ function displayMessage(message) {
 
   const content = document.createElement("div");
   content.className = "chat-message-content";
-  content.textContent = message.content;
+  content.textContent = msg.content;
 
   element.append(header, content);
   messagesContainer.appendChild(element);
 
-  // Прокрутка АСИНХРОННО
+  // Асинхронная прокрутка
   requestAnimationFrame(() => {
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
   });
 
-  // Удалите старые сообщения
-  if (messagesContainer.children.length > 150) {
-    const toRemove = messagesContainer.children[0];
-    displayedIds.delete(parseInt(toRemove.id.split("-")[1]));
-    toRemove.remove();
+  // Удаляйте старые (больше 100)
+  if (messagesContainer.children.length > 100) {
+    const old = messagesContainer.children[0];
+    displayedIds.delete(parseInt(old.id.split("-")[1]));
+    old.remove();
   }
 }
 
 // ============================================
-// ОПТИМИЗАЦИЯ 4: Lazy loading + кэш
+// ЗАГРУЗКА СООБЩЕНИЙ
 // ============================================
 
 async function loadMessages() {
-  if (isLoading) return;
-  isLoading = true;
+  // Сначала покажите кэш
+  const cached = await getCachedMessages();
+  
+  messagesContainer.innerHTML = "";
+  displayedIds.clear();
 
+  cached.forEach(displayMessage);
+
+  if (!isOnline) {
+    console.log("Оффлайн режим - кэш загружен");
+    return;
+  }
+
+  // Потом загрузите свежие
   try {
-    // Сначала покажите кэшированные сообщения
-    const cached = await getCachedMessages();
-    
-    messagesContainer.innerHTML = "";
-    displayedIds.clear();
-    lastMessageId = 0;
-
-    cached.forEach(displayMessage);
-
-    // Потом загрузите свежие
     const { data, error } = await client
       .from("messages")
       .select("*")
       .order("created_at", { ascending: true })
       .limit(100);
 
-    if (error) {
-      console.error("Ошибка загрузки:", error);
-      isLoading = false;
-      return;
+    if (error) throw error;
+
+    // Обновите кэш
+    await clearCache();
+    for (const msg of data) {
+      await cacheMessage(msg);
     }
 
-    // Очистите старый кэш и добавьте новый
-    await new Promise(async (resolve) => {
-      const db = await openIndexedDB();
-      const tx = db.transaction("messages", "readwrite");
-      tx.objectStore("messages").clear();
-      
-      data.forEach(msg => {
-        tx.objectStore("messages").put(msg);
-      });
-      
-      tx.oncomplete = resolve;
-    });
-
+    // Очистите UI и перезагрузите
     messagesContainer.innerHTML = "";
     displayedIds.clear();
-    lastMessageId = 0;
 
     data.forEach(displayMessage);
 
-  } catch (e) {
-    console.error("Load error:", e);
-  } finally {
-    isLoading = false;
+  } catch (error) {
+    console.error("Load error:", error);
   }
 }
 
 // ============================================
-// ОПТИМИЗАЦИЯ 5: Realtime с отступлением
+// REALTIME (если доступно)
 // ============================================
 
-let realtimeChannel = null;
+let realtimeTimeout = null;
 
 function connectRealtime() {
-  if (realtimeChannel) return;
+  if (!isOnline) return;
 
-  realtimeChannel = client
+  const channel = client
     .channel("nightmar-chat-live")
     .on(
       "postgres_changes",
@@ -240,48 +276,42 @@ function connectRealtime() {
         table: "messages"
       },
       (payload) => {
-        if (payload.new && payload.new.id > lastMessageId) {
-          displayMessage(payload.new);
-          cacheMessage(payload.new);
-        }
+        displayMessage(payload.new);
+        cacheMessage(payload.new);
       }
     )
-    .subscribe(async (status) => {
-      console.log("Realtime status:", status);
+    .subscribe((status) => {
+      console.log("Realtime:", status);
 
       if (status === "SUBSCRIBED") {
-        realtimeConnected = true;
-        await loadMessages();
+        loadMessages();
       }
 
-      if (status === "CHANNEL_ERROR") {
-        realtimeConnected = false;
-        console.warn("Realtime потеряно, переподключаемся через 3 сек...");
+      if (status === "CHANNEL_ERROR" || status === "CLOSED") {
+        console.warn("Realtime потеряно");
         
-        realtimeChannel = null;
-        setTimeout(connectRealtime, 3000);
+        // Пересоедините через 5 сек
+        clearTimeout(realtimeTimeout);
+        realtimeTimeout = setTimeout(connectRealtime, 5000);
       }
     });
+
+  return channel;
 }
 
 // ============================================
-// ОПТИМИЗАЦИЯ 6: Восстановление при потере фокуса
+// ВОССТАНОВЛЕНИЕ ПРИ ПОТЕРЕ ФОКУСА
 // ============================================
 
 document.addEventListener("visibilitychange", () => {
-  if (!document.hidden && !realtimeConnected) {
+  if (!document.hidden) {
     console.log("Восстановление соединения...");
-    connectRealtime();
+    loadMessages();
+    if (isOnline) {
+      connectRealtime();
+    }
   }
 });
-
-// Проверка соединения каждые 30 сек
-setInterval(() => {
-  if (!realtimeConnected && !document.hidden) {
-    console.log("Переподключение...");
-    connectRealtime();
-  }
-}, 30000);
 
 // ============================================
 // ИНИЦИАЛИЗАЦИЯ
@@ -289,3 +319,5 @@ setInterval(() => {
 
 loadMessages();
 connectRealtime();
+
+console.log("🚀 Chat initialized with offline support");
