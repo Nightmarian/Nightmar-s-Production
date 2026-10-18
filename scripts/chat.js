@@ -13,73 +13,140 @@ const chatForm = document.getElementById("chat-form");
 const usernameInput = document.getElementById("username");
 const messageInput = document.getElementById("message-input");
 
-const displayedMessages = new Set();
+const messages = new Map();
 
 let realtimeChannel = null;
 let reconnectAttempts = 0;
 let reconnectTimer = null;
+let channelVersion = 0;
+let loading = false;
 
 usernameInput.value =
   localStorage.getItem("nightmar_username") || "";
 
-function displayMessage(message) {
-  const element = document.createElement("div");
-  element.className = "chat-message";
+/* --------------------------------------------
+   Работа с сообщениями
+-------------------------------------------- */
 
-  const header = document.createElement("div");
-  header.className = "chat-message-header";
+function getMessageKey(message) {
+  return String(message.id);
+}
 
-  const username = document.createElement("span");
-  username.className = "chat-username";
-  username.textContent = message.username;
+function addMessage(message, shouldRender = true) {
+  if (!message || message.id === undefined || message.id === null) {
+    return;
+  }
 
-  const time = document.createElement("span");
-  time.textContent = new Date(message.created_at).toLocaleTimeString(
-    "ru-RU",
-    {
-      hour: "2-digit",
-      minute: "2-digit"
-    }
+  const key = getMessageKey(message);
+
+  // Если сообщение уже есть — обновляем его данными с сервера.
+  messages.set(key, message);
+
+  // Оставляем максимум 100 последних сообщений.
+  const sorted = [...messages.values()].sort(
+    (a, b) => new Date(a.created_at) - new Date(b.created_at)
   );
 
-  header.append(username, time);
-
-  const content = document.createElement("div");
-  content.className = "chat-message-content";
-  content.textContent = message.content;
-
-  element.append(header, content);
-  messagesContainer.appendChild(element);
-
-  messagesContainer.scrollTop = messagesContainer.scrollHeight;
-}
-
-function addMessage(message) {
-  if (!message?.id || displayedMessages.has(message.id)) {
-    return;
+  while (sorted.length > 100) {
+    const oldest = sorted.shift();
+    messages.delete(getMessageKey(oldest));
   }
 
-  displayedMessages.add(message.id);
-  displayMessage(message);
+  if (shouldRender) {
+    renderMessages();
+  }
 }
+
+function renderMessages() {
+  const isNearBottom =
+    messagesContainer.scrollHeight -
+      messagesContainer.scrollTop -
+      messagesContainer.clientHeight <
+    100;
+
+  const sortedMessages = [...messages.values()].sort(
+    (a, b) => new Date(a.created_at) - new Date(b.created_at)
+  );
+
+  const fragment = document.createDocumentFragment();
+
+  for (const message of sortedMessages) {
+    const element = document.createElement("div");
+    element.className = "chat-message";
+    element.dataset.messageId = String(message.id);
+
+    const header = document.createElement("div");
+    header.className = "chat-message-header";
+
+    const username = document.createElement("span");
+    username.className = "chat-username";
+    username.textContent = message.username || "Unknown";
+
+    const time = document.createElement("span");
+
+    const date = new Date(message.created_at);
+    time.textContent = Number.isNaN(date.getTime())
+      ? "--:--"
+      : date.toLocaleTimeString("ru-RU", {
+          hour: "2-digit",
+          minute: "2-digit"
+        });
+
+    const content = document.createElement("div");
+    content.className = "chat-message-content";
+    content.textContent = message.content || "";
+
+    header.append(username, time);
+    element.append(header, content);
+    fragment.appendChild(element);
+  }
+
+  messagesContainer.replaceChildren(fragment);
+
+  // Не сбрасываем пользователю прокрутку, если он читает старые сообщения.
+  if (isNearBottom) {
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  }
+}
+
+/* --------------------------------------------
+   Загрузка истории
+-------------------------------------------- */
 
 async function loadMessages() {
-  const { data, error } = await client
-    .from("messages")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(100);
+  if (loading) return;
 
-  if (error) {
+  loading = true;
+
+  try {
+    const { data, error } = await client
+      .from("messages")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    if (error) {
+      throw error;
+    }
+
+    // Не очищаем интерфейс и Map.
+    // Это важно: сообщение, пришедшее по Realtime во время запроса,
+    // не исчезнет.
+    for (const message of (data || []).reverse()) {
+      addMessage(message, false);
+    }
+
+    renderMessages();
+  } catch (error) {
     console.error("Ошибка загрузки сообщений:", error);
-    return;
+  } finally {
+    loading = false;
   }
-
-  messagesContainer.innerHTML = "";
-  displayedMessages.clear();
-
-  data.reverse().forEach(addMessage);
 }
+
+/* --------------------------------------------
+   Отправка
+-------------------------------------------- */
 
 chatForm.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -91,32 +158,67 @@ chatForm.addEventListener("submit", async (event) => {
 
   localStorage.setItem("nightmar_username", username);
 
-  const { error } = await client
-    .from("messages")
-    .insert([{ username, content }]);
+  const submitButton = chatForm.querySelector(
+    'button[type="submit"], input[type="submit"]'
+  );
 
-  if (error) {
-    alert("Ошибка отправки сообщения");
-    console.error(error);
-    return;
+  if (submitButton) {
+    submitButton.disabled = true;
   }
 
-  messageInput.value = "";
-  loadMessages();
-});
+  try {
+    const { data, error } = await client
+      .from("messages")
+      .insert([{ username, content }])
+      .select()
+      .single();
 
-async function connectRealtime() {
-  if (realtimeChannel) {
-    try {
-      await client.removeChannel(realtimeChannel);
-    } catch (error) {
-      console.warn("Не удалось удалить старый канал:", error);
+    if (error) {
+      throw error;
     }
 
-    realtimeChannel = null;
-  }
+    messageInput.value = "";
 
-  realtimeChannel = client
+    // Сразу добавляем сообщение в интерфейс.
+    // Когда оно придёт через Realtime, дубля не будет,
+    // потому что оно уже есть в Map по id.
+    addMessage(data);
+  } catch (error) {
+    console.error("Ошибка отправки сообщения:", error);
+    alert("Не удалось отправить сообщение. Попробуйте ещё раз.");
+  } finally {
+    if (submitButton) {
+      submitButton.disabled = false;
+    }
+  }
+});
+
+/* --------------------------------------------
+   Supabase Realtime
+-------------------------------------------- */
+
+async function disconnectRealtime() {
+  if (!realtimeChannel) return;
+
+  const oldChannel = realtimeChannel;
+  realtimeChannel = null;
+
+  try {
+    await client.removeChannel(oldChannel);
+  } catch (error) {
+    console.warn("Не удалось закрыть старый Realtime-канал:", error);
+  }
+}
+
+async function connectRealtime() {
+  clearTimeout(reconnectTimer);
+  reconnectTimer = null;
+
+  const currentVersion = ++channelVersion;
+
+  await disconnectRealtime();
+
+  const channel = client
     .channel("nightmar-chat-live")
     .on(
       "postgres_changes",
@@ -126,19 +228,29 @@ async function connectRealtime() {
         table: "messages"
       },
       (payload) => {
-        addMessage(payload.new);
+        if (currentVersion !== channelVersion) return;
+
+        if (payload?.new) {
+          addMessage(payload.new);
+        }
       }
     )
-    .subscribe((status, err) => {
-      console.log("Realtime status:", status, err || "");
+    .subscribe((status, error) => {
+      // Игнорируем события старых каналов.
+      if (currentVersion !== channelVersion) return;
+
+      console.log("Realtime status:", status, error || "");
 
       if (status === "SUBSCRIBED") {
         reconnectAttempts = 0;
+
+        // Догружаем сообщения, которые могли прийти
+        // до завершения подключения Realtime.
         loadMessages();
         return;
       }
 
-     if (
+      if (
         status === "CHANNEL_ERROR" ||
         status === "TIMED_OUT" ||
         status === "CLOSED"
@@ -146,6 +258,8 @@ async function connectRealtime() {
         scheduleReconnect();
       }
     });
+
+  realtimeChannel = channel;
 }
 
 function scheduleReconnect() {
@@ -153,14 +267,14 @@ function scheduleReconnect() {
 
   reconnectAttempts++;
 
-  // 3, 6, 12, 24 секунды, максимум 60
+  // 3, 6, 12, 24, 48, максимум 60 секунд.
   const delay = Math.min(
     3000 * 2 ** (reconnectAttempts - 1),
     60000
   );
 
   console.warn(
-    Realtime недоступен. Переподключение через ${delay / 1000} сек.
+    `Realtime недоступен. Переподключение через ${delay / 1000} сек.`
   );
 
   reconnectTimer = setTimeout(() => {
@@ -169,11 +283,34 @@ function scheduleReconnect() {
   }, delay);
 }
 
+/* --------------------------------------------
+   Восстановление при возврате на вкладку
+-------------------------------------------- */
+
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) {
     loadMessages();
+
+    if (!realtimeChannel) {
+      connectRealtime();
+    }
   }
 });
 
+window.addEventListener("online", () => {
+  loadMessages();
+  connectRealtime();
+});
+
+window.addEventListener("offline", () => {
+  console.warn("Интернет-соединение отсутствует");
+});
+
+/* --------------------------------------------
+   Инициализация
+-------------------------------------------- */
+
 loadMessages();
 connectRealtime();
+
+console.log("🚀 Chat initialized");
