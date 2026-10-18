@@ -138,7 +138,7 @@ async function connectRealtime() {
         return;
       }
 
-      if (
+     if (
         status === "CHANNEL_ERROR" ||
         status === "TIMED_OUT" ||
         status === "CLOSED"
@@ -153,6 +153,7 @@ function scheduleReconnect() {
 
   reconnectAttempts++;
 
+  // 3, 6, 12, 24 секунды, максимум 60
   const delay = Math.min(
     3000 * 2 ** (reconnectAttempts - 1),
     60000
