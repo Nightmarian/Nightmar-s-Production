@@ -3,15 +3,33 @@
 const SUPABASE_URL = "https://ipyqydrqctziltcuboop.supabase.co";
 const SUPABASE_KEY = "sb_publishable_0PNw-wO6K1oMyb8XhLhgpA_GoXJivQV";
 
-const client = window.supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_KEY
-);
+if (!window.supabase || typeof window.supabase.createClient !== "function") {
+  console.error(
+    "Supabase JS не загружен. Подключите CDN до chat.js, например:\n" +
+      '<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>'
+  );
+  throw new Error("Supabase SDK missing");
+}
+
+const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const messagesContainer = document.getElementById("messages");
 const chatForm = document.getElementById("chat-form");
 const usernameInput = document.getElementById("username");
 const messageInput = document.getElementById("message-input");
+const statusEl =
+  document.getElementById("connection-status") ||
+  document.querySelector(".connection-status");
+
+if (!messagesContainer || !chatForm || !usernameInput || !messageInput) {
+  console.error("Не найдены элементы чата в DOM:", {
+    messagesContainer,
+    chatForm,
+    usernameInput,
+    messageInput
+  });
+  throw new Error("Chat DOM elements missing");
+}
 
 const messages = new Map();
 
@@ -21,8 +39,23 @@ let reconnectTimer = null;
 let channelVersion = 0;
 let loading = false;
 
-usernameInput.value =
-  localStorage.getItem("nightmar_username") || "";
+usernameInput.value = localStorage.getItem("nightmar_username") || "";
+
+function setStatus(text, isLive) {
+  if (statusEl) {
+    statusEl.textContent = text;
+  }
+
+  // если отдельного статуса нет — показываем служебной строкой в ленте
+  if (!statusEl && messages.size === 0 && messagesContainer) {
+    messagesContainer.textContent = text;
+  }
+
+  const liveDot = document.querySelector(".live-indicator, #live-dot");
+  if (liveDot) {
+    liveDot.style.opacity = isLive ? "1" : "0.35";
+  }
+}
 
 /* --------------------------------------------
    Работа с сообщениями
@@ -38,11 +71,8 @@ function addMessage(message, shouldRender = true) {
   }
 
   const key = getMessageKey(message);
-
-  // Если сообщение уже есть — обновляем его данными с сервера.
   messages.set(key, message);
 
-  // Оставляем максимум 100 последних сообщений.
   const sorted = [...messages.values()].sort(
     (a, b) => new Date(a.created_at) - new Date(b.created_at)
   );
@@ -83,7 +113,6 @@ function renderMessages() {
     username.textContent = message.username || "Unknown";
 
     const time = document.createElement("span");
-
     const date = new Date(message.created_at);
     time.textContent = Number.isNaN(date.getTime())
       ? "--:--"
@@ -103,7 +132,6 @@ function renderMessages() {
 
   messagesContainer.replaceChildren(fragment);
 
-  // Не сбрасываем пользователю прокрутку, если он читает старые сообщения.
   if (isNearBottom) {
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
   }
@@ -115,7 +143,6 @@ function renderMessages() {
 
 async function loadMessages() {
   if (loading) return;
-
   loading = true;
 
   try {
@@ -125,13 +152,8 @@ async function loadMessages() {
       .order("created_at", { ascending: false })
       .limit(100);
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
-    // Не очищаем интерфейс и Map.
-    // Это важно: сообщение, пришедшее по Realtime во время запроса,
-    // не исчезнет.
     for (const message of (data || []).reverse()) {
       addMessage(message, false);
     }
@@ -139,6 +161,7 @@ async function loadMessages() {
     renderMessages();
   } catch (error) {
     console.error("Ошибка загрузки сообщений:", error);
+    setStatus("Ошибка загрузки истории", false);
   } finally {
     loading = false;
   }
@@ -162,9 +185,7 @@ chatForm.addEventListener("submit", async (event) => {
     'button[type="submit"], input[type="submit"]'
   );
 
-  if (submitButton) {
-    submitButton.disabled = true;
-  }
+  if (submitButton) submitButton.disabled = true;
 
   try {
     const { data, error } = await client
@@ -173,23 +194,15 @@ chatForm.addEventListener("submit", async (event) => {
       .select()
       .single();
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
     messageInput.value = "";
-
-    // Сразу добавляем сообщение в интерфейс.
-    // Когда оно придёт через Realtime, дубля не будет,
-    // потому что оно уже есть в Map по id.
     addMessage(data);
   } catch (error) {
     console.error("Ошибка отправки сообщения:", error);
     alert("Не удалось отправить сообщение. Попробуйте ещё раз.");
   } finally {
-    if (submitButton) {
-      submitButton.disabled = false;
-    }
+    if (submitButton) submitButton.disabled = false;
   }
 });
 
@@ -216,6 +229,8 @@ async function connectRealtime() {
 
   const currentVersion = ++channelVersion;
 
+  setStatus("Установка соединения...", false);
+
   await disconnectRealtime();
 
   const channel = client
@@ -229,23 +244,19 @@ async function connectRealtime() {
       },
       (payload) => {
         if (currentVersion !== channelVersion) return;
-
-        if (payload?.new) {
+        if (payload && payload.new) {
           addMessage(payload.new);
         }
       }
     )
     .subscribe((status, error) => {
-      // Игнорируем события старых каналов.
       if (currentVersion !== channelVersion) return;
 
       console.log("Realtime status:", status, error || "");
 
       if (status === "SUBSCRIBED") {
         reconnectAttempts = 0;
-
-        // Догружаем сообщения, которые могли прийти
-        // до завершения подключения Realtime.
+        setStatus("LIVE", true);
         loadMessages();
         return;
       }
@@ -255,6 +266,7 @@ async function connectRealtime() {
         status === "TIMED_OUT" ||
         status === "CLOSED"
       ) {
+        setStatus("Соединение потеряно", false);
         scheduleReconnect();
       }
     });
@@ -265,17 +277,15 @@ async function connectRealtime() {
 function scheduleReconnect() {
   if (reconnectTimer) return;
 
-  reconnectAttempts++;
+  reconnectAttempts += 1;
 
-  // 3, 6, 12, 24, 48, максимум 60 секунд.
-  const delay = Math.min(
-    3000 * 2 ** (reconnectAttempts - 1),
-    60000
-  );
+  const delay = Math.min(3000 * 2 ** (reconnectAttempts - 1), 60000);
 
   console.warn(
-    `Realtime недоступен. Переподключение через ${delay / 1000} сек.`
+    "Realtime недоступен. Переподключение через " + delay / 1000 + " сек."
   );
+
+  setStatus("Переподключение через " + delay / 1000 + " сек...", false);
 
   reconnectTimer = setTimeout(() => {
     reconnectTimer = null;
@@ -290,7 +300,6 @@ function scheduleReconnect() {
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) {
     loadMessages();
-
     if (!realtimeChannel) {
       connectRealtime();
     }
@@ -304,13 +313,15 @@ window.addEventListener("online", () => {
 
 window.addEventListener("offline", () => {
   console.warn("Интернет-соединение отсутствует");
+  setStatus("Нет интернета", false);
 });
 
 /* --------------------------------------------
    Инициализация
 -------------------------------------------- */
 
+setStatus("Установка соединения...", false);
 loadMessages();
 connectRealtime();
 
-console.log("🚀 Chat initialized");
+console.log("Chat initialized");
