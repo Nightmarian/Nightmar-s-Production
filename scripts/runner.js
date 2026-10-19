@@ -352,6 +352,27 @@ function drawBackground() {
 // ПЕРСОНАЖ (ПРАВИЛЬНАЯ АНАТОМИЯ)
 // ===============================
 
+// ===============================
+// ПЕРСОНАЖ (ПРАВИЛЬНАЯ АНАТОМИЯ И ИСПРАВЛЕННЫЙ СВЕТ)
+// ===============================
+
+function drawCreepyFace(ctx, fx, fy) {
+  // Глаза
+  ctx.fillStyle = "#fff";
+  ctx.beginPath(); ctx.arc(fx - 4, fy - 3, 2, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(fx + 5, fy - 3, 2.5, 0, Math.PI * 2); ctx.fill();
+  
+  // Острые зубы (улыбка)
+  ctx.beginPath();
+  ctx.moveTo(fx - 7, fy + 3); 
+  ctx.lineTo(fx - 5, fy + 6); ctx.lineTo(fx - 3, fy + 3);
+  ctx.lineTo(fx - 1, fy + 7); ctx.lineTo(fx + 1, fy + 3);
+  ctx.lineTo(fx + 3, fy + 7); ctx.lineTo(fx + 5, fy + 3);
+  ctx.lineTo(fx + 7, fy + 6); ctx.lineTo(fx + 9, fy + 2);
+  ctx.quadraticCurveTo(fx + 1, fy + 9, fx - 7, fy + 3); // Нижняя челюсть
+  ctx.fill();
+}
+
 function drawPlayer() {
   if (isDead) return;
 
@@ -359,133 +380,130 @@ function drawPlayer() {
   const y = player.y;
   ctx.save();
 
+  const cx = x + 15;
+  
+  // 1. ИСПРАВЛЕНИЕ УРОДЛИВОГО КВАДРАТА
+  // Вместо наслаивающегося shadowBlur рисуем одну чистую ауру с помощью градиента
+  const auraCenterY = player.sliding ? GROUND - 15 : y + 30;
+  const glow = ctx.createRadialGradient(cx, auraCenterY, 5, cx, auraCenterY, 35);
+  glow.addColorStop(0, "rgba(180, 220, 255, 0.25)");
+  glow.addColorStop(1, "rgba(180, 220, 255, 0)");
+  ctx.fillStyle = glow;
+  
+  ctx.beginPath(); 
+  ctx.arc(cx, auraCenterY, 35, 0, Math.PI * 2); 
+  ctx.fill();
+
   // Тень под ногами
   ctx.fillStyle = `rgba(0, 0, 0, ${player.grounded ? 0.6 : 0.2})`;
-  ctx.beginPath(); ctx.ellipse(x + 15, GROUND + 2, player.sliding ? 25 : 14, 3, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); 
+  ctx.ellipse(cx, GROUND + 2, player.sliding ? 28 : 14, 3, 0, 0, Math.PI * 2); 
+  ctx.fill();
 
-  // Легкое лунное свечение вокруг персонажа (вместо уродливого квадрата)
-  ctx.shadowColor = "rgba(180, 220, 255, 0.4)";
-  ctx.shadowBlur = 15;
+  // ОБЯЗАТЕЛЬНО отключаем тени Canvas, чтобы избежать квадратов
+  ctx.shadowBlur = 0; 
+  ctx.lineCap = "round"; 
+  ctx.lineJoin = "round";
 
   if (player.sliding) {
-    // --- ПРАВИЛЬНЫЙ ПОДКАТ (Опирается рукой на асфальт) ---
-    const cx = x + 10; 
+    // --- ДИНАМИЧНЫЙ ПОДКАТ (Опирается на руку) ---
     const cy = GROUND - 12;
 
+    // Задняя рука (убрана назад для баланса)
+    ctx.strokeStyle = "#080808"; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(cx + 5, cy - 8); ctx.lineTo(cx - 15, cy - 18); ctx.stroke();
+
     // Задняя нога (подогнута под себя)
-    ctx.strokeStyle = "#080808"; ctx.lineWidth = 8; ctx.lineCap = "round"; ctx.lineJoin = "round";
-    ctx.beginPath(); ctx.moveTo(cx + 5, cy); ctx.lineTo(cx - 8, GROUND - 4); ctx.stroke();
+    ctx.strokeStyle = "#080808"; ctx.lineWidth = 7;
+    ctx.beginPath(); ctx.moveTo(cx - 5, cy + 2); ctx.lineTo(cx - 20, GROUND - 4); ctx.lineTo(cx - 8, GROUND - 2); ctx.stroke();
+
+    // Тело (Худи) - Наклонено вперед и вниз
+    ctx.strokeStyle = "#111"; ctx.lineWidth = 15;
+    ctx.beginPath(); ctx.moveTo(cx - 5, cy + 2); ctx.lineTo(cx + 12, cy - 6); ctx.stroke();
     
-    // Задняя рука (убрана за спину)
-    ctx.strokeStyle = "#0d0d0d"; ctx.lineWidth = 6;
-    ctx.beginPath(); ctx.moveTo(cx + 10, cy - 8); ctx.lineTo(cx - 5, cy - 15); ctx.stroke();
-
-    // Тело (Худи) - Наклонное горизонтально
-    ctx.fillStyle = "#111";
-    ctx.beginPath(); ctx.roundRect(cx, cy - 14, 28, 16, 6); ctx.fill();
-
     // Лого NP
-    ctx.save(); ctx.translate(cx + 8, cy - 6); ctx.rotate(-0.1);
-    ctx.fillStyle = "#fff"; ctx.font = "bold 11px 'Courier New', monospace"; ctx.fillText("NP", 0, 0); ctx.restore();
+    ctx.fillStyle = "#fff"; ctx.font = "bold 10px 'Courier New', monospace";
+    ctx.save(); ctx.translate(cx + 2, cy - 2); ctx.rotate(-0.3); ctx.fillText("NP", -6, 4); ctx.restore();
 
-    // Капюшон (Смотрит вперед)
-    ctx.fillStyle = "#161616"; ctx.beginPath(); ctx.arc(cx + 28, cy - 6, 14, 0, Math.PI * 2); ctx.fill();
-    
-    // Огромная жуткая улыбка в капюшоне
-    ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(cx + 31, cy - 5, 12, 0, Math.PI * 2); ctx.fill(); // Черный фон
-    
-    ctx.shadowBlur = 0; // Отключаем свечение для четкости лица
-    ctx.fillStyle = "#fff";
-    ctx.beginPath(); ctx.arc(cx + 29, cy - 9, 2.5, 0, Math.PI * 2); ctx.fill(); // Глаз 1
-    ctx.beginPath(); ctx.arc(cx + 36, cy - 8, 2.5, 0, Math.PI * 2); ctx.fill(); // Глаз 2
-    
-    // Зубы (Широкий оскал)
-    ctx.beginPath();
-    ctx.moveTo(cx + 22, cy - 2); 
-    ctx.lineTo(cx + 24, cy); ctx.lineTo(cx + 26, cy - 2);
-    ctx.lineTo(cx + 28, cy + 1); ctx.lineTo(cx + 30, cy - 2);
-    ctx.lineTo(cx + 32, cy + 1); ctx.lineTo(cx + 34, cy - 2);
-    ctx.lineTo(cx + 36, cy + 1); ctx.lineTo(cx + 38, cy - 2);
-    ctx.lineTo(cx + 40, cy); ctx.lineTo(cx + 41, cy - 4);
-    ctx.quadraticCurveTo(cx + 31, cy + 6, cx + 22, cy - 2); // Нижняя дуга челюсти
-    ctx.fill();
-    ctx.shadowBlur = 15; // Возвращаем ауру
+    // Передняя нога (вытянута далеко вперед)
+    ctx.strokeStyle = "#151515"; ctx.lineWidth = 7;
+    ctx.beginPath(); ctx.moveTo(cx - 5, cy + 2); ctx.lineTo(cx + 25, GROUND - 4); ctx.stroke();
+    // Кроссовок
+    ctx.fillStyle = "#050505"; ctx.beginPath(); ctx.ellipse(cx + 28, GROUND - 3, 7, 3.5, 0, 0, Math.PI * 2); ctx.fill(); 
 
-    // Передняя нога (Вытянута далеко вперед)
-    ctx.strokeStyle = "#151515"; ctx.lineWidth = 8;
-    ctx.beginPath(); ctx.moveTo(cx + 25, cy + 2); ctx.lineTo(cx + 45, GROUND - 5); ctx.stroke();
-    ctx.fillStyle = "#050505"; ctx.beginPath(); ctx.ellipse(cx + 48, GROUND - 4, 6, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+    // Передняя рука (Опирается в землю перед собой, генерирует искры)
+    ctx.strokeStyle = "#1a1a1a"; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(cx + 12, cy - 6); ctx.lineTo(cx + 30, GROUND - 1); ctx.stroke();
+    ctx.fillStyle = "#dcdcdc"; ctx.beginPath(); ctx.arc(cx + 30, GROUND - 1, 3.5, 0, Math.PI * 2); ctx.fill(); // Кулак
 
-    // Передняя рука (ОПИРАЕТСЯ В ЗЕМЛЮ ПЕРЕД СОБОЙ)
-    ctx.strokeStyle = "#1a1a1a"; ctx.lineWidth = 6;
-    ctx.beginPath(); ctx.moveTo(cx + 20, cy - 6); ctx.lineTo(cx + 40, GROUND - 2); ctx.stroke();
-    // Кулак (генерирует искры)
-    ctx.fillStyle = "#dcdcdc"; ctx.beginPath(); ctx.arc(cx + 40, GROUND - 2, 3.5, 0, Math.PI * 2); ctx.fill();
+    // Голова
+    ctx.fillStyle = "#161616"; ctx.beginPath(); ctx.arc(cx + 20, cy - 12, 13, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(cx + 22, cy - 11, 10, 0, Math.PI * 2); ctx.fill(); // Темная бездна в капюшоне
+    
+    // Лицо
+    drawCreepyFace(ctx, cx + 23, cy - 11);
 
   } else {
-    // --- ПРАВИЛЬНЫЙ БЕГ ---
-    const runCycle = worldDistance / 16;
-    const legSwing = player.grounded ? Math.sin(runCycle) * 14 : 0;
-    const armSwing = player.grounded ? Math.cos(runCycle) * 14 : 6;
-    const bobY = player.grounded ? Math.abs(Math.sin(runCycle * 2)) * 3 : 0;
-
-    const cx = x + 15;
+    // --- ПРАВИЛЬНЫЙ БЕГ (Наклон вперед, суставы гнутся) ---
+    const runCycle = worldDistance / 18;
+    const phase = player.grounded ? runCycle : 0;
+    const bobY = player.grounded ? Math.abs(Math.sin(phase * 2)) * 3 : 0;
+    
+    const shoulderX = cx + 2;
     const shoulderY = y + 20 + bobY;
+    const hipX = cx - 3;
     const hipY = y + 42 + bobY;
 
-    // Задняя рука
-    ctx.strokeStyle = "#080808"; ctx.lineWidth = 6; ctx.lineCap = "round"; ctx.lineJoin = "round";
-    ctx.beginPath(); ctx.moveTo(cx, shoulderY); ctx.lineTo(cx + armSwing, shoulderY + 10); ctx.lineTo(cx + armSwing + 6, shoulderY + 2); ctx.stroke();
-    ctx.fillStyle = "#a9a9a9"; ctx.beginPath(); ctx.arc(cx + armSwing + 6, shoulderY + 2, 3, 0, Math.PI * 2); ctx.fill();
+    // Размах рук и ног
+    const legSwing = Math.sin(phase) * 14;
+    const armSwing = Math.cos(phase) * 12;
 
-    // Задняя нога
-    ctx.strokeStyle = "#080808"; ctx.lineWidth = 8;
-    ctx.beginPath(); ctx.moveTo(cx, hipY); ctx.lineTo(cx - legSwing, GROUND - 4); ctx.stroke();
-    ctx.fillStyle = "#000"; ctx.beginPath(); ctx.ellipse(cx - legSwing + 2, GROUND - 3, 6, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+    // Задняя рука (сгибается в локте)
+    ctx.strokeStyle = "#080808"; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(shoulderX, shoulderY); 
+    ctx.lineTo(shoulderX + armSwing - 5, shoulderY + 8); 
+    ctx.lineTo(shoulderX + armSwing + 5, shoulderY + 2); ctx.stroke();
+    ctx.fillStyle = "#a9a9a9"; ctx.beginPath(); ctx.arc(shoulderX + armSwing + 5, shoulderY + 2, 3, 0, Math.PI * 2); ctx.fill();
 
-    // Тело (Худи - закругленный прямоугольник, расширяющийся к плечам)
-    ctx.fillStyle = "#111";
-    ctx.beginPath();
-    ctx.moveTo(cx - 10, hipY); ctx.lineTo(cx + 10, hipY); // Низ
-    ctx.lineTo(cx + 14, shoulderY - 4); ctx.lineTo(cx - 14, shoulderY - 4); // Плечи
-    ctx.fill();
-    ctx.fillStyle = "#fff"; ctx.font = "bold 14px 'Courier New', monospace"; ctx.fillText("NP", cx - 8, hipY - 6);
+    // Задняя нога (сгибается в колене)
+    ctx.strokeStyle = "#080808"; ctx.lineWidth = 7;
+    ctx.beginPath(); ctx.moveTo(hipX, hipY); 
+    ctx.lineTo(hipX - legSwing - 4, hipY + 10); 
+    ctx.lineTo(hipX - legSwing, GROUND - 3); ctx.stroke();
+    ctx.fillStyle = "#000"; ctx.beginPath(); ctx.ellipse(hipX - legSwing + 3, GROUND - 2, 6, 3, 0, 0, Math.PI * 2); ctx.fill();
 
-    // Передняя нога
-    ctx.strokeStyle = "#151515"; ctx.lineWidth = 8;
-    ctx.beginPath(); ctx.moveTo(cx, hipY); ctx.lineTo(cx + legSwing, GROUND - 4); ctx.stroke();
-    ctx.fillStyle = "#050505"; ctx.beginPath(); ctx.ellipse(cx + legSwing + 2, GROUND - 3, 6, 3.5, 0, 0, Math.PI * 2); ctx.fill();
-
-    // Капюшон (Голова)
-    ctx.fillStyle = "#161616"; ctx.beginPath(); ctx.arc(cx, shoulderY - 8, 16, 0, Math.PI * 2); ctx.fill();
+    // Тело (Худи) - Динамичный наклон вперед (толстая линия вместо квадрата)
+    ctx.strokeStyle = "#111"; ctx.lineWidth = 17;
+    ctx.beginPath(); ctx.moveTo(hipX, hipY); ctx.lineTo(shoulderX, shoulderY); ctx.stroke();
     
-    // Огромная жуткая улыбка
-    ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(cx + 1, shoulderY - 7, 13, 0, Math.PI * 2); ctx.fill(); // Черный фон лица
-    
-    ctx.shadowBlur = 0;
-    ctx.fillStyle = "#fff";
-    ctx.beginPath(); ctx.arc(cx - 4, shoulderY - 11, 2.5, 0, Math.PI * 2); ctx.fill(); // Глаз 1
-    ctx.beginPath(); ctx.arc(cx + 5, shoulderY - 11, 2.5, 0, Math.PI * 2); ctx.fill(); // Глаз 2
-    
-    // Зубы
-    ctx.beginPath();
-    ctx.moveTo(cx - 9, shoulderY - 3); 
-    ctx.lineTo(cx - 6, shoulderY + 1); ctx.lineTo(cx - 4, shoulderY - 2);
-    ctx.lineTo(cx - 1, shoulderY + 2); ctx.lineTo(cx + 1, shoulderY - 2);
-    ctx.lineTo(cx + 4, shoulderY + 2); ctx.lineTo(cx + 6, shoulderY - 2);
-    ctx.lineTo(cx + 9, shoulderY + 1); ctx.lineTo(cx + 11, shoulderY - 4);
-    ctx.quadraticCurveTo(cx, shoulderY + 6, cx - 9, shoulderY - 3); // Нижняя челюсть
-    ctx.fill();
-    ctx.shadowBlur = 15;
+    // Лого NP
+    ctx.fillStyle = "#fff"; ctx.font = "bold 12px 'Courier New', monospace";
+    ctx.save(); ctx.translate(cx, y + 33 + bobY); ctx.rotate(0.15); ctx.fillText("NP", -8, 4); ctx.restore();
 
-    // Передняя рука
-    ctx.strokeStyle = "#1a1a1a"; ctx.lineWidth = 6;
-    ctx.beginPath(); ctx.moveTo(cx, shoulderY); ctx.lineTo(cx - armSwing, shoulderY + 10); ctx.lineTo(cx - armSwing + 10, shoulderY + 2); ctx.stroke();
-    ctx.fillStyle = "#dcdcdc"; ctx.beginPath(); ctx.arc(cx - armSwing + 10, shoulderY + 2, 3.5, 0, Math.PI * 2); ctx.fill();
+    // Передняя нога (сгибается в колене)
+    ctx.strokeStyle = "#151515"; ctx.lineWidth = 7;
+    ctx.beginPath(); ctx.moveTo(hipX, hipY); 
+    ctx.lineTo(hipX + legSwing + 4, hipY + 10); 
+    ctx.lineTo(hipX + legSwing, GROUND - 3); ctx.stroke();
+    ctx.fillStyle = "#050505"; ctx.beginPath(); ctx.ellipse(hipX + legSwing + 3, GROUND - 2, 6, 3, 0, 0, Math.PI * 2); ctx.fill();
+
+    // Передняя рука (сгибается в локте)
+    ctx.strokeStyle = "#1a1a1a"; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(shoulderX, shoulderY); 
+    ctx.lineTo(shoulderX - armSwing - 5, shoulderY + 8); 
+    ctx.lineTo(shoulderX - armSwing + 5, shoulderY + 2); ctx.stroke();
+    ctx.fillStyle = "#dcdcdc"; ctx.beginPath(); ctx.arc(shoulderX - armSwing + 5, shoulderY + 2, 3.5, 0, Math.PI * 2); ctx.fill();
+
+    // Капюшон
+    ctx.fillStyle = "#161616"; ctx.beginPath(); ctx.arc(shoulderX + 5, shoulderY - 12, 14, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(shoulderX + 6, shoulderY - 11, 11, 0, Math.PI * 2); ctx.fill(); // Темное лицо
+    
+    // Лицо
+    drawCreepyFace(ctx, shoulderX + 7, shoulderY - 11);
   }
+  
   ctx.restore();
 }
-
 // ===============================
 // ПРЕПЯТСТВИЯ
 // ===============================
