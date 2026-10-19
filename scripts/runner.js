@@ -13,8 +13,7 @@ const slideButton = document.getElementById("slideButton");
 
 const W = canvas.width;
 const H = canvas.height;
-// ЗАМЕТКА: Убедись, что в HTML у тебя <canvas width="800" height="450">
-const GROUND = 370;
+const GROUND = 370; 
 
 const GRAVITY = 1550;
 const JUMP_FORCE = -620;
@@ -39,39 +38,39 @@ bestElement.textContent = String(best).padStart(5, "0");
 // ===============================
 
 function parseColor(c) {
-if (!c) return [0, 0, 0, 1];
-if (c.startsWith("rgb")) {
-const m = c.match(/[\d.]+/g).map(Number);
-return [m[0] || 0, m[1] || 0, m[2] || 0, m[3] !== undefined ? m[3] : 1];
-}
-let hex = c.replace("#", "");
-if (hex.length === 3) hex = hex.split("").map(x => x + x).join("");
-const num = parseInt(hex, 16) || 0;
-return [(num >> 16) & 255, (num >> 8) & 255, num & 255, 1];
+  if (!c) return [0, 0, 0, 1];
+  if (c.startsWith("rgb")) {
+    const m = c.match(/[\d.]+/g).map(Number);
+    return [m[0] || 0, m[1] || 0, m[2] || 0, m[3] !== undefined ? m[3] : 1];
+  }
+  let hex = c.replace("#", "");
+  if (hex.length === 3) hex = hex.split("").map(x => x + x).join("");
+  const num = parseInt(hex, 16) || 0;
+  return [(num >> 16) & 255, (num >> 8) & 255, num & 255, 1];
 }
 
 function mixColor(a, b, t) {
-const c1 = parseColor(a);
-const c2 = parseColor(b);
-const r = Math.round(c1[0] + (c2[0] - c1[0]) * t);
-const g = Math.round(c1[1] + (c2[1] - c1[1]) * t);
-const b_col = Math.round(c1[2] + (c2[2] - c1[2]) * t);
-const alpha = c1[3] + (c2[3] - c1[3]) * t;
-return alpha < 0.99 ? rgba(${r}, ${g}, ${b_col}, ${alpha.toFixed(2)}) : rgb(${r}, ${g}, ${b_col});
+  const c1 = parseColor(a);
+  const c2 = parseColor(b);
+  const r = Math.round(c1[0] + (c2[0] - c1[0]) * t);
+  const g = Math.round(c1[1] + (c2[1] - c1[1]) * t);
+  const b_col = Math.round(c1[2] + (c2[2] - c1[2]) * t);
+  const alpha = c1[3] + (c2[3] - c1[3]) * t;
+  return alpha < 0.99 ? `rgba(${r}, ${g}, ${b_col}, ${alpha.toFixed(2)})` : `rgb(${r}, ${g}, ${b_col})`;
 }
 
 function drawRoundRect(context, x, y, w, h, r) {
-context.beginPath();
-if (context.roundRect) {
-context.roundRect(x, y, w, h, r);
-} else {
-context.moveTo(x + r, y);
-context.arcTo(x + w, y, x + w, y + h, r);
-context.arcTo(x + w, y + h, x, y + h, r);
-context.arcTo(x, y + h, x, y, r);
-context.arcTo(x, y, x + w, y, r);
-context.closePath();
-}
+  context.beginPath();
+  if (context.roundRect) {
+    context.roundRect(x, y, w, h, r);
+  } else {
+    context.moveTo(x + r, y);
+    context.arcTo(x + w, y, x + w, y + h, r);
+    context.arcTo(x + w, y + h, x, y + h, r);
+    context.arcTo(x, y + h, x, y, r);
+    context.arcTo(x, y, x + w, y, r);
+    context.closePath();
+  }
 }
 
 // ===============================
@@ -84,40 +83,40 @@ let screenShake = 0;
 let deathFlash = 0;
 
 for (let i = 0; i < 80; i++) {
-stars.push({
-x: Math.random() * W,
-y: Math.random() * (GROUND - 50),
-size: Math.random() * 2 + 0.5,
-twinkleSpeed: Math.random() * 3 + 1,
-twinkleOffset: Math.random() * Math.PI * 2
-});
+  stars.push({
+    x: Math.random() * W,
+    y: Math.random() * (GROUND - 50),
+    size: Math.random() * 2 + 0.5,
+    twinkleSpeed: Math.random() * 3 + 1,
+    twinkleOffset: Math.random() * Math.PI * 2
+  });
 }
 
 function spawnDeathParticles(x, y) {
-for (let i = 0; i < 40; i++) {
-const angle = Math.random() * Math.PI * 2;
-const force = 100 + Math.random() * 250;
-particles.push({
-x: x, y: y - 20,
-vx: Math.cos(angle) * force,
-vy: Math.sin(angle) * force - 100,
-life: 0.5 + Math.random() * 0.8,
-maxLife: 0.5 + Math.random() * 0.8,
-size: 3 + Math.random() * 6,
-color: ["#ffffff", "#bbbbbb", "#555555", "#111111"][Math.floor(Math.random() * 4)],
-gravity: true
-});
-}
+  for (let i = 0; i < 40; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const force = 100 + Math.random() * 250;
+    particles.push({
+      x: x, y: y - 20,
+      vx: Math.cos(angle) * force,
+      vy: Math.sin(angle) * force - 100,
+      life: 0.5 + Math.random() * 0.8,
+      maxLife: 0.5 + Math.random() * 0.8,
+      size: 3 + Math.random() * 6,
+      color: ["#ffffff", "#bbbbbb", "#555555", "#111111"][Math.floor(Math.random() * 4)],
+      gravity: true
+    });
+  }
 }
 
 function updateParticles(dt) {
-for (let i = particles.length - 1; i >= 0; i--) {
-const p = particles[i];
-p.x += p.vx * dt; p.y += p.vy * dt;
-if (p.gravity) p.vy += 600 * dt;
-p.life -= dt;
-if (p.life <= 0) particles.splice(i, 1);
-}
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    if (p.gravity) p.vy += 600 * dt;
+    p.life -= dt;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
 }
 
 // ===============================
@@ -131,65 +130,65 @@ const BIOME_LENGTH = 12000;
 const FADE_LENGTH = 4500;
 
 const biomesData = {
-city: [ { speed: 0.05, data: [] }, { speed: 0.15, data: [] }, { speed: 0.45, data: [] } ],
-desert: [ { speed: 0.05, data: [] }, { speed: 0.15, data: [] }, { speed: 0.45, data: [] } ],
-forest: [ { speed: 0.05, data: [] }, { speed: 0.15, data: [] }, { speed: 0.45, data: [] } ]
+  city: [ { speed: 0.05, data: [] }, { speed: 0.15, data: [] }, { speed: 0.45, data: [] } ],
+  desert: [ { speed: 0.05, data: [] }, { speed: 0.15, data: [] }, { speed: 0.45, data: [] } ],
+  forest: [ { speed: 0.05, data: [] }, { speed: 0.15, data: [] }, { speed: 0.45, data: [] } ]
 };
 
 biomesData.city.forEach((layer, index) => {
-let x = 0;
-while (x < 2500) {
-let w = 40 + Math.random() * 80;
-let h = 80 + Math.random() * (80 + index * 60);
-layer.data.push({ x, w, h, hasWindows: index > 0 && Math.random() > 0.3 });
-x += w + (Math.random() * 5);
-}
-layer.totalW = x;
+  let x = 0;
+  while (x < 2500) {
+    let w = 40 + Math.random() * 80;
+    let h = 80 + Math.random() * (80 + index * 60);
+    layer.data.push({ x, w, h, hasWindows: index > 0 && Math.random() > 0.3 });
+    x += w + (Math.random() * 5);
+  }
+  layer.totalW = x;
 });
 
 biomesData.desert.forEach((layer, index) => {
-let x = 0;
-while (x < 2500) {
-let w = 150 + Math.random() * 200;
-let h = 40 + Math.random() * (50 + index * 40);
-layer.data.push({ x, w, h, isPyramid: Math.random() > 0.85 });
-x += w * 0.6;
-}
-layer.totalW = x;
+  let x = 0;
+  while (x < 2500) {
+    let w = 150 + Math.random() * 200;
+    let h = 40 + Math.random() * (50 + index * 40);
+    layer.data.push({ x, w, h, isPyramid: Math.random() > 0.85 });
+    x += w * 0.6; 
+  }
+  layer.totalW = x;
 });
 
 biomesData.forest.forEach((layer, index) => {
-let x = 0;
-while (x < 2500) {
-let w = 30 + Math.random() * 40 + index * 20;
-let h = 100 + Math.random() * (100 + index * 80);
-layer.data.push({ x, w, h });
-x += w * 0.8 + Math.random() * 30;
-}
-layer.totalW = x;
+  let x = 0;
+  while (x < 2500) {
+    let w = 30 + Math.random() * 40 + index * 20;
+    let h = 100 + Math.random() * (100 + index * 80);
+    layer.data.push({ x, w, h });
+    x += w * 0.8 + Math.random() * 30;
+  }
+  layer.totalW = x;
 });
 
 const colorPalettes = {
-city: {
-night: { sky1: "#080c16", sky2: "#1c2533", g1: "#15181e", g2: "#080a0c", b1: "#0b101a", b2: "#2b3543" },
-day: { sky1: "#6b8c9e", sky2: "#a0c0d1", g1: "#3c4a59", g2: "#25303b", b1: "#43576b", b2: "#8195a8" }
-},
-desert: {
-night: { sky1: "#160a05", sky2: "#33181c", g1: "#1e130d", g2: "#0a0503", b1: "#1a0b08", b2: "#3d1e15" },
-day: { sky1: "#c48362", sky2: "#e8b894", g1: "#ab6b48", g2: "#7a462b", b1: "#b36b44", b2: "#e09c70" }
-},
-forest: {
-night: { sky1: "#050f0a", sky2: "#12261b", g1: "#0f1711", g2: "#050a06", b1: "#08140c", b2: "#183020" },
-day: { sky1: "#5a8c72", sky2: "#91ba99", g1: "#3c5e4a", g2: "#22382a", b1: "#335e40", b2: "#6a9972" }
-}
+  city: {
+    night: { sky1: "#080c16", sky2: "#1c2533", g1: "#15181e", g2: "#080a0c", b1: "#0b101a", b2: "#2b3543" },
+    day:   { sky1: "#6b8c9e", sky2: "#a0c0d1", g1: "#3c4a59", g2: "#25303b", b1: "#43576b", b2: "#8195a8" }
+  },
+  desert: {
+    night: { sky1: "#160a05", sky2: "#33181c", g1: "#1e130d", g2: "#0a0503", b1: "#1a0b08", b2: "#3d1e15" },
+    day:   { sky1: "#c48362", sky2: "#e8b894", g1: "#ab6b48", g2: "#7a462b", b1: "#b36b44", b2: "#e09c70" }
+  },
+  forest: {
+    night: { sky1: "#050f0a", sky2: "#12261b", g1: "#0f1711", g2: "#050a06", b1: "#08140c", b2: "#183020" },
+    day:   { sky1: "#5a8c72", sky2: "#91ba99", g1: "#3c5e4a", g2: "#22382a", b1: "#335e40", b2: "#6a9972" }
+  }
 };
 
 function mixPalette(p1, p2, t) {
-return {
-sky1: mixColor(p1.sky1, p2.sky1, t), sky2: mixColor(p1.sky2, p2.sky2, t),
-g1: mixColor(p1.g1, p2.g1, t), g2: mixColor(p1.g2, p2.g2, t),
-b1: mixColor(p1.b1, p2.b1, t), b2: mixColor(p1.b2, p2.b2, t)
-};
+  return {
+    sky1: mixColor(p1.sky1, p2.sky1, t), sky2: mixColor(p1.sky2, p2.sky2, t),
+    g1: mixColor(p1.g1, p2.g1, t), g2: mixColor(p1.g2, p2.g2, t),
+    b1: mixColor(p1.b1, p2.b1, t), b2: mixColor(p1.b2, p2.b2, t)
+  };
 }
 
 // ===============================
@@ -197,8 +196,8 @@ b1: mixColor(p1.b1, p2.b1, t), b2: mixColor(p1.b2, p2.b2, t)
 // ===============================
 
 const player = {
-x: 100, y: GROUND - 60, width: 30, height: 60,
-velocityY: 0, grounded: true, sliding: false
+  x: 100, y: GROUND - 60, width: 30, height: 60,
+  velocityY: 0, grounded: true, sliding: false
 };
 
 function jump() { if (!running || isDead) return; jumpBuffer = 0.15; }
@@ -206,31 +205,31 @@ function slide() { if (!running || isDead) return; slideHeld = true; }
 function stopSlide() { slideHeld = false; player.sliding = false; }
 
 function startGame() {
-running = true; isDead = false; score = 0; speed = 250;
-obstacles = []; spawnDistance = 450; worldDistance = 0;
-jumpBuffer = 0; slideHeld = false; particles = [];
-screenShake = 0; deathFlash = 0;
+  running = true; isDead = false; score = 0; speed = 250;
+  obstacles = []; spawnDistance = 450; worldDistance = 0;
+  jumpBuffer = 0; slideHeld = false; particles = []; 
+  screenShake = 0; deathFlash = 0;
+  
+  biomeDist = 0; currentBiome = "city"; nextBiome = "desert";
 
-biomeDist = 0; currentBiome = "city"; nextBiome = "desert";
-
-player.y = GROUND - player.height;
-player.velocityY = 0; player.grounded = true; player.sliding = false;
-scoreElement.textContent = "00000";
-overlay.classList.add("hidden");
+  player.y = GROUND - player.height;
+  player.velocityY = 0; player.grounded = true; player.sliding = false;
+  scoreElement.textContent = "00000";
+  overlay.classList.add("hidden");
 }
 
 function gameOver() {
-running = false; isDead = true; screenShake = 0.5; deathFlash = 0.4;
-spawnDeathParticles(player.x + 15, player.y + 30);
-const result = Math.floor(score);
-if (result > best) {
-best = result; localStorage.setItem("nightmarRunnerBest", best);
-bestElement.textContent = String(best).padStart(5, "0");
-}
-overlayTitle.textContent = "SYSTEM FAILURE";
-overlayText.textContent = SCORE: ${result};
-startButton.textContent = "REBOOT";
-setTimeout(() => overlay.classList.remove("hidden"), 800);
+  running = false; isDead = true; screenShake = 0.5; deathFlash = 0.4;
+  spawnDeathParticles(player.x + 15, player.y + 30);
+  const result = Math.floor(score);
+  if (result > best) {
+    best = result; localStorage.setItem("nightmarRunnerBest", best);
+    bestElement.textContent = String(best).padStart(5, "0");
+  }
+  overlayTitle.textContent = "SYSTEM FAILURE";
+  overlayText.textContent = `SCORE: ${result}`;
+  startButton.textContent = "REBOOT";
+  setTimeout(() => overlay.classList.remove("hidden"), 800);
 }
 
 // ===============================
@@ -238,131 +237,134 @@ setTimeout(() => overlay.classList.remove("hidden"), 800);
 // ===============================
 
 function spawnObstacle() {
-const types = ["rock", "log", "drone", "spikes", "stump", "saw", "missile", "cactus"];
-const type = types[Math.floor(Math.random() * types.length)];
-let width, height, y;
-let extras = {};
+  const types = ["rock", "log", "drone", "spikes", "stump", "saw", "missile", "cactus"];
+  const type = types[Math.floor(Math.random() * types.length)];
+  let width, height, y;
+  let extras = {}; 
 
-switch (type) {
-case "rock": width = 45; height = 35; y = GROUND - height; break;
-case "log": width = 75; height = 25; y = GROUND - height; break;
-case "spikes": width = 80; height = 28; y = GROUND - height; break;
-case "stump": width = 45; height = 40; y = GROUND - height; break;
-case "saw": width = 36; height = 36; y = GROUND - 20; break;
-case "drone": width = 60; height = 30; y = GROUND - 65; break;
-case "missile": width = 60; height = 22; y = GROUND - 55; break;
-case "cactus":
-width = 40; height = 65; y = GROUND - 65;
-extras.thorns = [];
-for(let i=0; i<8; i++) {
-extras.thorns.push({ dx: 14 + Math.random()*10, dy: 10 + Math.random()*40 });
-}
-break;
-}
-obstacles.push({ x: W + 30, y, width, height, type, ...extras });
+  switch (type) {
+    case "rock": width = 45; height = 35; y = GROUND - height; break;
+    case "log": width = 75; height = 25; y = GROUND - height; break;
+    case "spikes": width = 80; height = 28; y = GROUND - height; break;
+    case "stump": width = 45; height = 40; y = GROUND - height; break;
+    case "saw": width = 36; height = 36; y = GROUND - 20; break; 
+    case "drone": width = 60; height = 30; y = GROUND - 65; break; 
+    case "missile": width = 85; height = 22; y = GROUND - 55; break; // Увеличена длина (было 60, стало 85)
+    case "cactus": 
+      width = 40; height = 65; y = GROUND - 65; 
+      extras.thorns = [];
+      for(let i=0; i<8; i++) {
+        extras.thorns.push({ dx: 14 + Math.random()*10, dy: 10 + Math.random()*40 });
+      }
+      break; 
+  }
+  obstacles.push({ x: W + 30, y, width, height, type, ...extras });
 }
 
 function update(dt) {
-if (isDead) return;
+  if (isDead) return;
 
-score += dt * 12;
-speed = Math.min(550, 250 + score * 0.4);
-const movement = speed * dt;
-worldDistance += movement;
+  score += dt * 12;
+  speed = Math.min(550, 250 + score * 0.4);
+  const movement = speed * dt;
+  worldDistance += movement;
+  
+  biomeDist += movement;
+  if (biomeDist >= BIOME_LENGTH) {
+    biomeDist -= BIOME_LENGTH;
+    currentBiome = nextBiome;
+    const availableBiomes = ["city", "desert", "forest"].filter(b => b !== currentBiome);
+    nextBiome = availableBiomes[Math.floor(Math.random() * availableBiomes.length)];
+  }
 
-biomeDist += movement;
-if (biomeDist >= BIOME_LENGTH) {
-biomeDist -= BIOME_LENGTH;
-currentBiome = nextBiome;
-const availableBiomes = ["city", "desert", "forest"].filter(b => b !== currentBiome);
-nextBiome = availableBiomes[Math.floor(Math.random() * availableBiomes.length)];
-}
+  scoreElement.textContent = String(Math.floor(score)).padStart(5, "0");
 
-scoreElement.textContent = String(Math.floor(score)).padStart(5, "0");
-
-if (jumpBuffer > 0) {
-jumpBuffer -= dt;
-if (player.grounded) {
-player.velocityY = JUMP_FORCE;
-player.grounded = false; jumpBuffer = 0;
-}
-}
-
-// Гравитация и физика земли
-player.velocityY += GRAVITY * dt;
-player.y += player.velocityY * dt;
-
-if (player.y >= GROUND - player.height) {
-player.y = GROUND - player.height;
-player.velocityY = 0;
-player.grounded = true;
-}
-
-player.sliding = slideHeld && player.grounded;
-
-spawnDistance -= movement;
-if (spawnDistance <= 0) {
-spawnObstacle();
-spawnDistance = 350 + Math.random() * 250;
-}
-
-// КОЛЛИЗИИ И ПАРКУР ПО РАКЕТЕ
-for (const o of obstacles) {
-const obstacleMovement = o.type === "missile" ? movement * 1.3 : movement;
-o.x -= obstacleMovement;
-
-text
-
-const px = player.x + 8; 
-const pw = player.sliding ? 40 : 16;
-const py = player.sliding ? GROUND - 22 : player.y + 5;
-const ph = player.sliding ? 20 : player.height - 10;
-const margin = 5;
-
-const horizontalCollision = px < o.x + o.width - margin && px + pw > o.x + margin;
-const verticalCollision = py < o.y + o.height - margin && py + ph > o.y + margin;
-
-if (o.type === "missile") {
-  if (horizontalCollision) {
-    const playerFeet = player.y + player.height;
-    const missileTop = o.y;
-
-    // Если игрок падает сверху И его ноги примерно на уровне верха ракеты
-    if (player.velocityY >= 0 && playerFeet <= missileTop + 25) {
-      // Зацепиться за ракету!
-      player.y = missileTop - player.height;
-      player.velocityY = 0;
-      player.grounded = true;
-      
-      // Искры из под ног при скольжении по металлу
-      if (Math.random() < 0.2 && particles.length < 15) {
-        particles.push({
-          x: px + pw/2 + (Math.random()*10 - 5),
-          y: missileTop,
-          vx: -obstacleMovement * 60 + (Math.random()*100 - 50),
-          vy: -Math.random()*100,
-          life: 0.15, maxLife: 0.15, size: 2,
-          color: "#ffcc00", gravity: true
-        });
-      }
-    } 
-    // Иначе если мы просто врезались в нее лицом (и не в подкате)
-    else if (verticalCollision && !player.sliding) {
-      gameOver(); return;
+  if (jumpBuffer > 0) {
+    jumpBuffer -= dt;
+    if (player.grounded) {
+      player.velocityY = JUMP_FORCE;
+      player.grounded = false; jumpBuffer = 0;
     }
   }
-} 
-else if (o.type === "drone") {
-  // Дрон убивает, если мы не в подкате, но если прыгнуть ВЫШЕ него - выживем
-  if (horizontalCollision && verticalCollision && !player.sliding) { gameOver(); return; }
-} 
-else {
-  // Обычные препятствия (земные)
-  if (horizontalCollision && verticalCollision) { gameOver(); return; }
-}
-}
 
-obstacles = obstacles.filter(o => o.x + o.width > -50);
+  // Гравитация и физика земли
+  player.velocityY += GRAVITY * dt;
+  player.y += player.velocityY * dt;
+
+  if (player.y >= GROUND - player.height) {
+    player.y = GROUND - player.height;
+    player.velocityY = 0; 
+    player.grounded = true;
+  }
+
+  player.sliding = slideHeld && player.grounded;
+
+  spawnDistance -= movement;
+  if (spawnDistance <= 0) {
+    spawnObstacle();
+    spawnDistance = 350 + Math.random() * 250;
+  }
+
+  // КОЛЛИЗИИ И ПАРКУР ПО РАКЕТЕ
+  for (const o of obstacles) {
+    const px = player.x + 8; 
+    const pw = player.sliding ? 40 : 16;
+    const py = player.sliding ? GROUND - 22 : player.y + 5;
+    const ph = player.sliding ? 20 : player.height - 10;
+    const margin = 5;
+
+    // Предпроверка X: летим ли мы прямо над/на ракете перед её сдвигом
+    const isOverObject = px < o.x + o.width - margin && px + pw > o.x + margin;
+    let isRiding = false;
+
+    if (o.type === "missile" && isOverObject) {
+      const playerFeet = player.y + player.height;
+      if (player.velocityY >= 0 && playerFeet <= o.y + 25) {
+        isRiding = true; // Мы стоим на ракете!
+      }
+    }
+
+    // Рассчет скорости движения объекта
+    // Если мы летим на ракете, она замедляется и почти равна скорости мира, чтобы мы не соскальзывали сразу
+    let obstacleMovement = movement;
+    if (o.type === "missile") {
+      obstacleMovement = isRiding ? movement * 1.05 : movement * 1.4;
+    }
+
+    // Сдвиг препятствия
+    o.x -= obstacleMovement;
+
+    // Окончательная проверка столкновений по новым координатам
+    const hitX = px < o.x + o.width - margin && px + pw > o.x + margin;
+    const hitY = py < o.y + o.height - margin && py + ph > o.y + margin;
+
+    if (o.type === "missile") {
+      if (hitX) {
+        const playerFeet = player.y + player.height;
+        const missileTop = o.y;
+
+        // Зацепиться за ракету!
+        if (player.velocityY >= 0 && playerFeet <= missileTop + 25) {
+          player.y = missileTop - player.height;
+          player.velocityY = 0;
+          player.grounded = true; // Позволяет прыгать с ракеты
+          // *Искры удалены!*
+        } 
+        // Если врезались лицом (и не в подкате)
+        else if (hitY && !player.sliding) {
+          gameOver(); return;
+        }
+      }
+    } 
+    else if (o.type === "drone") {
+      if (hitX && hitY && !player.sliding) { gameOver(); return; }
+    } 
+    else {
+      if (hitX && hitY) { gameOver(); return; }
+    }
+  }
+
+  obstacles = obstacles.filter(o => o.x + o.width > -50);
 }
 
 // ===============================
@@ -370,116 +372,112 @@ obstacles = obstacles.filter(o => o.x + o.width > -50);
 // ===============================
 
 function drawBiomeLayer(biomeType, layerIdx, offset, color, alpha, daylight) {
-ctx.globalAlpha = alpha;
-ctx.fillStyle = color;
-
-const layer = biomesData[biomeType][layerIdx];
-const totalW = layer.totalW;
-
-for (let i = 0; i < 2; i++) {
-ctx.save();
-ctx.translate(-offset + (i * totalW), 0);
-
-text
-
-layer.data.forEach(b => {
-  if (biomeType === "city") {
-    ctx.fillRect(b.x, GROUND - b.h, b.w, b.h);
-    if (b.hasWindows && alpha > 0.1 && daylight < 0.4) {
-      ctx.fillStyle = `rgba(255, 230, 120, ${(alpha * (1 - daylight * 2)).toFixed(2)})`;
-      for (let wy = GROUND - b.h + 10; wy < GROUND - 10; wy += 20) {
-        for (let wx = b.x + 6; wx < b.x + b.w - 10; wx += 12) {
-          const windowSeed = Math.abs(Math.sin(wx * 12.98 + wy * 78.23 + b.x)) * 43758.54;
-          if (windowSeed % 1 > 0.5) ctx.fillRect(wx, wy, 5, 8);
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = color;
+  
+  const layer = biomesData[biomeType][layerIdx];
+  const totalW = layer.totalW;
+  
+  for (let i = 0; i < 2; i++) {
+    ctx.save(); 
+    ctx.translate(-offset + (i * totalW), 0);
+    
+    layer.data.forEach(b => {
+      if (biomeType === "city") {
+        ctx.fillRect(b.x, GROUND - b.h, b.w, b.h);
+        if (b.hasWindows && alpha > 0.1 && daylight < 0.4) {
+          ctx.fillStyle = `rgba(255, 230, 120, ${(alpha * (1 - daylight * 2)).toFixed(2)})`;
+          for (let wy = GROUND - b.h + 10; wy < GROUND - 10; wy += 20) {
+            for (let wx = b.x + 6; wx < b.x + b.w - 10; wx += 12) {
+              const windowSeed = Math.abs(Math.sin(wx * 12.98 + wy * 78.23 + b.x)) * 43758.54;
+              if (windowSeed % 1 > 0.5) ctx.fillRect(wx, wy, 5, 8);
+            }
+          }
+          ctx.fillStyle = color; 
         }
+      } 
+      else if (biomeType === "desert") {
+        ctx.beginPath();
+        if (b.isPyramid) {
+          ctx.moveTo(b.x, GROUND); ctx.lineTo(b.x + b.w/2, GROUND - b.h); ctx.lineTo(b.x + b.w, GROUND);
+        } else {
+          ctx.moveTo(b.x, GROUND);
+          ctx.quadraticCurveTo(b.x + b.w/2, GROUND - b.h * 1.5, b.x + b.w, GROUND);
+        }
+        ctx.fill();
       }
-      ctx.fillStyle = color; 
-    }
-  } 
-  else if (biomeType === "desert") {
-    ctx.beginPath();
-    if (b.isPyramid) {
-      ctx.moveTo(b.x, GROUND); ctx.lineTo(b.x + b.w/2, GROUND - b.h); ctx.lineTo(b.x + b.w, GROUND);
-    } else {
-      ctx.moveTo(b.x, GROUND);
-      ctx.quadraticCurveTo(b.x + b.w/2, GROUND - b.h * 1.5, b.x + b.w, GROUND);
-    }
-    ctx.fill();
+      else if (biomeType === "forest") {
+        ctx.beginPath();
+        ctx.moveTo(b.x, GROUND);
+        ctx.lineTo(b.x + b.w/2, GROUND - b.h);
+        ctx.lineTo(b.x + b.w, GROUND);
+        ctx.fill();
+        ctx.fillRect(b.x + b.w/2 - 2, GROUND - b.h, 4, b.h);
+      }
+    });
+    ctx.restore();
   }
-  else if (biomeType === "forest") {
-    ctx.beginPath();
-    ctx.moveTo(b.x, GROUND);
-    ctx.lineTo(b.x + b.w/2, GROUND - b.h);
-    ctx.lineTo(b.x + b.w, GROUND);
-    ctx.fill();
-    ctx.fillRect(b.x + b.w/2 - 2, GROUND - b.h, 4, b.h);
-  }
-});
-ctx.restore();
-}
-ctx.globalAlpha = 1;
+  ctx.globalAlpha = 1;
 }
 
 function drawBackground() {
-const dayCycle = (worldDistance / 25000) % 1;
-const daylight = (Math.cos(dayCycle * Math.PI * 2 + Math.PI) + 1) / 2;
+  const dayCycle = (worldDistance / 25000) % 1;
+  const daylight = (Math.cos(dayCycle * Math.PI * 2 + Math.PI) + 1) / 2; 
 
-let rawBlend = Math.max(0, (biomeDist - (BIOME_LENGTH - FADE_LENGTH)) / FADE_LENGTH);
-let blend = rawBlend * rawBlend * (3 - 2 * rawBlend);
+  let rawBlend = Math.max(0, (biomeDist - (BIOME_LENGTH - FADE_LENGTH)) / FADE_LENGTH);
+  let blend = rawBlend * rawBlend * (3 - 2 * rawBlend);
 
-const c1 = mixPalette(colorPalettes[currentBiome].night, colorPalettes[currentBiome].day, daylight);
-const c2 = mixPalette(colorPalettes[nextBiome].night, colorPalettes[nextBiome].day, daylight);
-const finalColors = mixPalette(c1, c2, blend);
+  const c1 = mixPalette(colorPalettes[currentBiome].night, colorPalettes[currentBiome].day, daylight);
+  const c2 = mixPalette(colorPalettes[nextBiome].night, colorPalettes[nextBiome].day, daylight);
+  const finalColors = mixPalette(c1, c2, blend);
 
-const skyGrad = ctx.createLinearGradient(0, 0, 0, GROUND);
-skyGrad.addColorStop(0, finalColors.sky1);
-skyGrad.addColorStop(1, finalColors.sky2);
-ctx.fillStyle = skyGrad; ctx.fillRect(0, 0, W, GROUND);
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, GROUND);
+  skyGrad.addColorStop(0, finalColors.sky1);
+  skyGrad.addColorStop(1, finalColors.sky2);
+  ctx.fillStyle = skyGrad; ctx.fillRect(0, 0, W, GROUND);
 
-const celestialAngle = dayCycle * Math.PI * 2 - Math.PI / 2;
-const sunX = W/2 + Math.cos(celestialAngle) * (W * 0.4);
-const sunY = GROUND + 50 + Math.sin(celestialAngle) * (H * 0.7);
-if (sunY < GROUND + 50) {
-ctx.fillStyle = "#ffeedd"; ctx.shadowColor = "#ffcc00"; ctx.shadowBlur = 40;
-ctx.beginPath(); ctx.arc(sunX, sunY, 25, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0;
-}
+  const celestialAngle = dayCycle * Math.PI * 2 - Math.PI / 2;
+  const sunX = W/2 + Math.cos(celestialAngle) * (W * 0.4);
+  const sunY = GROUND + 50 + Math.sin(celestialAngle) * (H * 0.7);
+  if (sunY < GROUND + 50) {
+    ctx.fillStyle = "#ffeedd"; ctx.shadowColor = "#ffcc00"; ctx.shadowBlur = 40;
+    ctx.beginPath(); ctx.arc(sunX, sunY, 25, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0;
+  }
+  
+  const moonAngle = celestialAngle + Math.PI;
+  const moonX = W/2 + Math.cos(moonAngle) * (W * 0.4);
+  const moonY = GROUND + 50 + Math.sin(moonAngle) * (H * 0.7);
+  if (moonY < GROUND + 50) {
+    ctx.fillStyle = "#ddeeff"; ctx.shadowColor = "#88aaff"; ctx.shadowBlur = 30;
+    ctx.beginPath(); ctx.arc(moonX, moonY, 18, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0;
+  }
 
-const moonAngle = celestialAngle + Math.PI;
-const moonX = W/2 + Math.cos(moonAngle) * (W * 0.4);
-const moonY = GROUND + 50 + Math.sin(moonAngle) * (H * 0.7);
-if (moonY < GROUND + 50) {
-ctx.fillStyle = "#ddeeff"; ctx.shadowColor = "#88aaff"; ctx.shadowBlur = 30;
-ctx.beginPath(); ctx.arc(moonX, moonY, 18, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0;
-}
+  if (daylight < 0.6) {
+    for (const s of stars) {
+      const twinkle = (Math.sin(worldDistance * 0.01 * s.twinkleSpeed + s.twinkleOffset) + 1) / 2;
+      ctx.fillStyle = `rgba(255, 255, 240, ${((0.3 + twinkle * 0.5) * (1 - daylight/0.6)).toFixed(2)})`;
+      ctx.beginPath(); ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2); ctx.fill();
+    }
+  }
 
-if (daylight < 0.6) {
-for (const s of stars) {
-const twinkle = (Math.sin(worldDistance * 0.01 * s.twinkleSpeed + s.twinkleOffset) + 1) / 2;
-ctx.fillStyle = rgba(255, 255, 240, ${((0.3 + twinkle * 0.5) * (1 - daylight/0.6)).toFixed(2)});
-ctx.beginPath(); ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2); ctx.fill();
-}
-}
+  for (let idx = 0; idx < 3; idx++) {
+    const speed = biomesData.city[idx].speed;
+    const offset = (worldDistance * speed) % biomesData.city[idx].totalW;
+    
+    const layerColor1 = mixColor(c1.b2, c1.b1, idx / 2);
+    const layerColor2 = mixColor(c2.b2, c2.b1, idx / 2);
 
-for (let idx = 0; idx < 3; idx++) {
-const speed = biomesData.city[idx].speed;
-const offset = (worldDistance * speed) % biomesData.city[idx].totalW;
+    if (blend < 1) drawBiomeLayer(currentBiome, idx, offset, layerColor1, 1 - blend, daylight);
+    if (blend > 0) drawBiomeLayer(nextBiome, idx, offset, layerColor2, blend, daylight);
+  }
 
-text
+  const groundGrad = ctx.createLinearGradient(0, GROUND, 0, H);
+  groundGrad.addColorStop(0, finalColors.g1);
+  groundGrad.addColorStop(1, finalColors.g2);
+  ctx.fillStyle = groundGrad; ctx.fillRect(0, GROUND, W, H - GROUND);
 
-const layerColor1 = mixColor(c1.b2, c1.b1, idx / 2);
-const layerColor2 = mixColor(c2.b2, c2.b1, idx / 2);
-
-if (blend < 1) drawBiomeLayer(currentBiome, idx, offset, layerColor1, 1 - blend, daylight);
-if (blend > 0) drawBiomeLayer(nextBiome, idx, offset, layerColor2, blend, daylight);
-}
-
-const groundGrad = ctx.createLinearGradient(0, GROUND, 0, H);
-groundGrad.addColorStop(0, finalColors.g1);
-groundGrad.addColorStop(1, finalColors.g2);
-ctx.fillStyle = groundGrad; ctx.fillRect(0, GROUND, W, H - GROUND);
-
-ctx.strokeStyle = mixColor("#252d3a", "#455667", 0.5);
-ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, GROUND); ctx.lineTo(W, GROUND); ctx.stroke();
+  ctx.strokeStyle = mixColor("#252d3a", "#455667", 0.5);
+  ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, GROUND); ctx.lineTo(W, GROUND); ctx.stroke();
 }
 
 // ===============================
@@ -487,241 +485,232 @@ ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, GROUND); ctx.lineTo(W, GROUND)
 // ===============================
 
 function drawObstacles() {
-for (const o of obstacles) {
-ctx.save();
+  for (const o of obstacles) {
+    ctx.save();
+    
+    ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
+    if (o.type !== "drone" && o.type !== "missile") {
+      ctx.beginPath(); ctx.ellipse(o.x + o.width / 2, GROUND + 2, o.width * 0.4, 4, 0, 0, Math.PI * 2); ctx.fill();
+    }
 
-text
+    ctx.shadowColor = "rgba(180, 200, 255, 0.35)";
+    ctx.shadowBlur = 12;
 
-// Тень под объектами (на земле)
-ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
-if (o.type !== "drone" && o.type !== "missile") {
-  ctx.beginPath(); ctx.ellipse(o.x + o.width / 2, GROUND + 2, o.width * 0.4, 4, 0, 0, Math.PI * 2); ctx.fill();
-}
-
-// НОВАЯ ФИШКА: Светящаяся аура для читаемости объектов в темноте
-ctx.shadowColor = "rgba(180, 200, 255, 0.35)"; // Лунное сияние
-ctx.shadowBlur = 12;
-
-if (o.type === "rock") {
-  ctx.fillStyle = "#626a73"; ctx.beginPath(); ctx.moveTo(o.x, GROUND); ctx.lineTo(o.x + 10, o.y + 10); ctx.lineTo(o.x + 20, o.y); ctx.lineTo(o.x + 35, o.y + 8); ctx.lineTo(o.x + o.width, GROUND); ctx.fill();
-  ctx.shadowBlur = 0; // Отключаем тень для внутренних деталей
-  ctx.fillStyle = "#707985"; ctx.beginPath(); ctx.moveTo(o.x + 20, o.y); ctx.lineTo(o.x + 30, o.y + 15); ctx.lineTo(o.x + 12, GROUND); ctx.fill();
-  ctx.fillStyle = "#434e39"; ctx.beginPath(); ctx.moveTo(o.x, GROUND); ctx.lineTo(o.x + 12, GROUND - 6); ctx.lineTo(o.x + o.width, GROUND); ctx.fill();
-} 
-else if (o.type === "log") {
-  ctx.fillStyle = "#4f3c2e"; const r = o.height / 2; ctx.beginPath(); ctx.moveTo(o.x + r, o.y); ctx.lineTo(o.x + o.width - r, o.y); ctx.arc(o.x + o.width - r, o.y + r, r, -Math.PI / 2, Math.PI / 2); ctx.lineTo(o.x + r, o.y + o.height); ctx.arc(o.x + r, o.y + r, r, Math.PI / 2, -Math.PI / 2); ctx.fill();
-  ctx.shadowBlur = 0;
-  ctx.strokeStyle = "#241810"; ctx.lineWidth = 2; for(let i=0; i<3; i++) { ctx.beginPath(); ctx.moveTo(o.x + 15, o.y + 5 + i*7); ctx.quadraticCurveTo(o.x + o.width/2, o.y + i*7, o.x + o.width - 15, o.y + 7 + i*7); ctx.stroke(); }
-  ctx.fillStyle = "#8c6b4b"; ctx.beginPath(); ctx.ellipse(o.x + o.width - r, o.y + r, 4, r - 2, 0, 0, Math.PI * 2); ctx.fill();
-} 
-else if (o.type === "spikes") {
-  const count = 4, w = o.width / count;
-  for (let i = 0; i < count; i++) {
-    const sx = o.x + i * w;
-    ctx.fillStyle = "#a8b1c2"; ctx.beginPath(); ctx.moveTo(sx, GROUND); ctx.lineTo(sx + w/2, o.y); ctx.lineTo(sx + w/2, GROUND); ctx.fill();
-    ctx.shadowBlur = 0;
-    ctx.fillStyle = "#5b6678"; ctx.beginPath(); ctx.moveTo(sx + w/2, o.y); ctx.lineTo(sx + w, GROUND); ctx.lineTo(sx + w/2, GROUND); ctx.fill();
-    ctx.fillStyle = "#ab0000"; ctx.beginPath(); ctx.moveTo(sx + w/2, o.y); ctx.lineTo(sx + w/2 - 2, o.y + 6); ctx.lineTo(sx + w/2 + 2, o.y + 8); ctx.fill();
+    if (o.type === "rock") {
+      ctx.fillStyle = "#626a73"; ctx.beginPath(); ctx.moveTo(o.x, GROUND); ctx.lineTo(o.x + 10, o.y + 10); ctx.lineTo(o.x + 20, o.y); ctx.lineTo(o.x + 35, o.y + 8); ctx.lineTo(o.x + o.width, GROUND); ctx.fill();
+      ctx.shadowBlur = 0; 
+      ctx.fillStyle = "#707985"; ctx.beginPath(); ctx.moveTo(o.x + 20, o.y); ctx.lineTo(o.x + 30, o.y + 15); ctx.lineTo(o.x + 12, GROUND); ctx.fill();
+      ctx.fillStyle = "#434e39"; ctx.beginPath(); ctx.moveTo(o.x, GROUND); ctx.lineTo(o.x + 12, GROUND - 6); ctx.lineTo(o.x + o.width, GROUND); ctx.fill();
+    } 
+    else if (o.type === "log") {
+      ctx.fillStyle = "#4f3c2e"; const r = o.height / 2; ctx.beginPath(); ctx.moveTo(o.x + r, o.y); ctx.lineTo(o.x + o.width - r, o.y); ctx.arc(o.x + o.width - r, o.y + r, r, -Math.PI / 2, Math.PI / 2); ctx.lineTo(o.x + r, o.y + o.height); ctx.arc(o.x + r, o.y + r, r, Math.PI / 2, -Math.PI / 2); ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = "#241810"; ctx.lineWidth = 2; for(let i=0; i<3; i++) { ctx.beginPath(); ctx.moveTo(o.x + 15, o.y + 5 + i*7); ctx.quadraticCurveTo(o.x + o.width/2, o.y + i*7, o.x + o.width - 15, o.y + 7 + i*7); ctx.stroke(); }
+      ctx.fillStyle = "#8c6b4b"; ctx.beginPath(); ctx.ellipse(o.x + o.width - r, o.y + r, 4, r - 2, 0, 0, Math.PI * 2); ctx.fill();
+    } 
+    else if (o.type === "spikes") {
+      const count = 4, w = o.width / count;
+      for (let i = 0; i < count; i++) {
+        const sx = o.x + i * w;
+        ctx.fillStyle = "#a8b1c2"; ctx.beginPath(); ctx.moveTo(sx, GROUND); ctx.lineTo(sx + w/2, o.y); ctx.lineTo(sx + w/2, GROUND); ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = "#5b6678"; ctx.beginPath(); ctx.moveTo(sx + w/2, o.y); ctx.lineTo(sx + w, GROUND); ctx.lineTo(sx + w/2, GROUND); ctx.fill();
+        ctx.fillStyle = "#ab0000"; ctx.beginPath(); ctx.moveTo(sx + w/2, o.y); ctx.lineTo(sx + w/2 - 2, o.y + 6); ctx.lineTo(sx + w/2 + 2, o.y + 8); ctx.fill();
+      }
+      ctx.fillStyle = "#222"; ctx.fillRect(o.x, GROUND - 4, o.width, 4);
+    } 
+    else if (o.type === "stump") {
+      ctx.fillStyle = "#423025"; ctx.fillRect(o.x + 5, o.y + 8, o.width - 10, o.height - 8);
+      ctx.beginPath(); ctx.moveTo(o.x + 5, GROUND - 10); ctx.lineTo(o.x - 5, GROUND); ctx.lineTo(o.x + 10, GROUND); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(o.x + o.width - 5, GROUND - 10); ctx.lineTo(o.x + o.width + 5, GROUND); ctx.lineTo(o.x + o.width - 10, GROUND); ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = "#7d593f"; ctx.beginPath(); ctx.ellipse(o.x + o.width / 2, o.y + 8, o.width / 2, 8, 0, 0, Math.PI * 2); ctx.fill();
+    }
+    else if (o.type === "drone") {
+      const x = o.x, y = o.y, hover = Math.sin(worldDistance * 0.15) * 4;
+      ctx.shadowBlur = 0; 
+      ctx.globalCompositeOperation = "lighter"; const laserGrad = ctx.createLinearGradient(x + 30, y + 15 + hover, x + 30, GROUND); laserGrad.addColorStop(0, "rgba(255, 0, 0, 0.3)"); laserGrad.addColorStop(1, "rgba(255, 0, 0, 0)"); ctx.fillStyle = laserGrad; ctx.beginPath(); ctx.moveTo(x + 30, y + 15 + hover); ctx.lineTo(x - 15, GROUND); ctx.lineTo(x + 75, GROUND); ctx.fill(); ctx.globalCompositeOperation = "source-over";
+      ctx.strokeStyle = "#444"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x + 15, y + hover); ctx.lineTo(x + 15, y - 5 + hover); ctx.moveTo(x + 45, y + hover); ctx.lineTo(x + 45, y - 5 + hover); ctx.stroke();
+      const spin = Math.sin(worldDistance) * 12; ctx.strokeStyle = "rgba(150, 200, 255, 0.6)"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x + 15 - spin, y - 5 + hover); ctx.lineTo(x + 15 + spin, y - 5 + hover); ctx.moveTo(x + 45 - spin, y - 5 + hover); ctx.lineTo(x + 45 + spin, y - 5 + hover); ctx.stroke();
+      ctx.fillStyle = "#202630"; ctx.beginPath(); ctx.ellipse(x + 30, y + 10 + hover, 26, 11, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#ff0033"; ctx.shadowColor = "#ff0000"; ctx.shadowBlur = 12; ctx.beginPath(); ctx.arc(x + 30, y + 12 + hover, 4, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
+    }
+    else if (o.type === "saw") {
+      const cx = o.x + o.width / 2;
+      const cy = o.y + o.height / 2;
+      ctx.translate(cx, cy);
+      ctx.rotate(worldDistance * 0.05); 
+      ctx.fillStyle = "#9ba5b8"; ctx.beginPath(); ctx.arc(0, 0, o.width/2 - 4, 0, Math.PI*2); ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = "#b8c0d1";
+      for(let i=0; i<8; i++) { ctx.rotate(Math.PI / 4); ctx.beginPath(); ctx.moveTo(10, -5); ctx.lineTo(o.width/2 + 2, 0); ctx.lineTo(10, 5); ctx.fill(); }
+      ctx.fillStyle = "#333"; ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI*2); ctx.fill();
+    }
+    else if (o.type === "missile") {
+      const x = o.x, y = o.y;
+      const firePhase = (Math.sin(worldDistance * 0.5 + o.x) + 1) * 7.5;
+      ctx.shadowBlur = 0; 
+      ctx.fillStyle = "#ff6600"; ctx.beginPath(); ctx.moveTo(x, y + 5); ctx.lineTo(x - 20 - firePhase, y + o.height/2); ctx.lineTo(x, y + o.height - 5); ctx.fill();
+      ctx.fillStyle = "#ffcc00"; ctx.beginPath(); ctx.moveTo(x, y + 8); ctx.lineTo(x - 10 - firePhase/2, y + o.height/2); ctx.lineTo(x, y + o.height - 8); ctx.fill();
+      ctx.shadowColor = "rgba(200, 220, 255, 0.3)"; ctx.shadowBlur = 10;
+      ctx.fillStyle = "#5c6066"; drawRoundRect(ctx, x, y, o.width - 15, o.height, 10); ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = "#cc0000"; ctx.beginPath(); ctx.moveTo(x + o.width - 15, y); ctx.lineTo(x + o.width, y + o.height/2); ctx.lineTo(x + o.width - 15, y + o.height); ctx.fill();
+      ctx.fillStyle = "#222"; ctx.fillRect(x + 10, y + 4, o.width - 30, 4);
+    }
+    else if (o.type === "cactus") {
+      const x = o.x, y = o.y;
+      ctx.fillStyle = "#2e5433"; ctx.strokeStyle = "#162e19"; ctx.lineWidth = 2;
+      
+      drawRoundRect(ctx, x + 12, y, 16, o.height, 8); ctx.fill(); ctx.stroke();
+      drawRoundRect(ctx, x, y + 20, 16, 12, 6); ctx.fill(); ctx.stroke();
+      drawRoundRect(ctx, x, y + 10, 12, 16, 6); ctx.fill(); ctx.stroke();
+      drawRoundRect(ctx, x + 24, y + 30, 16, 12, 6); ctx.fill(); ctx.stroke();
+      drawRoundRect(ctx, x + 28, y + 15, 12, 20, 6); ctx.fill(); ctx.stroke();
+      
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = "#c3d9bd";
+      if (o.thorns) {
+        for(let t of o.thorns) ctx.fillRect(x + t.dx, y + t.dy, 2, 2);
+      }
+    }
+    
+    ctx.restore();
   }
-  ctx.fillStyle = "#222"; ctx.fillRect(o.x, GROUND - 4, o.width, 4);
-} 
-else if (o.type === "stump") {
-  ctx.fillStyle = "#423025"; ctx.fillRect(o.x + 5, o.y + 8, o.width - 10, o.height - 8);
-  ctx.beginPath(); ctx.moveTo(o.x + 5, GROUND - 10); ctx.lineTo(o.x - 5, GROUND); ctx.lineTo(o.x + 10, GROUND); ctx.fill();
-  ctx.beginPath(); ctx.moveTo(o.x + o.width - 5, GROUND - 10); ctx.lineTo(o.x + o.width + 5, GROUND); ctx.lineTo(o.x + o.width - 10, GROUND); ctx.fill();
-  ctx.shadowBlur = 0;
-  ctx.fillStyle = "#7d593f"; ctx.beginPath(); ctx.ellipse(o.x + o.width / 2, o.y + 8, o.width / 2, 8, 0, 0, Math.PI * 2); ctx.fill();
-}
-else if (o.type === "drone") {
-  const x = o.x, y = o.y, hover = Math.sin(worldDistance * 0.15) * 4;
-  ctx.shadowBlur = 0; // Дрон и так светится лазером
-  ctx.globalCompositeOperation = "lighter"; const laserGrad = ctx.createLinearGradient(x + 30, y + 15 + hover, x + 30, GROUND); laserGrad.addColorStop(0, "rgba(255, 0, 0, 0.3)"); laserGrad.addColorStop(1, "rgba(255, 0, 0, 0)"); ctx.fillStyle = laserGrad; ctx.beginPath(); ctx.moveTo(x + 30, y + 15 + hover); ctx.lineTo(x - 15, GROUND); ctx.lineTo(x + 75, GROUND); ctx.fill(); ctx.globalCompositeOperation = "source-over";
-  ctx.strokeStyle = "#444"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x + 15, y + hover); ctx.lineTo(x + 15, y - 5 + hover); ctx.moveTo(x + 45, y + hover); ctx.lineTo(x + 45, y - 5 + hover); ctx.stroke();
-  const spin = Math.sin(worldDistance) * 12; ctx.strokeStyle = "rgba(150, 200, 255, 0.6)"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x + 15 - spin, y - 5 + hover); ctx.lineTo(x + 15 + spin, y - 5 + hover); ctx.moveTo(x + 45 - spin, y - 5 + hover); ctx.lineTo(x + 45 + spin, y - 5 + hover); ctx.stroke();
-  ctx.fillStyle = "#202630"; ctx.beginPath(); ctx.ellipse(x + 30, y + 10 + hover, 26, 11, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = "#ff0033"; ctx.shadowColor = "#ff0000"; ctx.shadowBlur = 12; ctx.beginPath(); ctx.arc(x + 30, y + 12 + hover, 4, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
-}
-else if (o.type === "saw") {
-  const cx = o.x + o.width / 2;
-  const cy = o.y + o.height / 2;
-  ctx.translate(cx, cy);
-  ctx.rotate(worldDistance * 0.05); 
-  ctx.fillStyle = "#9ba5b8"; ctx.beginPath(); ctx.arc(0, 0, o.width/2 - 4, 0, Math.PI*2); ctx.fill();
-  ctx.shadowBlur = 0;
-  ctx.fillStyle = "#b8c0d1";
-  for(let i=0; i<8; i++) { ctx.rotate(Math.PI / 4); ctx.beginPath(); ctx.moveTo(10, -5); ctx.lineTo(o.width/2 + 2, 0); ctx.lineTo(10, 5); ctx.fill(); }
-  ctx.fillStyle = "#333"; ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI*2); ctx.fill();
-}
-else if (o.type === "missile") {
-  const x = o.x, y = o.y;
-  const firePhase = (Math.sin(worldDistance * 0.5 + o.x) + 1) * 7.5;
-  ctx.shadowBlur = 0; 
-  ctx.fillStyle = "#ff6600"; ctx.beginPath(); ctx.moveTo(x, y + 5); ctx.lineTo(x - 20 - firePhase, y + o.height/2); ctx.lineTo(x, y + o.height - 5); ctx.fill();
-  ctx.fillStyle = "#ffcc00"; ctx.beginPath(); ctx.moveTo(x, y + 8); ctx.lineTo(x - 10 - firePhase/2, y + o.height/2); ctx.lineTo(x, y + o.height - 8); ctx.fill();
-  ctx.shadowColor = "rgba(200, 220, 255, 0.3)"; ctx.shadowBlur = 10;
-  ctx.fillStyle = "#5c6066"; drawRoundRect(ctx, x, y, o.width - 15, o.height, 10); ctx.fill();
-  ctx.shadowBlur = 0;
-  ctx.fillStyle = "#cc0000"; ctx.beginPath(); ctx.moveTo(x + o.width - 15, y); ctx.lineTo(x + o.width, y + o.height/2); ctx.lineTo(x + o.width - 15, y + o.height); ctx.fill();
-  ctx.fillStyle = "#222"; ctx.fillRect(x + 10, y + 4, o.width - 30, 4);
-}
-else if (o.type === "cactus") {
-  const x = o.x, y = o.y;
-  ctx.fillStyle = "#2e5433"; ctx.strokeStyle = "#162e19"; ctx.lineWidth = 2;
-  
-  drawRoundRect(ctx, x + 12, y, 16, o.height, 8); ctx.fill(); ctx.stroke();
-  drawRoundRect(ctx, x, y + 20, 16, 12, 6); ctx.fill(); ctx.stroke();
-  drawRoundRect(ctx, x, y + 10, 12, 16, 6); ctx.fill(); ctx.stroke();
-  drawRoundRect(ctx, x + 24, y + 30, 16, 12, 6); ctx.fill(); ctx.stroke();
-  drawRoundRect(ctx, x + 28, y + 15, 12, 20, 6); ctx.fill(); ctx.stroke();
-  
-  ctx.shadowBlur = 0;
-  ctx.fillStyle = "#c3d9bd";
-  if (o.thorns) {
-    for(let t of o.thorns) ctx.fillRect(x + t.dx, y + t.dy, 2, 2);
-  }
-}
-
-ctx.restore();
-}
 }
 
 // ===============================
-// ПЕРСОНАЖ
+// ПЕРСОНАЖ 
 // ===============================
 
 function drawCreepyFace(ctx, fx, fy) {
-ctx.fillStyle = "#000";
-ctx.beginPath(); ctx.arc(fx, fy, 11, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#000";
+  ctx.beginPath(); ctx.arc(fx, fy, 11, 0, Math.PI * 2); ctx.fill();
 
-ctx.fillStyle = "#fff";
-ctx.shadowColor = "rgba(255, 255, 255, 0.9)"; ctx.shadowBlur = 6;
-ctx.beginPath(); ctx.arc(fx - 4, fy - 3, 2.5, 0, Math.PI * 2); ctx.fill();
-ctx.beginPath(); ctx.arc(fx + 4, fy - 3, 2.5, 0, Math.PI * 2); ctx.fill();
-ctx.shadowBlur = 0;
+  ctx.fillStyle = "#fff";
+  ctx.shadowColor = "rgba(255, 255, 255, 0.9)"; ctx.shadowBlur = 6;
+  ctx.beginPath(); ctx.arc(fx - 4, fy - 3, 2.5, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(fx + 4, fy - 3, 2.5, 0, Math.PI * 2); ctx.fill();
+  ctx.shadowBlur = 0;
 
-ctx.fillStyle = "#fff";
-ctx.beginPath();
-ctx.moveTo(fx - 10, fy + 2);
-ctx.lineTo(fx - 7, fy + 5); ctx.lineTo(fx - 4, fy + 3);
-ctx.lineTo(fx - 1, fy + 6); ctx.lineTo(fx + 2, fy + 3);
-ctx.lineTo(fx + 5, fy + 6); ctx.lineTo(fx + 8, fy + 3);
-ctx.lineTo(fx + 10, fy + 2);
-ctx.lineTo(fx + 7, fy + 8); ctx.lineTo(fx + 4, fy + 5);
-ctx.lineTo(fx + 1, fy + 9); ctx.lineTo(fx - 2, fy + 5);
-ctx.lineTo(fx - 5, fy + 8); ctx.lineTo(fx - 8, fy + 5);
-ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#fff";
+  ctx.beginPath();
+  ctx.moveTo(fx - 10, fy + 2); 
+  ctx.lineTo(fx - 7, fy + 5); ctx.lineTo(fx - 4, fy + 3);
+  ctx.lineTo(fx - 1, fy + 6); ctx.lineTo(fx + 2, fy + 3);
+  ctx.lineTo(fx + 5, fy + 6); ctx.lineTo(fx + 8, fy + 3);
+  ctx.lineTo(fx + 10, fy + 2); 
+  ctx.lineTo(fx + 7, fy + 8); ctx.lineTo(fx + 4, fy + 5);
+  ctx.lineTo(fx + 1, fy + 9); ctx.lineTo(fx - 2, fy + 5);
+  ctx.lineTo(fx - 5, fy + 8); ctx.lineTo(fx - 8, fy + 5);
+  ctx.closePath(); ctx.fill();
 }
 
 function drawLimb(x1, y1, x2, y2, x3, y3, isArm = false) {
-ctx.strokeStyle = isArm ? "#7a8a9e" : "#556475";
-ctx.lineWidth = 6;
-ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); if(x3 !== undefined && x3 !== null) ctx.lineTo(x3, y3); ctx.stroke();
-
-ctx.strokeStyle = "#15181c"; ctx.lineWidth = 3.5;
-ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); if(x3 !== undefined && x3 !== null) ctx.lineTo(x3, y3); ctx.stroke();
+  ctx.strokeStyle = isArm ? "#7a8a9e" : "#556475"; 
+  ctx.lineWidth = 6; 
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); if(x3 !== undefined && x3 !== null) ctx.lineTo(x3, y3); ctx.stroke();
+  
+  ctx.strokeStyle = "#15181c"; ctx.lineWidth = 3.5; 
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); if(x3 !== undefined && x3 !== null) ctx.lineTo(x3, y3); ctx.stroke();
 }
 
 function drawPlayer() {
-if (isDead) return;
+  if (isDead) return;
 
-const x = player.x;
-const y = player.y;
-ctx.save();
+  const x = player.x;
+  const y = player.y;
+  ctx.save();
 
-const cx = x + 15;
-const cyAura = player.sliding ? GROUND - 15 : y + 30;
+  const cx = x + 15;
+  const cyAura = player.sliding ? GROUND - 15 : y + 30;
+  
+  const glow = ctx.createRadialGradient(cx, cyAura, 10, cx, cyAura, 50);
+  glow.addColorStop(0, "rgba(220, 235, 255, 0.25)"); 
+  glow.addColorStop(1, "rgba(220, 235, 255, 0)");
+  ctx.fillStyle = glow;
+  ctx.beginPath(); ctx.arc(cx, cyAura, 50, 0, Math.PI * 2); ctx.fill();
 
-const glow = ctx.createRadialGradient(cx, cyAura, 10, cx, cyAura, 50);
-glow.addColorStop(0, "rgba(220, 235, 255, 0.25)");
-glow.addColorStop(1, "rgba(220, 235, 255, 0)");
-ctx.fillStyle = glow;
-ctx.beginPath(); ctx.arc(cx, cyAura, 50, 0, Math.PI * 2); ctx.fill();
+  const distFromGround = Math.max(0, GROUND - (y + player.height));
+  const shadowY = (player.grounded && y < GROUND - player.height - 10) ? y + player.height + 2 : GROUND + 2;
+  const shadowAlpha = Math.max(0, 0.6 - distFromGround * 0.002);
+  
+  if (shadowAlpha > 0) {
+    ctx.fillStyle = `rgba(0, 0, 0, ${shadowAlpha})`;
+    ctx.beginPath(); ctx.ellipse(cx, shadowY, player.sliding ? 28 : 16, 3, 0, 0, Math.PI * 2); ctx.fill();
+  }
 
-// Если игрок бежит по ракете, тень рисуется на ней, а не на полу
-const distFromGround = Math.max(0, GROUND - (y + player.height));
-const shadowY = (player.grounded && y < GROUND - player.height - 10) ? y + player.height + 2 : GROUND + 2;
-const shadowAlpha = Math.max(0, 0.6 - distFromGround * 0.002);
+  const colorBody = "#262b33";
+  const colorShoe = "#050505";
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
 
-if (shadowAlpha > 0) {
-ctx.fillStyle = rgba(0, 0, 0, ${shadowAlpha});
-ctx.beginPath(); ctx.ellipse(cx, shadowY, player.sliding ? 28 : 16, 3, 0, 0, Math.PI * 2); ctx.fill();
-}
+  if (player.sliding) {
+    const cy = y + player.height - 15;
 
-const colorBody = "#262b33";
-const colorShoe = "#050505";
-ctx.lineCap = "round"; ctx.lineJoin = "round";
+    drawLimb(cx - 5, cy + 5, cx - 15, cy + 15, null, null, false); 
+    ctx.fillStyle = colorShoe; ctx.beginPath(); ctx.ellipse(cx - 15, cy + 17, 7, 3, 0, 0, Math.PI * 2); ctx.fill();
 
-if (player.sliding) {
-const cy = y + player.height - 15;
+    ctx.fillStyle = colorBody; ctx.strokeStyle = "#556475"; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.ellipse(cx, cy, 18, 12, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
 
-text
+    ctx.fillStyle = "#eee"; ctx.font = "bold 10px 'Times New Roman', serif";
+    ctx.save(); ctx.translate(cx, cy + 3); ctx.rotate(-0.2); ctx.fillText("NP", -7, 1); ctx.restore();
 
-drawLimb(cx - 5, cy + 5, cx - 15, cy + 15, null, null, false); 
-ctx.fillStyle = colorShoe; ctx.beginPath(); ctx.ellipse(cx - 15, cy + 17, 7, 3, 0, 0, Math.PI * 2); ctx.fill();
+    drawLimb(cx + 5, cy + 5, cx + 25, cy + 17, null, null, false); 
+    ctx.fillStyle = colorShoe; ctx.beginPath(); ctx.ellipse(cx + 28, cy + 17, 8, 3.5, -0.2, 0, Math.PI * 2); ctx.fill();
 
-ctx.fillStyle = colorBody; ctx.strokeStyle = "#556475"; ctx.lineWidth = 1.5;
-ctx.beginPath(); ctx.ellipse(cx, cy, 18, 12, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = colorBody; ctx.beginPath(); ctx.arc(cx + 20, cy - 8, 14, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    drawCreepyFace(ctx, cx + 22, cy - 6);
 
-ctx.fillStyle = "#eee"; ctx.font = "bold 10px 'Times New Roman', serif";
-ctx.save(); ctx.translate(cx, cy + 3); ctx.rotate(-0.2); ctx.fillText("NP", -7, 1); ctx.restore();
+  } else if (!player.grounded) {
+    const cy = y + 30;
 
-drawLimb(cx + 5, cy + 5, cx + 25, cy + 17, null, null, false); 
-ctx.fillStyle = colorShoe; ctx.beginPath(); ctx.ellipse(cx + 28, cy + 17, 8, 3.5, -0.2, 0, Math.PI * 2); ctx.fill();
+    drawLimb(cx - 2, cy + 10, cx - 12, cy + 15, cx - 8, cy + 25, false); 
+    ctx.fillStyle = colorShoe; ctx.beginPath(); ctx.ellipse(cx - 6, cy + 26, 7, 3.5, 0.4, 0, Math.PI * 2); ctx.fill();
 
-ctx.fillStyle = colorBody; ctx.beginPath(); ctx.arc(cx + 20, cy - 8, 14, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-drawCreepyFace(ctx, cx + 22, cy - 6);
-} else if (!player.grounded) {
-const cy = y + 30;
+    ctx.fillStyle = colorBody; ctx.strokeStyle = "#556475"; ctx.lineWidth = 1.5;
+    drawRoundRect(ctx, cx - 12, y + 15, 24, 28, 8); ctx.fill(); ctx.stroke();
 
-text
+    ctx.fillStyle = "#eee"; ctx.font = "bold 12px 'Times New Roman', serif";
+    ctx.fillText("NP", cx - 8, cy + 10);
 
-drawLimb(cx - 2, cy + 10, cx - 12, cy + 15, cx - 8, cy + 25, false); 
-ctx.fillStyle = colorShoe; ctx.beginPath(); ctx.ellipse(cx - 6, cy + 26, 7, 3.5, 0.4, 0, Math.PI * 2); ctx.fill();
+    drawLimb(cx + 2, cy + 10, cx + 12, cy + 5, cx + 8, cy + 20, false); 
+    ctx.fillStyle = colorShoe; ctx.beginPath(); ctx.ellipse(cx + 10, cy + 22, 7, 3.5, -0.2, 0, Math.PI * 2); ctx.fill();
 
-ctx.fillStyle = colorBody; ctx.strokeStyle = "#556475"; ctx.lineWidth = 1.5;
-drawRoundRect(ctx, cx - 12, y + 15, 24, 28, 8); ctx.fill(); ctx.stroke();
+    drawLimb(cx, cy - 5, cx - 15, cy - 10, null, null, true); 
+    drawLimb(cx, cy - 5, cx + 15, cy + 5, null, null, true); 
 
-ctx.fillStyle = "#eee"; ctx.font = "bold 12px 'Times New Roman', serif";
-ctx.fillText("NP", cx - 8, cy + 10);
+    ctx.fillStyle = colorBody; ctx.beginPath(); ctx.arc(cx + 5, y + 12, 16, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    drawCreepyFace(ctx, cx + 7, y + 14);
 
-drawLimb(cx + 2, cy + 10, cx + 12, cy + 5, cx + 8, cy + 20, false); 
-ctx.fillStyle = colorShoe; ctx.beginPath(); ctx.ellipse(cx + 10, cy + 22, 7, 3.5, -0.2, 0, Math.PI * 2); ctx.fill();
+  } else {
+    const phase = worldDistance / 20;
+    const bobY = Math.abs(Math.sin(phase * 2)) * 3;
+    const cy = y + 25 + bobY;
+    const legSwing = Math.sin(phase) * 16;
+    const armSwing = Math.cos(phase) * 12;
+    const floorY = y + player.height - 4;
 
-drawLimb(cx, cy - 5, cx - 15, cy - 10, null, null, true); 
-drawLimb(cx, cy - 5, cx + 15, cy + 5, null, null, true); 
+    drawLimb(cx, cy + 15, cx - legSwing, floorY, null, null, false); 
+    ctx.fillStyle = colorShoe; ctx.beginPath(); ctx.ellipse(cx - legSwing + 4, floorY + 2, 8, 3.5, 0, 0, Math.PI * 2); ctx.fill();
 
-ctx.fillStyle = colorBody; ctx.beginPath(); ctx.arc(cx + 5, y + 12, 16, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-drawCreepyFace(ctx, cx + 7, y + 14);
-} else {
-const phase = worldDistance / 20;
-const bobY = Math.abs(Math.sin(phase * 2)) * 3;
-const cy = y + 25 + bobY;
-const legSwing = Math.sin(phase) * 16;
-const armSwing = Math.cos(phase) * 12;
-const floorY = y + player.height - 4;
+    drawLimb(cx, cy - 5, cx + armSwing, cy + 10, null, null, true); 
 
-text
+    ctx.fillStyle = colorBody; ctx.strokeStyle = "#556475"; ctx.lineWidth = 1.5;
+    drawRoundRect(ctx, cx - 12, cy - 12, 24, 30, 8); ctx.fill(); ctx.stroke();
 
-drawLimb(cx, cy + 15, cx - legSwing, floorY, null, null, false); 
-ctx.fillStyle = colorShoe; ctx.beginPath(); ctx.ellipse(cx - legSwing + 4, floorY + 2, 8, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#eee"; ctx.font = "bold 12px 'Times New Roman', serif";
+    ctx.fillText("NP", cx - 8, cy + 8);
 
-drawLimb(cx, cy - 5, cx + armSwing, cy + 10, null, null, true); 
+    drawLimb(cx, cy + 15, cx + legSwing, floorY, null, null, false); 
+    ctx.fillStyle = colorShoe; ctx.beginPath(); ctx.ellipse(cx + legSwing + 4, floorY + 2, 8, 3.5, 0, 0, Math.PI * 2); ctx.fill();
 
-ctx.fillStyle = colorBody; ctx.strokeStyle = "#556475"; ctx.lineWidth = 1.5;
-drawRoundRect(ctx, cx - 12, cy - 12, 24, 30, 8); ctx.fill(); ctx.stroke();
+    drawLimb(cx, cy - 5, cx - armSwing, cy + 12, null, null, true); 
 
-ctx.fillStyle = "#eee"; ctx.font = "bold 12px 'Times New Roman', serif";
-ctx.fillText("NP", cx - 8, cy + 8);
-
-drawLimb(cx, cy + 15, cx + legSwing, floorY, null, null, false); 
-ctx.fillStyle = colorShoe; ctx.beginPath(); ctx.ellipse(cx + legSwing + 4, floorY + 2, 8, 3.5, 0, 0, Math.PI * 2); ctx.fill();
-
-drawLimb(cx, cy - 5, cx - armSwing, cy + 12, null, null, true); 
-
-ctx.fillStyle = colorBody; ctx.beginPath(); ctx.arc(cx + 2, cy - 15, 16, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-drawCreepyFace(ctx, cx + 4, cy - 13);
-}
-ctx.restore();
+    ctx.fillStyle = colorBody; ctx.beginPath(); ctx.arc(cx + 2, cy - 15, 16, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    drawCreepyFace(ctx, cx + 4, cy - 13);
+  }
+  ctx.restore();
 }
 
 // ===============================
@@ -729,51 +718,51 @@ ctx.restore();
 // ===============================
 
 function drawParticles() {
-for (const p of particles) {
-ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
-ctx.fillStyle = p.color;
-ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
-}
-ctx.globalAlpha = 1;
+  for (const p of particles) {
+    ctx.globalAlpha = Math.max(0, p.life / p.maxLife); 
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+  }
+  ctx.globalAlpha = 1;
 }
 
 function drawPostEffects() {
-const vigGrad = ctx.createRadialGradient(W / 2, H / 2, W * 0.3, W / 2, H / 2, W * 0.9);
-vigGrad.addColorStop(0, "rgba(0,0,0,0)"); vigGrad.addColorStop(1, "rgba(0,0,0,0.85)");
-ctx.fillStyle = vigGrad; ctx.fillRect(0, 0, W, H);
+  const vigGrad = ctx.createRadialGradient(W / 2, H / 2, W * 0.3, W / 2, H / 2, W * 0.9);
+  vigGrad.addColorStop(0, "rgba(0,0,0,0)"); vigGrad.addColorStop(1, "rgba(0,0,0,0.85)");
+  ctx.fillStyle = vigGrad; ctx.fillRect(0, 0, W, H);
 
-if (deathFlash > 0) { ctx.fillStyle = rgba(255, 0, 0, ${deathFlash * 1.8}); ctx.fillRect(0, 0, W, H); }
+  if (deathFlash > 0) { ctx.fillStyle = `rgba(255, 0, 0, ${deathFlash * 1.8})`; ctx.fillRect(0, 0, W, H); }
 
-ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
-for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 1);
+  ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
+  for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 1);
 }
 
 function render() {
-ctx.save();
-if (screenShake > 0) ctx.translate((Math.random() - 0.5) * screenShake * 20, (Math.random() - 0.5) * screenShake * 20);
+  ctx.save();
+  if (screenShake > 0) ctx.translate((Math.random() - 0.5) * screenShake * 20, (Math.random() - 0.5) * screenShake * 20);
 
-drawBackground();
-drawPlayer();
-drawObstacles();
-drawParticles();
+  drawBackground(); 
+  drawPlayer(); 
+  drawObstacles();
+  drawParticles(); 
 
-ctx.restore();
-drawPostEffects();
+  ctx.restore(); 
+  drawPostEffects();
 }
 
 function loop(timestamp) {
-const dt = Math.min((timestamp - lastTime) / 1000 || 0, 0.033);
-lastTime = timestamp;
+  const dt = Math.min((timestamp - lastTime) / 1000 || 0, 0.033);
+  lastTime = timestamp;
 
-if (running) update(dt);
-else {
-if (screenShake > 0) screenShake -= dt;
-if (deathFlash > 0) deathFlash -= dt;
-updateParticles(dt);
-}
+  if (running) update(dt);
+  else {
+    if (screenShake > 0) screenShake -= dt;
+    if (deathFlash > 0) deathFlash -= dt;
+    updateParticles(dt);
+  }
 
-render();
-requestAnimationFrame(loop);
+  render(); 
+  requestAnimationFrame(loop);
 }
 
 // ===============================
@@ -781,11 +770,11 @@ requestAnimationFrame(loop);
 // ===============================
 
 document.addEventListener("keydown", e => {
-if (!["Space", "ArrowUp", "ArrowDown"].includes(e.code)) return;
-e.preventDefault();
-if (!running && !isDead) { startGame(); return; }
-if (e.code === "ArrowDown") slide();
-else if (!e.repeat) jump();
+  if (!["Space", "ArrowUp", "ArrowDown"].includes(e.code)) return;
+  e.preventDefault();
+  if (!running && !isDead) { startGame(); return; }
+  if (e.code === "ArrowDown") slide();
+  else if (!e.repeat) jump();
 });
 
 document.addEventListener("keyup", e => { if (e.code === "ArrowDown") { e.preventDefault(); stopSlide(); } });
@@ -793,8 +782,8 @@ window.addEventListener("blur", stopSlide);
 
 jumpButton.addEventListener("pointerdown", e => { e.preventDefault(); jump(); });
 slideButton.addEventListener("pointerdown", e => { e.preventDefault(); slide(); slideButton.setPointerCapture(e.pointerId); });
-slideButton.addEventListener("pointerup", stopSlide);
-slideButton.addEventListener("pointercancel", stopSlide);
+slideButton.addEventListener("pointerup", stopSlide); 
+slideButton.addEventListener("pointercancel", stopSlide); 
 slideButton.addEventListener("lostpointercapture", stopSlide);
 
 startButton.addEventListener("click", startGame);
