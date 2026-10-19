@@ -80,7 +80,7 @@ function updateParticles(dt) {
 }
 
 // ===============================
-// СИСТЕМА БИОМОВ (Город -> Пустыня -> Лес)
+// СИСТЕМА БИОМОВ
 // ===============================
 
 const BIOME_LENGTH = 10000; 
@@ -92,7 +92,6 @@ const biomesData = {
   forest: [ { speed: 0.05, data: [] }, { speed: 0.15, data: [] }, { speed: 0.45, data: [] } ]
 };
 
-// Генерация Города
 biomesData.city.forEach((layer, index) => {
   let x = 0;
   while (x < 2500) {
@@ -104,20 +103,17 @@ biomesData.city.forEach((layer, index) => {
   layer.totalW = x;
 });
 
-// Генерация Пустыни (дюны и пирамиды)
 biomesData.desert.forEach((layer, index) => {
   let x = 0;
   while (x < 2500) {
     let w = 150 + Math.random() * 200;
     let h = 40 + Math.random() * (50 + index * 40);
-    let isPyramid = Math.random() > 0.85;
-    layer.data.push({ x, w, h, isPyramid });
+    layer.data.push({ x, w, h, isPyramid: Math.random() > 0.85 });
     x += w * 0.6; 
   }
   layer.totalW = x;
 });
 
-// Генерация Леса (Ели и деревья)
 biomesData.forest.forEach((layer, index) => {
   let x = 0;
   while (x < 2500) {
@@ -130,9 +126,9 @@ biomesData.forest.forEach((layer, index) => {
 });
 
 const biomeColors = [
-  { sky1: "#080c16", sky2: "#1c2533", ground1: "#15181e", ground2: "#080a0c", build1: "#0b101a", build2: "#2b3543" }, // Город
-  { sky1: "#160a05", sky2: "#33181c", ground1: "#1e130d", ground2: "#0a0503", build1: "#1a0b08", build2: "#3d1e15" }, // Пустыня
-  { sky1: "#050f0a", sky2: "#12261b", ground1: "#0f1711", ground2: "#050a06", build1: "#08140c", build2: "#183020" }  // Лес
+  { sky1: "#080c16", sky2: "#1c2533", ground1: "#15181e", ground2: "#080a0c", build1: "#0b101a", build2: "#2b3543" }, 
+  { sky1: "#160a05", sky2: "#33181c", ground1: "#1e130d", ground2: "#0a0503", build1: "#1a0b08", build2: "#3d1e15" }, 
+  { sky1: "#050f0a", sky2: "#12261b", ground1: "#0f1711", ground2: "#050a06", build1: "#08140c", build2: "#183020" }  
 ];
 
 function getRGB(c) {
@@ -146,7 +142,6 @@ function mixColor(a, b, t) {
   return `rgb(${c1.map((v, i) => Math.round(v + (c2[i] - v) * t)).join(",")})`;
 }
 
-// Определение текущего биома и перехода
 function getCurrentBiomes() {
   const cycle = worldDistance % (BIOME_LENGTH * 3);
   const currentIdx = Math.floor(cycle / BIOME_LENGTH);
@@ -204,11 +199,13 @@ function gameOver() {
 // ===============================
 
 function spawnObstacle() {
-  // Убран лазер, добавлен кактус
   const types = ["rock", "log", "drone", "spikes", "stump", "saw", "missile", "cactus"];
   const type = types[Math.floor(Math.random() * types.length)];
   let width, height, y;
   
+  // Добавлено сохранение локальных колючек для кактуса при спавне, чтобы убрать рябь
+  let extras = {}; 
+
   switch (type) {
     case "rock": width = 45; height = 35; y = GROUND - height; break;
     case "log": width = 75; height = 25; y = GROUND - height; break;
@@ -217,9 +214,15 @@ function spawnObstacle() {
     case "saw": width = 36; height = 36; y = GROUND - 20; break; 
     case "drone": width = 60; height = 30; y = GROUND - 65; break; 
     case "missile": width = 60; height = 22; y = GROUND - 55; break; 
-    case "cactus": width = 40; height = 65; y = GROUND - 65; break; // НОВЫЙ КАКТУС
+    case "cactus": 
+      width = 40; height = 65; y = GROUND - 65; 
+      extras.thorns = [];
+      for(let i=0; i<8; i++) {
+        extras.thorns.push({ dx: 14 + Math.random()*10, dy: 10 + Math.random()*40 });
+      }
+      break; 
   }
-  obstacles.push({ x: W + 30, y, width, height, type });
+  obstacles.push({ x: W + 30, y, width, height, type, ...extras });
 }
 
 function update(dt) {
@@ -302,10 +305,12 @@ function drawBiomeLayer(biomeType, layerIdx, offset, color, alpha) {
           ctx.fillStyle = `rgba(255, 230, 120, ${alpha * 0.4})`;
           for (let wy = GROUND - b.h + 10; wy < GROUND - 10; wy += 20) {
             for (let wx = b.x + 6; wx < b.x + b.w - 10; wx += 12) {
-              if (Math.random() > 0.5) ctx.fillRect(wx, wy, 5, 8);
+              // ИСПРАВЛЕНИЕ: Статичный псевдорандом для окон (убирает рябь и мигание)
+              const windowSeed = Math.abs(Math.sin(wx * 12.9898 + wy * 78.233 + b.x)) * 43758.5453;
+              if (windowSeed % 1 > 0.5) ctx.fillRect(wx, wy, 5, 8);
             }
           }
-          ctx.fillStyle = color; // Возвращаем цвет
+          ctx.fillStyle = color; 
         }
       } 
       else if (biomeType === "desert") {
@@ -324,7 +329,6 @@ function drawBiomeLayer(biomeType, layerIdx, offset, color, alpha) {
         ctx.lineTo(b.x + b.w/2, GROUND - b.h);
         ctx.lineTo(b.x + b.w, GROUND);
         ctx.fill();
-        // Ствол
         ctx.fillRect(b.x + b.w/2 - 2, GROUND - b.h, 4, b.h);
       }
     });
@@ -338,7 +342,6 @@ function drawBackground() {
   const c1 = biomeColors[state.current];
   const c2 = biomeColors[state.next];
   
-  // Плавный переход цветов
   const skyColor1 = mixColor(c1.sky1, c2.sky1, state.blend);
   const skyColor2 = mixColor(c1.sky2, c2.sky2, state.blend);
   const groundColor1 = mixColor(c1.ground1, c2.ground1, state.blend);
@@ -349,31 +352,22 @@ function drawBackground() {
   skyGrad.addColorStop(1, skyColor2);
   ctx.fillStyle = skyGrad; ctx.fillRect(0, 0, W, GROUND);
 
-  // Звезды
   for (const s of stars) {
     const twinkle = (Math.sin(worldDistance * 0.01 * s.twinkleSpeed + s.twinkleOffset) + 1) / 2;
     ctx.fillStyle = `rgba(255, 255, 240, ${0.3 + twinkle * 0.5})`;
     ctx.beginPath(); ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2); ctx.fill();
   }
 
-  // Отрисовка параллакс-слоев (Текущий и следующий биом накладываются)
   const types = ["city", "desert", "forest"];
   for (let idx = 0; idx < 3; idx++) {
     const speed = biomesData.city[idx].speed;
     const offset = (worldDistance * speed) % biomesData.city[idx].totalW;
     
-    // Цвет слоя
     const layerColor1 = mixColor(c1.build2, c1.build1, idx / 2);
     const layerColor2 = mixColor(c2.build2, c2.build1, idx / 2);
 
-    // Рисуем уходящий биом
-    if (state.blend < 1) {
-      drawBiomeLayer(types[state.current], idx, offset, layerColor1, 1 - state.blend);
-    }
-    // Рисуем приходящий биом
-    if (state.blend > 0) {
-      drawBiomeLayer(types[state.next], idx, offset, layerColor2, state.blend);
-    }
+    if (state.blend < 1) drawBiomeLayer(types[state.current], idx, offset, layerColor1, 1 - state.blend);
+    if (state.blend > 0) drawBiomeLayer(types[state.next], idx, offset, layerColor2, state.blend);
   }
 
   const groundGrad = ctx.createLinearGradient(0, GROUND, 0, H);
@@ -386,7 +380,7 @@ function drawBackground() {
 }
 
 // ===============================
-// ПЕРСОНАЖ (С КОНТУРНОЙ ПОДСВЕТКОЙ)
+// ПЕРСОНАЖ 
 // ===============================
 
 function drawCreepyFace(ctx, fx, fy) {
@@ -412,13 +406,12 @@ function drawCreepyFace(ctx, fx, fy) {
   ctx.closePath(); ctx.fill();
 }
 
-// Функция для рисования частей тела с четким контуром (Rim Light)
 function drawLimb(x1, y1, x2, y2, x3, y3) {
-  // Светлый контур (делает персонажа видимым всегда)
-  ctx.strokeStyle = "#7a8a9e"; ctx.lineWidth = 9; 
+  // ИСПРАВЛЕНИЕ: Контур стал тоньше и менее ярким (графитовый цвет вместо белого свечения)
+  ctx.strokeStyle = "#4e5a6a"; ctx.lineWidth = 7; 
   ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); if(x3) ctx.lineTo(x3, y3); ctx.stroke();
-  // Внутренний темный цвет
-  ctx.strokeStyle = "#15181c"; ctx.lineWidth = 6; 
+  
+  ctx.strokeStyle = "#15181c"; ctx.lineWidth = 5.5; 
   ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); if(x3) ctx.lineTo(x3, y3); ctx.stroke();
 }
 
@@ -432,7 +425,6 @@ function drawPlayer() {
   const cx = x + 15;
   const cyAura = player.sliding ? GROUND - 15 : y + 30;
   
-  // Усиленная аура
   const glow = ctx.createRadialGradient(cx, cyAura, 10, cx, cyAura, 50);
   glow.addColorStop(0, "rgba(220, 235, 255, 0.25)"); 
   glow.addColorStop(1, "rgba(220, 235, 255, 0)");
@@ -453,40 +445,37 @@ function drawPlayer() {
   if (player.sliding) {
     const cy = GROUND - 15;
 
-    drawLimb(cx - 5, cy + 5, cx - 15, GROUND - 5); // Задняя нога
+    drawLimb(cx - 5, cy + 5, cx - 15, GROUND - 5); 
     ctx.fillStyle = colorShoe; ctx.beginPath(); ctx.ellipse(cx - 15, GROUND - 3, 7, 3, 0, 0, Math.PI * 2); ctx.fill();
 
-    // Тело с контуром
-    ctx.fillStyle = colorBody; ctx.strokeStyle = "#7a8a9e"; ctx.lineWidth = 2;
+    ctx.fillStyle = colorBody; ctx.strokeStyle = "#4e5a6a"; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.ellipse(cx, cy, 18, 12, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
 
-    // Уменьшенный логотип
     ctx.fillStyle = "#eee"; ctx.font = "bold 10px 'Times New Roman', serif";
     ctx.save(); ctx.translate(cx, cy + 3); ctx.rotate(-0.2); ctx.fillText("NP", -7, 1); ctx.restore();
 
-    drawLimb(cx + 5, cy + 5, cx + 25, GROUND - 3); // Передняя нога
+    drawLimb(cx + 5, cy + 5, cx + 25, GROUND - 3); 
     ctx.fillStyle = colorShoe; ctx.beginPath(); ctx.ellipse(cx + 28, GROUND - 3, 8, 3.5, -0.2, 0, Math.PI * 2); ctx.fill();
 
-    // Голова с контуром
     ctx.fillStyle = colorBody; ctx.beginPath(); ctx.arc(cx + 20, cy - 8, 14, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     drawCreepyFace(ctx, cx + 22, cy - 6);
 
   } else if (!player.grounded) {
     const cy = y + 30;
 
-    drawLimb(cx - 2, cy + 10, cx - 12, cy + 15, cx - 8, cy + 25); // Задняя нога
+    drawLimb(cx - 2, cy + 10, cx - 12, cy + 15, cx - 8, cy + 25); 
     ctx.fillStyle = colorShoe; ctx.beginPath(); ctx.ellipse(cx - 6, cy + 26, 7, 3.5, 0.4, 0, Math.PI * 2); ctx.fill();
 
-    ctx.fillStyle = colorBody; ctx.strokeStyle = "#7a8a9e"; ctx.lineWidth = 2;
+    ctx.fillStyle = colorBody; ctx.strokeStyle = "#4e5a6a"; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.roundRect(cx - 12, y + 15, 24, 28, 8); ctx.fill(); ctx.stroke();
 
     ctx.fillStyle = "#eee"; ctx.font = "bold 12px 'Times New Roman', serif";
     ctx.fillText("NP", cx - 8, cy + 10);
 
-    drawLimb(cx + 2, cy + 10, cx + 12, cy + 5, cx + 8, cy + 20); // Передняя нога
+    drawLimb(cx + 2, cy + 10, cx + 12, cy + 5, cx + 8, cy + 20); 
     ctx.fillStyle = colorShoe; ctx.beginPath(); ctx.ellipse(cx + 10, cy + 22, 7, 3.5, -0.2, 0, Math.PI * 2); ctx.fill();
 
-    drawLimb(cx, cy - 5, cx - 15, cy - 10); // Руки
+    drawLimb(cx, cy - 5, cx - 15, cy - 10); 
     drawLimb(cx, cy - 5, cx + 15, cy + 5);
 
     ctx.fillStyle = colorBody; ctx.beginPath(); ctx.arc(cx + 5, y + 12, 16, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
@@ -499,21 +488,21 @@ function drawPlayer() {
     const legSwing = Math.sin(phase) * 16;
     const armSwing = Math.cos(phase) * 12;
 
-    drawLimb(cx, cy + 15, cx - legSwing, GROUND - 4); // Задняя нога
+    drawLimb(cx, cy + 15, cx - legSwing, GROUND - 4); 
     ctx.fillStyle = colorShoe; ctx.beginPath(); ctx.ellipse(cx - legSwing + 4, GROUND - 2, 8, 3.5, 0, 0, Math.PI * 2); ctx.fill();
 
-    drawLimb(cx, cy - 5, cx + armSwing, cy + 10); // Задняя рука
+    drawLimb(cx, cy - 5, cx + armSwing, cy + 10); 
 
-    ctx.fillStyle = colorBody; ctx.strokeStyle = "#7a8a9e"; ctx.lineWidth = 2;
+    ctx.fillStyle = colorBody; ctx.strokeStyle = "#4e5a6a"; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.roundRect(cx - 12, cy - 12, 24, 30, 8); ctx.fill(); ctx.stroke();
 
     ctx.fillStyle = "#eee"; ctx.font = "bold 12px 'Times New Roman', serif";
     ctx.fillText("NP", cx - 8, cy + 8);
 
-    drawLimb(cx, cy + 15, cx + legSwing, GROUND - 4); // Передняя нога
+    drawLimb(cx, cy + 15, cx + legSwing, GROUND - 4); 
     ctx.fillStyle = colorShoe; ctx.beginPath(); ctx.ellipse(cx + legSwing + 4, GROUND - 2, 8, 3.5, 0, 0, Math.PI * 2); ctx.fill();
 
-    drawLimb(cx, cy - 5, cx - armSwing, cy + 12); // Передняя рука
+    drawLimb(cx, cy - 5, cx - armSwing, cy + 12); 
 
     ctx.fillStyle = colorBody; ctx.beginPath(); ctx.arc(cx + 2, cy - 15, 16, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     drawCreepyFace(ctx, cx + 4, cy - 13);
@@ -580,33 +569,31 @@ function drawObstacles() {
     }
     else if (o.type === "missile") {
       const x = o.x, y = o.y;
-      const firePhase = Math.random() * 15;
+      // ИСПРАВЛЕНИЕ: Плавно пульсирующий огонь ракеты (без мигания)
+      const firePhase = (Math.sin(worldDistance * 0.5 + o.x) + 1) * 7.5;
+      
       ctx.fillStyle = "#ff6600"; ctx.beginPath(); ctx.moveTo(x, y + 5); ctx.lineTo(x - 20 - firePhase, y + o.height/2); ctx.lineTo(x, y + o.height - 5); ctx.fill();
       ctx.fillStyle = "#ffcc00"; ctx.beginPath(); ctx.moveTo(x, y + 8); ctx.lineTo(x - 10 - firePhase/2, y + o.height/2); ctx.lineTo(x, y + o.height - 8); ctx.fill();
       ctx.fillStyle = "#444"; ctx.beginPath(); ctx.roundRect(x, y, o.width - 15, o.height, 10); ctx.fill();
       ctx.fillStyle = "#cc0000"; ctx.beginPath(); ctx.moveTo(x + o.width - 15, y); ctx.lineTo(x + o.width, y + o.height/2); ctx.lineTo(x + o.width - 15, y + o.height); ctx.fill();
       ctx.fillStyle = "#222"; ctx.fillRect(x + 10, y + 4, o.width - 30, 4);
     }
-    // НОВОЕ ПРЕПЯТСТВИЕ: КАКТУС (Заменил лазер)
     else if (o.type === "cactus") {
       const x = o.x, y = o.y;
-      ctx.fillStyle = "#1e3b22"; // Темно-зеленый
+      ctx.fillStyle = "#1e3b22"; 
       ctx.strokeStyle = "#0f1e11";
       ctx.lineWidth = 2;
       
-      // Главный ствол
       ctx.beginPath(); ctx.roundRect(x + 12, y, 16, o.height, 8); ctx.fill(); ctx.stroke();
-      // Левая рука
       ctx.beginPath(); ctx.roundRect(x, y + 20, 16, 12, 6); ctx.fill(); ctx.stroke();
       ctx.beginPath(); ctx.roundRect(x, y + 10, 12, 16, 6); ctx.fill(); ctx.stroke();
-      // Правая рука
       ctx.beginPath(); ctx.roundRect(x + 24, y + 30, 16, 12, 6); ctx.fill(); ctx.stroke();
       ctx.beginPath(); ctx.roundRect(x + 28, y + 15, 12, 20, 6); ctx.fill(); ctx.stroke();
       
-      // Колючки (мелкие точки)
+      // ИСПРАВЛЕНИЕ: Отрисовка заранее сгенерированных точек, которые больше не прыгают 
       ctx.fillStyle = "#a3b89e";
-      for(let i=0; i<8; i++) {
-        ctx.fillRect(x + 14 + Math.random()*10, y + 10 + Math.random()*40, 2, 2);
+      for(let t of o.thorns) {
+        ctx.fillRect(x + t.dx, y + t.dy, 2, 2);
       }
     }
     
