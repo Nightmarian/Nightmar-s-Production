@@ -80,11 +80,14 @@ function updateParticles(dt) {
 }
 
 // ===============================
-// СИСТЕМА БИОМОВ
+// БИОМЫ И ДЕНЬ/НОЧЬ (РАНДОМНЫЕ ЛОКАЦИИ)
 // ===============================
 
-const BIOME_LENGTH = 10000; 
-const FADE_LENGTH = 2500; 
+let currentBiome = "city";
+let nextBiome = "desert";
+let biomeDist = 0;
+const BIOME_LENGTH = 12000;
+const FADE_LENGTH = 4500; // Увеличенная длина для очень плавного перехода
 
 const biomesData = {
   city: [ { speed: 0.05, data: [] }, { speed: 0.15, data: [] }, { speed: 0.45, data: [] } ],
@@ -125,11 +128,21 @@ biomesData.forest.forEach((layer, index) => {
   layer.totalW = x;
 });
 
-const biomeColors = [
-  { sky1: "#080c16", sky2: "#1c2533", ground1: "#15181e", ground2: "#080a0c", build1: "#0b101a", build2: "#2b3543" }, 
-  { sky1: "#160a05", sky2: "#33181c", ground1: "#1e130d", ground2: "#0a0503", build1: "#1a0b08", build2: "#3d1e15" }, 
-  { sky1: "#050f0a", sky2: "#12261b", ground1: "#0f1711", ground2: "#050a06", build1: "#08140c", build2: "#183020" }  
-];
+// Цвета для дня и ночи
+const colorPalettes = {
+  city: {
+    night: { sky1: "#080c16", sky2: "#1c2533", g1: "#15181e", g2: "#080a0c", b1: "#0b101a", b2: "#2b3543" },
+    day:   { sky1: "#6b8c9e", sky2: "#a0c0d1", g1: "#3c4a59", g2: "#25303b", b1: "#43576b", b2: "#8195a8" }
+  },
+  desert: {
+    night: { sky1: "#160a05", sky2: "#33181c", g1: "#1e130d", g2: "#0a0503", b1: "#1a0b08", b2: "#3d1e15" },
+    day:   { sky1: "#c48362", sky2: "#e8b894", g1: "#ab6b48", g2: "#7a462b", b1: "#b36b44", b2: "#e09c70" }
+  },
+  forest: {
+    night: { sky1: "#050f0a", sky2: "#12261b", g1: "#0f1711", g2: "#050a06", b1: "#08140c", b2: "#183020" },
+    day:   { sky1: "#5a8c72", sky2: "#91ba99", g1: "#3c5e4a", g2: "#22382a", b1: "#335e40", b2: "#6a9972" }
+  }
+};
 
 function getRGB(c) {
   let hex = c.replace("#", "");
@@ -142,17 +155,12 @@ function mixColor(a, b, t) {
   return `rgb(${c1.map((v, i) => Math.round(v + (c2[i] - v) * t)).join(",")})`;
 }
 
-function getCurrentBiomes() {
-  const cycle = worldDistance % (BIOME_LENGTH * 3);
-  const currentIdx = Math.floor(cycle / BIOME_LENGTH);
-  const nextIdx = (currentIdx + 1) % 3;
-  const localDist = cycle % BIOME_LENGTH;
-
-  let alpha2 = 0;
-  if (localDist > BIOME_LENGTH - FADE_LENGTH) {
-    alpha2 = (localDist - (BIOME_LENGTH - FADE_LENGTH)) / FADE_LENGTH;
-  }
-  return { current: currentIdx, next: nextIdx, blend: alpha2 };
+function mixPalette(p1, p2, t) {
+  return {
+    sky1: mixColor(p1.sky1, p2.sky1, t), sky2: mixColor(p1.sky2, p2.sky2, t),
+    g1: mixColor(p1.g1, p2.g1, t), g2: mixColor(p1.g2, p2.g2, t),
+    b1: mixColor(p1.b1, p2.b1, t), b2: mixColor(p1.b2, p2.b2, t)
+  };
 }
 
 // ===============================
@@ -174,6 +182,11 @@ function startGame() {
   jumpBuffer = 0; slideHeld = false; particles = []; 
   screenShake = 0; deathFlash = 0;
   
+  // Сброс биомов при новой игре
+  biomeDist = 0;
+  currentBiome = "city";
+  nextBiome = "desert";
+
   player.y = GROUND - player.height;
   player.velocityY = 0; player.grounded = true; player.sliding = false;
   scoreElement.textContent = "00000";
@@ -195,7 +208,7 @@ function gameOver() {
 }
 
 // ===============================
-// ОБНОВЛЕНИЕ
+// ОБНОВЛЕНИЕ И РАНДОМИЗАЦИЯ
 // ===============================
 
 function spawnObstacle() {
@@ -203,7 +216,6 @@ function spawnObstacle() {
   const type = types[Math.floor(Math.random() * types.length)];
   let width, height, y;
   
-  // Добавлено сохранение локальных колючек для кактуса при спавне, чтобы убрать рябь
   let extras = {}; 
 
   switch (type) {
@@ -232,6 +244,16 @@ function update(dt) {
   speed = Math.min(550, 250 + score * 0.4);
   const movement = speed * dt;
   worldDistance += movement;
+  
+  // Логика перехода и рандомизации Биомов
+  biomeDist += movement;
+  if (biomeDist >= BIOME_LENGTH) {
+    biomeDist -= BIOME_LENGTH;
+    currentBiome = nextBiome;
+    const availableBiomes = ["city", "desert", "forest"].filter(b => b !== currentBiome);
+    nextBiome = availableBiomes[Math.floor(Math.random() * availableBiomes.length)];
+  }
+
   scoreElement.textContent = String(Math.floor(score)).padStart(5, "0");
 
   if (jumpBuffer > 0) {
@@ -284,10 +306,10 @@ function update(dt) {
 }
 
 // ===============================
-// РЕНДЕР ФОНА
+// РЕНДЕР ФОНА И ДНЯ/НОЧИ
 // ===============================
 
-function drawBiomeLayer(biomeType, layerIdx, offset, color, alpha) {
+function drawBiomeLayer(biomeType, layerIdx, offset, color, alpha, daylight) {
   ctx.globalAlpha = alpha;
   ctx.fillStyle = color;
   
@@ -301,12 +323,12 @@ function drawBiomeLayer(biomeType, layerIdx, offset, color, alpha) {
     layer.data.forEach(b => {
       if (biomeType === "city") {
         ctx.fillRect(b.x, GROUND - b.h, b.w, b.h);
-        if (b.hasWindows && alpha > 0.5) {
-          ctx.fillStyle = `rgba(255, 230, 120, ${alpha * 0.4})`;
+        // Окна светятся только ночью (daylight близко к 0)
+        if (b.hasWindows && alpha > 0.1 && daylight < 0.4) {
+          ctx.fillStyle = `rgba(255, 230, 120, ${alpha * (1 - daylight * 2)})`;
           for (let wy = GROUND - b.h + 10; wy < GROUND - 10; wy += 20) {
             for (let wx = b.x + 6; wx < b.x + b.w - 10; wx += 12) {
-              // ИСПРАВЛЕНИЕ: Статичный псевдорандом для окон (убирает рябь и мигание)
-              const windowSeed = Math.abs(Math.sin(wx * 12.9898 + wy * 78.233 + b.x)) * 43758.5453;
+              const windowSeed = Math.abs(Math.sin(wx * 12.98 + wy * 78.23 + b.x)) * 43758.54;
               if (windowSeed % 1 > 0.5) ctx.fillRect(wx, wy, 5, 8);
             }
           }
@@ -338,24 +360,50 @@ function drawBiomeLayer(biomeType, layerIdx, offset, color, alpha) {
 }
 
 function drawBackground() {
-  const state = getCurrentBiomes();
-  const c1 = biomeColors[state.current];
-  const c2 = biomeColors[state.next];
-  
-  const skyColor1 = mixColor(c1.sky1, c2.sky1, state.blend);
-  const skyColor2 = mixColor(c1.sky2, c2.sky2, state.blend);
-  const groundColor1 = mixColor(c1.ground1, c2.ground1, state.blend);
-  const groundColor2 = mixColor(c1.ground2, c2.ground2, state.blend);
+  // Вычисляем время суток
+  const dayCycle = (worldDistance / 25000) % 1;
+  const daylight = (Math.cos(dayCycle * Math.PI * 2 + Math.PI) + 1) / 2; 
+
+  // Расчет перехода биома с мягким ease-in-out сглаживанием
+  let rawBlend = Math.max(0, (biomeDist - (BIOME_LENGTH - FADE_LENGTH)) / FADE_LENGTH);
+  let blend = rawBlend * rawBlend * (3 - 2 * rawBlend); // Smoothstep
+
+  // Получаем цвета палитры, смешанные по времени суток
+  const c1 = mixPalette(colorPalettes[currentBiome].night, colorPalettes[currentBiome].day, daylight);
+  const c2 = mixPalette(colorPalettes[nextBiome].night, colorPalettes[nextBiome].day, daylight);
+
+  // Смешиваем текущий и следующий биом
+  const finalColors = mixPalette(c1, c2, blend);
 
   const skyGrad = ctx.createLinearGradient(0, 0, 0, GROUND);
-  skyGrad.addColorStop(0, skyColor1);
-  skyGrad.addColorStop(1, skyColor2);
+  skyGrad.addColorStop(0, finalColors.sky1);
+  skyGrad.addColorStop(1, finalColors.sky2);
   ctx.fillStyle = skyGrad; ctx.fillRect(0, 0, W, GROUND);
 
-  for (const s of stars) {
-    const twinkle = (Math.sin(worldDistance * 0.01 * s.twinkleSpeed + s.twinkleOffset) + 1) / 2;
-    ctx.fillStyle = `rgba(255, 255, 240, ${0.3 + twinkle * 0.5})`;
-    ctx.beginPath(); ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2); ctx.fill();
+  // Луна и Солнце
+  const celestialAngle = dayCycle * Math.PI * 2 - Math.PI / 2;
+  const sunX = W/2 + Math.cos(celestialAngle) * (W * 0.4);
+  const sunY = GROUND + 50 + Math.sin(celestialAngle) * (H * 0.7);
+  if (sunY < GROUND + 50) {
+    ctx.fillStyle = "#ffeedd"; ctx.shadowColor = "#ffcc00"; ctx.shadowBlur = 40 + Math.sin(worldDistance * 0.05) * 10;
+    ctx.beginPath(); ctx.arc(sunX, sunY, 25, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0;
+  }
+  
+  const moonAngle = celestialAngle + Math.PI;
+  const moonX = W/2 + Math.cos(moonAngle) * (W * 0.4);
+  const moonY = GROUND + 50 + Math.sin(moonAngle) * (H * 0.7);
+  if (moonY < GROUND + 50) {
+    ctx.fillStyle = "#ddeeff"; ctx.shadowColor = "#88aaff"; ctx.shadowBlur = 30;
+    ctx.beginPath(); ctx.arc(moonX, moonY, 18, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0;
+  }
+
+  // Звезды (постепенно исчезают днем)
+  if (daylight < 0.6) {
+    for (const s of stars) {
+      const twinkle = (Math.sin(worldDistance * 0.01 * s.twinkleSpeed + s.twinkleOffset) + 1) / 2;
+      ctx.fillStyle = `rgba(255, 255, 240, ${(0.3 + twinkle * 0.5) * (1 - daylight/0.6)})`;
+      ctx.beginPath(); ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2); ctx.fill();
+    }
   }
 
   const types = ["city", "desert", "forest"];
@@ -363,16 +411,16 @@ function drawBackground() {
     const speed = biomesData.city[idx].speed;
     const offset = (worldDistance * speed) % biomesData.city[idx].totalW;
     
-    const layerColor1 = mixColor(c1.build2, c1.build1, idx / 2);
-    const layerColor2 = mixColor(c2.build2, c2.build1, idx / 2);
+    const layerColor1 = mixColor(c1.b2, c1.b1, idx / 2);
+    const layerColor2 = mixColor(c2.b2, c2.b1, idx / 2);
 
-    if (state.blend < 1) drawBiomeLayer(types[state.current], idx, offset, layerColor1, 1 - state.blend);
-    if (state.blend > 0) drawBiomeLayer(types[state.next], idx, offset, layerColor2, state.blend);
+    if (blend < 1) drawBiomeLayer(currentBiome, idx, offset, layerColor1, 1 - blend, daylight);
+    if (blend > 0) drawBiomeLayer(nextBiome, idx, offset, layerColor2, blend, daylight);
   }
 
   const groundGrad = ctx.createLinearGradient(0, GROUND, 0, H);
-  groundGrad.addColorStop(0, groundColor1);
-  groundGrad.addColorStop(1, groundColor2);
+  groundGrad.addColorStop(0, finalColors.g1);
+  groundGrad.addColorStop(1, finalColors.g2);
   ctx.fillStyle = groundGrad; ctx.fillRect(0, GROUND, W, H - GROUND);
 
   ctx.strokeStyle = mixColor("#252d3a", "#455667", 0.5);
@@ -406,12 +454,15 @@ function drawCreepyFace(ctx, fx, fy) {
   ctx.closePath(); ctx.fill();
 }
 
-function drawLimb(x1, y1, x2, y2, x3, y3) {
-  // ИСПРАВЛЕНИЕ: Контур стал тоньше и менее ярким (графитовый цвет вместо белого свечения)
-  ctx.strokeStyle = "#4e5a6a"; ctx.lineWidth = 7; 
+// ИСПРАВЛЕНИЕ: Руки и Ноги теперь имеют разные оттенки контура
+function drawLimb(x1, y1, x2, y2, x3, y3, isArm = false) {
+  // Руки светлее (#7a8a9e), Ноги темнее (#556475)
+  ctx.strokeStyle = isArm ? "#7a8a9e" : "#556475"; 
+  ctx.lineWidth = 6; 
   ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); if(x3) ctx.lineTo(x3, y3); ctx.stroke();
   
-  ctx.strokeStyle = "#15181c"; ctx.lineWidth = 5.5; 
+  // Внутренняя заливка (тонкая, чтобы оставить красивый ободок)
+  ctx.strokeStyle = "#15181c"; ctx.lineWidth = 3.5; 
   ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); if(x3) ctx.lineTo(x3, y3); ctx.stroke();
 }
 
@@ -445,16 +496,16 @@ function drawPlayer() {
   if (player.sliding) {
     const cy = GROUND - 15;
 
-    drawLimb(cx - 5, cy + 5, cx - 15, GROUND - 5); 
+    drawLimb(cx - 5, cy + 5, cx - 15, GROUND - 5, null, null, false); // Нога
     ctx.fillStyle = colorShoe; ctx.beginPath(); ctx.ellipse(cx - 15, GROUND - 3, 7, 3, 0, 0, Math.PI * 2); ctx.fill();
 
-    ctx.fillStyle = colorBody; ctx.strokeStyle = "#4e5a6a"; ctx.lineWidth = 1.5;
+    ctx.fillStyle = colorBody; ctx.strokeStyle = "#556475"; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.ellipse(cx, cy, 18, 12, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
 
     ctx.fillStyle = "#eee"; ctx.font = "bold 10px 'Times New Roman', serif";
     ctx.save(); ctx.translate(cx, cy + 3); ctx.rotate(-0.2); ctx.fillText("NP", -7, 1); ctx.restore();
 
-    drawLimb(cx + 5, cy + 5, cx + 25, GROUND - 3); 
+    drawLimb(cx + 5, cy + 5, cx + 25, GROUND - 3, null, null, false); // Нога
     ctx.fillStyle = colorShoe; ctx.beginPath(); ctx.ellipse(cx + 28, GROUND - 3, 8, 3.5, -0.2, 0, Math.PI * 2); ctx.fill();
 
     ctx.fillStyle = colorBody; ctx.beginPath(); ctx.arc(cx + 20, cy - 8, 14, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
@@ -463,20 +514,20 @@ function drawPlayer() {
   } else if (!player.grounded) {
     const cy = y + 30;
 
-    drawLimb(cx - 2, cy + 10, cx - 12, cy + 15, cx - 8, cy + 25); 
+    drawLimb(cx - 2, cy + 10, cx - 12, cy + 15, cx - 8, cy + 25, false); // Нога
     ctx.fillStyle = colorShoe; ctx.beginPath(); ctx.ellipse(cx - 6, cy + 26, 7, 3.5, 0.4, 0, Math.PI * 2); ctx.fill();
 
-    ctx.fillStyle = colorBody; ctx.strokeStyle = "#4e5a6a"; ctx.lineWidth = 1.5;
+    ctx.fillStyle = colorBody; ctx.strokeStyle = "#556475"; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.roundRect(cx - 12, y + 15, 24, 28, 8); ctx.fill(); ctx.stroke();
 
     ctx.fillStyle = "#eee"; ctx.font = "bold 12px 'Times New Roman', serif";
     ctx.fillText("NP", cx - 8, cy + 10);
 
-    drawLimb(cx + 2, cy + 10, cx + 12, cy + 5, cx + 8, cy + 20); 
+    drawLimb(cx + 2, cy + 10, cx + 12, cy + 5, cx + 8, cy + 20, false); // Нога
     ctx.fillStyle = colorShoe; ctx.beginPath(); ctx.ellipse(cx + 10, cy + 22, 7, 3.5, -0.2, 0, Math.PI * 2); ctx.fill();
 
-    drawLimb(cx, cy - 5, cx - 15, cy - 10); 
-    drawLimb(cx, cy - 5, cx + 15, cy + 5);
+    drawLimb(cx, cy - 5, cx - 15, cy - 10, null, null, true); // Рука (Светлее)
+    drawLimb(cx, cy - 5, cx + 15, cy + 5, null, null, true); // Рука (Светлее)
 
     ctx.fillStyle = colorBody; ctx.beginPath(); ctx.arc(cx + 5, y + 12, 16, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     drawCreepyFace(ctx, cx + 7, y + 14);
@@ -488,21 +539,21 @@ function drawPlayer() {
     const legSwing = Math.sin(phase) * 16;
     const armSwing = Math.cos(phase) * 12;
 
-    drawLimb(cx, cy + 15, cx - legSwing, GROUND - 4); 
+    drawLimb(cx, cy + 15, cx - legSwing, GROUND - 4, null, null, false); // Нога
     ctx.fillStyle = colorShoe; ctx.beginPath(); ctx.ellipse(cx - legSwing + 4, GROUND - 2, 8, 3.5, 0, 0, Math.PI * 2); ctx.fill();
 
-    drawLimb(cx, cy - 5, cx + armSwing, cy + 10); 
+    drawLimb(cx, cy - 5, cx + armSwing, cy + 10, null, null, true); // Рука (Светлее)
 
-    ctx.fillStyle = colorBody; ctx.strokeStyle = "#4e5a6a"; ctx.lineWidth = 1.5;
+    ctx.fillStyle = colorBody; ctx.strokeStyle = "#556475"; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.roundRect(cx - 12, cy - 12, 24, 30, 8); ctx.fill(); ctx.stroke();
 
     ctx.fillStyle = "#eee"; ctx.font = "bold 12px 'Times New Roman', serif";
     ctx.fillText("NP", cx - 8, cy + 8);
 
-    drawLimb(cx, cy + 15, cx + legSwing, GROUND - 4); 
+    drawLimb(cx, cy + 15, cx + legSwing, GROUND - 4, null, null, false); // Нога
     ctx.fillStyle = colorShoe; ctx.beginPath(); ctx.ellipse(cx + legSwing + 4, GROUND - 2, 8, 3.5, 0, 0, Math.PI * 2); ctx.fill();
 
-    drawLimb(cx, cy - 5, cx - armSwing, cy + 12); 
+    drawLimb(cx, cy - 5, cx - armSwing, cy + 12, null, null, true); // Рука (Светлее)
 
     ctx.fillStyle = colorBody; ctx.beginPath(); ctx.arc(cx + 2, cy - 15, 16, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     drawCreepyFace(ctx, cx + 4, cy - 13);
@@ -569,7 +620,6 @@ function drawObstacles() {
     }
     else if (o.type === "missile") {
       const x = o.x, y = o.y;
-      // ИСПРАВЛЕНИЕ: Плавно пульсирующий огонь ракеты (без мигания)
       const firePhase = (Math.sin(worldDistance * 0.5 + o.x) + 1) * 7.5;
       
       ctx.fillStyle = "#ff6600"; ctx.beginPath(); ctx.moveTo(x, y + 5); ctx.lineTo(x - 20 - firePhase, y + o.height/2); ctx.lineTo(x, y + o.height - 5); ctx.fill();
@@ -590,7 +640,6 @@ function drawObstacles() {
       ctx.beginPath(); ctx.roundRect(x + 24, y + 30, 16, 12, 6); ctx.fill(); ctx.stroke();
       ctx.beginPath(); ctx.roundRect(x + 28, y + 15, 12, 20, 6); ctx.fill(); ctx.stroke();
       
-      // ИСПРАВЛЕНИЕ: Отрисовка заранее сгенерированных точек, которые больше не прыгают 
       ctx.fillStyle = "#a3b89e";
       for(let t of o.thorns) {
         ctx.fillRect(x + t.dx, y + t.dy, 2, 2);
