@@ -35,6 +35,7 @@ const player = {
 };
 
 function startGame() {
+  jumpBuffer = 0;
   score = 0;
   speed = 260;
   obstacles = [];
@@ -51,10 +52,12 @@ function startGame() {
   overlay.classList.add("hidden");
 }
 
+let jumpBuffer = 0;
+
 function jump() {
-  if (!running || !player.grounded || player.sliding) return;
-  player.velocityY = -620;
-  player.grounded = false;
+  if (!running) return;
+
+  jumpBuffer = 0.15;
 }
 
 function slide() {
@@ -97,6 +100,22 @@ function update(dt) {
   score += dt * 12;
 
   scoreElement.textContent = String(Math.floor(score)).padStart(5, "0");
+
+// Буфер прыжка
+if (jumpBuffer > 0) {
+  jumpBuffer -= dt;
+
+  if (player.grounded) {
+    player.sliding = false;
+    player.slideTimer = 0;
+
+    player.velocityY = -620;
+    player.grounded = false;
+
+    jumpBuffer = 0;
+  }
+}
+  
 
   // Физика прыжка
   player.velocityY += 1550 * dt;
@@ -349,14 +368,18 @@ document.addEventListener("keydown", e => {
   }
 });
 
-canvas.addEventListener("pointerdown", e => {
-  if (!running) return;
-
-  const rect = canvas.getBoundingClientRect();
-  const x = e.clientX - rect.left;
-
-  if (x < rect.width / 2) jump();
-  else slide();
-});
 
 requestAnimationFrame(loop);
+
+const jumpButton = document.getElementById("jumpButton");
+const slideButton = document.getElementById("slideButton");
+
+jumpButton.addEventListener("pointerdown", e => {
+  e.preventDefault();
+  jump();
+});
+
+slideButton.addEventListener("pointerdown", e => {
+  e.preventDefault();
+  slide();
+});
