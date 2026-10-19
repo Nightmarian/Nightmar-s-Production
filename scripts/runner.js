@@ -3,89 +3,104 @@ const ctx = canvas.getContext("2d");
 
 const scoreElement = document.getElementById("score");
 const bestElement = document.getElementById("best");
-
 const overlay = document.getElementById("gameOverlay");
 const overlayTitle = document.getElementById("overlayTitle");
 const overlayText = document.getElementById("overlayText");
 const startButton = document.getElementById("startButton");
 
-const WIDTH = canvas.width;
-const HEIGHT = canvas.height;
-
+const W = canvas.width;
+const H = canvas.height;
 const GROUND = 290;
-const GRAVITY = 0.85;
-const JUMP = -16;
 
 let running = false;
 let score = 0;
-let speed = 6;
+let speed = 260;
 let obstacles = [];
-let spawnTimer = 0;
-let frame = 0;
-
+let spawnDistance = 420;
+let worldDistance = 0;
+let lastTime = 0;
 let best = Number(localStorage.getItem("nightmarRunnerBest")) || 0;
 
 bestElement.textContent = String(best).padStart(5, "0");
 
 const player = {
-  x: 100,
-  y: GROUND - 60,
-  width: 42,
-  height: 60,
+  x: 110,
+  y: GROUND - 62,
+  width: 36,
+  height: 62,
   velocityY: 0,
-  grounded: true
+  grounded: true,
+  sliding: false,
+  slideTimer: 0
 };
 
-function resetGame() {
+function startGame() {
   score = 0;
-  speed = 6;
+  speed = 260;
   obstacles = [];
-  spawnTimer = 80;
-  frame = 0;
+  spawnDistance = 420;
+  worldDistance = 0;
 
   player.y = GROUND - player.height;
   player.velocityY = 0;
   player.grounded = true;
+  player.sliding = false;
+  player.slideTimer = 0;
 
-  scoreElement.textContent = "00000";
-}
-
-function startGame() {
-  resetGame();
   running = true;
   overlay.classList.add("hidden");
 }
 
 function jump() {
-  if (!running) return;
+  if (!running || !player.grounded || player.sliding) return;
+  player.velocityY = -620;
+  player.grounded = false;
+}
 
-  if (player.grounded) {
-    player.velocityY = JUMP;
-    player.grounded = false;
-  }
+function slide() {
+  if (!running || !player.grounded) return;
+  player.sliding = true;
+  player.slideTimer = 0.65;
 }
 
 function spawnObstacle() {
-  const height = 30 + Math.random() * 45;
+  const types = ["rock", "log", "barrier"];
+  const type = types[Math.floor(Math.random() * types.length)];
+
+  let width = 40;
+  let height = 35;
+
+  if (type === "log") {
+    width = 75;
+    height = 25;
+  }
+
+  if (type === "barrier") {
+    width = 65;
+    height = 16;
+  }
 
   obstacles.push({
-    x: WIDTH,
-    y: GROUND - height,
-    width: 25 + Math.random() * 20,
-    height
+    x: W + 30,
+    y: type === "barrier" ? GROUND - 62 : GROUND - height,
+    width,
+    height,
+    type
   });
 }
 
-function update() {
-  frame++;
+function update(dt) {
+  speed = Math.min(430, 260 + score * 0.55);
+  const movement = speed * dt;
 
-  score += 0.1;
-  speed = 6 + score / 150;
+  worldDistance += movement;
+  score += dt * 12;
 
   scoreElement.textContent = String(Math.floor(score)).padStart(5, "0");
 
-  player.velocityY += GRAVITY;
-  player.y += player.velocityY;
+  // Физика прыжка
+  player.velocityY += 1550 * dt;
+  player.y += player.velocityY * dt;
 
   if (player.y >= GROUND - player.height) {
     player.y = GROUND - player.height;
@@ -93,23 +108,40 @@ function update() {
     player.grounded = true;
   }
 
-  spawnTimer--;
-
-  if (spawnTimer <= 0) {
-    spawnObstacle();
-    spawnTimer = 60 + Math.random() * 70;
+  // Подкат
+  if (player.sliding) {
+    player.slideTimer -= dt;
+    if (player.slideTimer <= 0) {
+      player.sliding = false;
+    }
   }
 
-  for (const obstacle of obstacles) {
-    obstacle.x -= speed;
+  // Генерация препятствий
+  spawnDistance -= movement;
 
-    const padding = 7;
+  if (spawnDistance <= 0) {
+    spawnObstacle();
+    spawnDistance = 350 + Math.random() * 220;
+  }
+
+  for (const o of obstacles) {
+    o.x -= movement;
+
+    let px = player.x;
+    let py = player.y;
+    let pw = player.width;
+    let ph = player.height;
+
+    if (player.sliding) {
+      py += 32;
+      ph -= 32;
+    }
 
     if (
-      player.x + padding < obstacle.x + obstacle.width &&
-      player.x + player.width - padding > obstacle.x &&
-      player.y + padding < obstacle.y + obstacle.height &&
-      player.y + player.height - padding > obstacle.y
+      px + 6 < o.x + o.width &&
+      px + pw - 6 > o.x &&
+      py + 5 < o.y + o.height &&
+      py + ph - 5 > o.y
     ) {
       gameOver();
       return;
@@ -121,91 +153,167 @@ function update() {
 
 function gameOver() {
   running = false;
+  const result = Math.floor(score);
 
-  const finalScore = Math.floor(score);
-
-  if (finalScore > best) {
-    best = finalScore;
+  if (result > best) {
+    best = result;
     localStorage.setItem("nightmarRunnerBest", best);
     bestElement.textContent = String(best).padStart(5, "0");
   }
 
   overlayTitle.textContent = "SIGNAL LOST";
-  overlayText.textContent = `РЕЗУЛЬТАТ: ${finalScore}`;
+  overlayText.textContent = `SCORE: ${result}`;
   startButton.textContent = "RECONNECT";
-
   overlay.classList.remove("hidden");
 }
 
 function drawBackground() {
-  ctx.fillStyle = "#0c0c0c";
-  ctx.fillRect(0, 0, WIDTH, HEIGHT);
+  // Полный цикл день/ночь
+  const cycle = (worldDistance / 9000) % 1;
+  const daylight = (Math.cos(cycle * Math.PI * 2) + 1) / 2;
 
-  // VHS-линии
-  ctx.fillStyle = "rgba(255,255,255,0.025)";
+  const r = Math.floor(12 + daylight * 125);
+  const g = Math.floor(18 + daylight * 165);
+  const b = Math.floor(35 + daylight * 185);
 
-  for (let y = 0; y < HEIGHT; y += 5) {
-    ctx.fillRect(0, y, WIDTH, 1);
-  }
+  ctx.fillStyle = `rgb(${r},${g},${b})`;
+  ctx.fillRect(0, 0, W, H);
 
-  // Земля
-  ctx.strokeStyle = "#800000";
-  ctx.lineWidth = 2;
+  // Солнце / луна
+  const orbX = 90 + cycle * 720;
+  const orbY = 100 - Math.sin(cycle * Math.PI) * 65;
 
   ctx.beginPath();
+  ctx.arc(orbX, orbY, 25, 0, Math.PI * 2);
+  ctx.fillStyle = daylight > 0.5 ? "#ffe08a" : "#e2e9ff";
+  ctx.fill();
+
+  // Горы
+  ctx.fillStyle = daylight > 0.5 ? "#697f85" : "#293344";
+  ctx.beginPath();
   ctx.moveTo(0, GROUND);
-  ctx.lineTo(WIDTH, GROUND);
+  ctx.lineTo(140, 180);
+  ctx.lineTo(300, GROUND);
+  ctx.lineTo(460, 195);
+  ctx.lineTo(650, GROUND);
+  ctx.lineTo(790, 200);
+  ctx.lineTo(W, GROUND);
+  ctx.fill();
+
+  // Земля
+  ctx.fillStyle = daylight > 0.5 ? "#465e43" : "#202b29";
+  ctx.fillRect(0, GROUND, W, H - GROUND);
+
+  ctx.strokeStyle = daylight > 0.5 ? "#253b28" : "#7e2020";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(0, GROUND);
+  ctx.lineTo(W, GROUND);
   ctx.stroke();
-
-  // Движение поверхности
-  ctx.fillStyle = "#333";
-
-  for (let x = -(frame * speed) % 40; x < WIDTH; x += 40) {
-    ctx.fillRect(x, GROUND + 12, 20, 2);
-  }
 }
 
 function drawPlayer() {
-  // Персонаж в худи
-  ctx.fillStyle = "#181818";
-  ctx.fillRect(player.x, player.y + 15, player.width, 45);
+  const x = player.x;
+  const y = player.y;
 
-  // Капюшон
-  ctx.fillStyle = "#252525";
-  ctx.fillRect(player.x + 4, player.y, 34, 30);
+  ctx.save();
 
-  // Лицо в тени
-  ctx.fillStyle = "#050505";
-  ctx.fillRect(player.x + 10, player.y + 9, 22, 17);
+  if (player.sliding) {
+    ctx.translate(x, GROUND - 30);
+    ctx.rotate(-0.15);
 
-  // Красные глаза
-  ctx.fillStyle = "#b30000";
-  ctx.fillRect(player.x + 14, player.y + 16, 5, 3);
-  ctx.fillRect(player.x + 25, player.y + 16, 5, 3);
+    ctx.fillStyle = "#151515";
+    ctx.fillRect(0, 0, 55, 25);
 
-  // NP на худи
-  ctx.fillStyle = "#ddd";
-  ctx.font = "bold 14px monospace";
-  ctx.fillText("NP", player.x + 12, player.y + 47);
+    ctx.fillStyle = "#222";
+    ctx.fillRect(35, -15, 22, 23);
+
+    ctx.fillStyle = "#ddd";
+    ctx.font = "bold 12px monospace";
+    ctx.fillText("NP", 12, 17);
+  } else {
+    const legSwing = player.grounded
+      ? Math.sin(worldDistance / 18) * 12
+      : 0;
+
+    // Ноги
+    ctx.strokeStyle = "#111";
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+    ctx.moveTo(x + 12, y + 43);
+    ctx.lineTo(x + 12 + legSwing, y + 62);
+    ctx.moveTo(x + 25, y + 43);
+    ctx.lineTo(x + 25 - legSwing, y + 62);
+    ctx.stroke();
+
+    // Руки
+    ctx.strokeStyle = "#202020";
+    ctx.lineWidth = 7;
+    ctx.beginPath();
+    ctx.moveTo(x + 6, y + 22);
+    ctx.lineTo(x - 3 - legSwing * 0.5, y + 42);
+    ctx.moveTo(x + 30, y + 22);
+    ctx.lineTo(x + 39 + legSwing * 0.5, y + 40);
+    ctx.stroke();
+
+    // Тело
+    ctx.fillStyle = "#151515";
+    ctx.fillRect(x + 3, y + 17, 31, 30);
+
+    // Капюшон
+    ctx.fillStyle = "#252525";
+    ctx.beginPath();
+    ctx.arc(x + 19, y + 15, 17, Math.PI, 0);
+    ctx.lineTo(x + 36, y + 27);
+    ctx.lineTo(x + 2, y + 27);
+    ctx.fill();
+
+    // Лицо
+    ctx.fillStyle = "#050505";
+    ctx.fillRect(x + 10, y + 11, 18, 15);
+
+    // Глаза
+    ctx.fillStyle = "#d00000";
+    ctx.fillRect(x + 14, y + 17, 4, 3);
+    ctx.fillRect(x + 23, y + 17, 4, 3);
+
+    // Логотип
+    ctx.fillStyle = "#eee";
+    ctx.font = "bold 12px monospace";
+    ctx.fillText("NP", x + 10, y + 38);
+  }
+
+  ctx.restore();
 }
 
 function drawObstacles() {
-  for (const obstacle of obstacles) {
-    ctx.fillStyle = "#700000";
-    ctx.fillRect(
-      obstacle.x,
-      obstacle.y,
-      obstacle.width,
-      obstacle.height
-    );
+  for (const o of obstacles) {
+    if (o.type === "rock") {
+      ctx.fillStyle = "#555";
+      ctx.beginPath();
+      ctx.moveTo(o.x, GROUND);
+      ctx.lineTo(o.x + 8, o.y + 8);
+      ctx.lineTo(o.x + 28, o.y);
+      ctx.lineTo(o.x + o.width, GROUND);
+      ctx.fill();
+    }
 
-    ctx.strokeStyle = "#ff3030";
-    ctx.strokeRect(
-      obstacle.x,
-      obstacle.y,
-      obstacle.width,
-      obstacle.height
-    );
+    if (o.type === "log") {
+      ctx.fillStyle = "#69452c";
+      ctx.fillRect(o.x, o.y, o.width, o.height);
+
+      ctx.strokeStyle = "#382313";
+      ctx.strokeRect(o.x, o.y, o.width, o.height);
+    }
+
+    if (o.type === "barrier") {
+      ctx.fillStyle = "#8b0000";
+      ctx.fillRect(o.x, o.y, o.width, o.height);
+
+      ctx.fillStyle = "#fff";
+      ctx.font = "bold 10px monospace";
+      ctx.fillText("DANGER", o.x + 7, o.y + 12);
+    }
   }
 }
 
@@ -215,31 +323,40 @@ function render() {
   drawObstacles();
 }
 
-function loop() {
-  if (running) {
-    update();
-  }
+function loop(timestamp) {
+  const dt = Math.min((timestamp - lastTime) / 1000 || 0, 0.033);
+  lastTime = timestamp;
 
+  if (running) update(dt);
   render();
+
   requestAnimationFrame(loop);
 }
 
 startButton.addEventListener("click", startGame);
 
-document.addEventListener("keydown", event => {
-  if (event.code === "Space" || event.code === "ArrowUp") {
-    event.preventDefault();
+document.addEventListener("keydown", e => {
+  if (["Space", "ArrowUp", "ArrowDown"].includes(e.code)) {
+    e.preventDefault();
 
-    if (running) {
-      jump();
-    } else {
+    if (!running) {
       startGame();
+      return;
     }
+
+    if (e.code === "ArrowDown") slide();
+    else jump();
   }
 });
 
-canvas.addEventListener("pointerdown", () => {
-  if (running) jump();
+canvas.addEventListener("pointerdown", e => {
+  if (!running) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+
+  if (x < rect.width / 2) jump();
+  else slide();
 });
 
-loop();
+requestAnimationFrame(loop);
