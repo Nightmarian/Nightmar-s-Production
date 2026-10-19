@@ -83,24 +83,28 @@ function spawnDust(x, y, count) {
       vy: -Math.random() * 15 - 5,
       life: 0.2 + Math.random() * 0.3,
       maxLife: 0.2 + Math.random() * 0.3,
-      size: 1 + Math.random() * 2.5,
-      color: "rgba(30, 35, 40, " 
+      size: 2 + Math.random() * 3,
+      color: "rgba(30, 35, 40, ",
+      isSpark: false
     });
   }
 }
 
-// ИСПРАВЛЕННЫЕ ИСКРЫ (Больше не создают желтую кляксу)
+// ИСПРАВЛЕННЫЕ ИСКРЫ: Теперь это вытянутые линии, а не круглые кляксы
 function spawnSparks(x, y) {
-  dustParticles.push({
-    x: x + Math.random() * 10 - 5, // Разброс пошире
-    y: y,
-    vx: -speed * 0.4 + Math.random() * 40, // Отлетают назад
-    vy: -Math.random() * 60 - 20, // Взлетают выше
-    life: 0.15 + Math.random() * 0.15,
-    maxLife: 0.15 + Math.random() * 0.15,
-    size: 1 + Math.random() * 1.5, // Размер стал сильно меньше!
-    color: "rgba(255, 220, 100, "
-  });
+  for (let i = 0; i < 2; i++) {
+    dustParticles.push({
+      x: x + Math.random() * 5 - 2,
+      y: y,
+      vx: -speed * 0.8 - Math.random() * 100, // Отлетают быстро назад
+      vy: -Math.random() * 40 - 10,
+      life: 0.1 + Math.random() * 0.15,
+      maxLife: 0.15 + Math.random() * 0.15,
+      size: 1.5 + Math.random(),
+      color: "rgba(255, 200, 50, ", // Оранжево-желтые
+      isSpark: true
+    });
+  }
 }
 
 function spawnDeathParticles(x, y) {
@@ -228,8 +232,7 @@ function update(dt) {
   player.sliding = slideHeld && player.grounded;
   
   if (player.sliding) {
-    // Искры появляются чуть позади кулака, чтобы не перекрывать его
-    if (Math.random() < 0.5) spawnSparks(player.x + 30, GROUND - 2); 
+    if (Math.random() < 0.6) spawnSparks(player.x + 35, GROUND - 2); 
   } else if (player.grounded && Math.random() < 0.2) {
     spawnDust(player.x + 10, GROUND, 1);
   }
@@ -244,8 +247,8 @@ function update(dt) {
     o.x -= movement;
     const px = player.x + 5;
     const pw = player.sliding ? 45 : 20;
-    const py = player.sliding ? GROUND - 20 : player.y + 5;
-    const ph = player.sliding ? 18 : player.height - 10;
+    const py = player.sliding ? GROUND - 25 : player.y + 5;
+    const ph = player.sliding ? 23 : player.height - 10;
     const margin = 6;
 
     const horizontalCollision = px < o.x + o.width - margin && px + pw > o.x + margin;
@@ -354,37 +357,38 @@ function drawBackground() {
 }
 
 // ===============================
-// ПЕРСОНАЖ (ИДЕАЛЬНЫЙ ПРЫЖОК И ЖУТКОЕ ЛИЦО)
+// ПЕРСОНАЖ (ПОЛНОСТЬЮ ОБНОВЛЕННЫЙ)
 // ===============================
 
-// НОВОЕ, ДЕТАЛИЗИРОВАННОЕ ЛИЦО (Как на референсе)
+// Рисуем лицо, полностью повторяющее референс
 function drawCreepyFace(ctx, fx, fy) {
-  // Глаза (чисто белые со слабым свечением)
-  ctx.fillStyle = "#fff";
-  ctx.shadowColor = "rgba(255, 255, 255, 0.4)";
-  ctx.shadowBlur = 4;
-  ctx.beginPath(); ctx.arc(fx - 4, fy - 4, 2.2, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(fx + 5, fy - 4, 2.2, 0, Math.PI * 2); ctx.fill();
-  ctx.shadowBlur = 0; // Обязательно отключаем тень
-
-  // Огромная, зубастая, зигзагообразная улыбка (как у Чеширского кота / Венома)
+  // Черная бездна внутри капюшона
+  ctx.fillStyle = "#000";
   ctx.beginPath();
-  ctx.moveTo(fx - 11, fy + 1); // Левый угол рта
-  
-  // Верхний ряд зубов (зигзаг)
-  ctx.lineTo(fx - 8, fy + 4); ctx.lineTo(fx - 6, fy + 2);
-  ctx.lineTo(fx - 4, fy + 6); ctx.lineTo(fx - 2, fy + 3);
-  ctx.lineTo(fx, fy + 7);     ctx.lineTo(fx + 2, fy + 3);
-  ctx.lineTo(fx + 4, fy + 6); ctx.lineTo(fx + 6, fy + 2);
-  ctx.lineTo(fx + 8, fy + 4); ctx.lineTo(fx + 11, fy + 1); // Правый угол
-  
-  // Нижний ряд зубов (зигзаг обратно)
-  ctx.lineTo(fx + 9, fy + 5); ctx.lineTo(fx + 7, fy + 8);
-  ctx.lineTo(fx + 5, fy + 5); ctx.lineTo(fx + 3, fy + 9);
-  ctx.lineTo(fx + 1, fy + 6); ctx.lineTo(fx - 1, fy + 9);
-  ctx.lineTo(fx - 3, fy + 5); ctx.lineTo(fx - 5, fy + 8);
-  ctx.lineTo(fx - 7, fy + 5); ctx.lineTo(fx - 9, fy + 4);
-  
+  ctx.arc(fx, fy, 11, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Светящиеся глаза
+  ctx.fillStyle = "#fff";
+  ctx.shadowColor = "rgba(255, 255, 255, 0.8)";
+  ctx.shadowBlur = 6;
+  ctx.beginPath(); ctx.arc(fx - 4, fy - 3, 2.5, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(fx + 4, fy - 3, 2.5, 0, Math.PI * 2); ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Жуткая улыбка (зигзаг по дуге)
+  ctx.fillStyle = "#fff";
+  ctx.beginPath();
+  ctx.moveTo(fx - 10, fy + 2); // Левый край рта
+  // Верхний ряд зубов
+  ctx.lineTo(fx - 7, fy + 5); ctx.lineTo(fx - 4, fy + 3);
+  ctx.lineTo(fx - 1, fy + 6); ctx.lineTo(fx + 2, fy + 3);
+  ctx.lineTo(fx + 5, fy + 6); ctx.lineTo(fx + 8, fy + 3);
+  ctx.lineTo(fx + 10, fy + 2); // Правый край
+  // Нижний ряд зубов
+  ctx.lineTo(fx + 7, fy + 8); ctx.lineTo(fx + 4, fy + 5);
+  ctx.lineTo(fx + 1, fy + 9); ctx.lineTo(fx - 2, fy + 5);
+  ctx.lineTo(fx - 5, y = fy + 8); ctx.lineTo(fx - 8, fy + 5);
   ctx.closePath();
   ctx.fill();
 }
@@ -398,18 +402,10 @@ function drawPlayer() {
 
   const cx = x + 15;
   
-  // Аура персонажа
-  const auraCenterY = player.sliding ? GROUND - 15 : y + 30;
-  const glow = ctx.createRadialGradient(cx, auraCenterY, 5, cx, auraCenterY, 35);
-  glow.addColorStop(0, "rgba(180, 220, 255, 0.2)");
-  glow.addColorStop(1, "rgba(180, 220, 255, 0)");
-  ctx.fillStyle = glow;
-  ctx.beginPath(); ctx.arc(cx, auraCenterY, 35, 0, Math.PI * 2); ctx.fill();
-
-  // ДИНАМИЧЕСКАЯ ТЕНЬ ПОД НОГАМИ
+  // Тень под ногами (строго черная, без багов)
   const distFromGround = Math.max(0, GROUND - (y + player.height));
-  const shadowAlpha = Math.max(0, 0.6 - distFromGround * 0.005);
-  const shadowWidth = Math.max(0, (player.sliding ? 28 : 14) - distFromGround * 0.1);
+  const shadowAlpha = Math.max(0, 0.5 - distFromGround * 0.004);
+  const shadowWidth = Math.max(0, (player.sliding ? 28 : 16) - distFromGround * 0.1);
   
   if (shadowAlpha > 0) {
     ctx.fillStyle = `rgba(0, 0, 0, ${shadowAlpha})`;
@@ -418,138 +414,116 @@ function drawPlayer() {
     ctx.fill();
   }
 
-  ctx.shadowBlur = 0; 
+  // Цвета персонажа (Сделал темнее, чтобы соответствовало референсу)
+  const colorHood = "#181a20"; 
+  const colorBody = "#20232a";
+  const colorLimb = "#111216"; 
+  const colorShoe = "#08080a";
+
   ctx.lineCap = "round"; 
   ctx.lineJoin = "round";
 
-  // СВЕТЛЫЕ ЦВЕТА ПЕРСОНАЖА
-  const colorHood = "#47505e"; // Серо-синий капюшон
-  const colorBody = "#3a424e"; // Светло-серый худи
-  const colorFrontLimb = "#2c323b"; // Передняя рука/нога
-  const colorBackLimb = "#1e2229"; // Задняя рука/нога
-  const colorFaceBg = "#0b0c0f"; // Лицо
-
   if (player.sliding) {
-    // ПОДКАТ
-    const cy = GROUND - 12;
+    // ПОДКАТ (Вытянут по земле, реалистичная поза)
+    const cy = GROUND - 15;
 
-    ctx.strokeStyle = colorBackLimb; ctx.lineWidth = 5;
-    ctx.beginPath(); ctx.moveTo(cx + 5, cy - 8); ctx.lineTo(cx - 15, cy - 18); ctx.stroke();
+    // Задняя нога (согнута)
+    ctx.strokeStyle = colorLimb; ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.moveTo(cx - 5, cy + 5); ctx.lineTo(cx - 15, GROUND - 5); ctx.stroke();
+    ctx.fillStyle = colorShoe; ctx.beginPath(); ctx.ellipse(cx - 15, GROUND - 3, 7, 3, 0, 0, Math.PI * 2); ctx.fill();
 
-    ctx.strokeStyle = colorBackLimb; ctx.lineWidth = 7;
-    ctx.beginPath(); ctx.moveTo(cx - 5, cy + 2); ctx.lineTo(cx - 15, GROUND - 4); ctx.lineTo(cx - 5, GROUND - 2); ctx.stroke();
+    // Тело капюшона (наклонено)
+    ctx.fillStyle = colorBody;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, 18, 12, 0, 0, Math.PI * 2);
+    ctx.fill();
 
-    ctx.strokeStyle = colorBody; ctx.lineWidth = 15;
-    ctx.beginPath(); ctx.moveTo(cx - 5, cy + 2); ctx.lineTo(cx + 15, cy - 2); ctx.stroke();
-    
-    ctx.fillStyle = "#fff"; ctx.font = "bold 10px 'Courier New', monospace";
-    ctx.save(); ctx.translate(cx + 5, cy + 2); ctx.rotate(-0.1); ctx.fillText("NP", -6, 4); ctx.restore();
+    // Логотип NP
+    ctx.fillStyle = "#eee"; ctx.font = "bold 14px 'Times New Roman', serif";
+    ctx.save(); ctx.translate(cx, cy + 3); ctx.rotate(-0.2); ctx.fillText("NP", -10, 2); ctx.restore();
 
-    ctx.strokeStyle = colorFrontLimb; ctx.lineWidth = 7;
-    ctx.beginPath(); ctx.moveTo(cx - 5, cy + 2); ctx.lineTo(cx + 25, GROUND - 4); ctx.stroke();
-    ctx.fillStyle = "#111"; ctx.beginPath(); ctx.ellipse(cx + 28, GROUND - 3, 7, 3.5, 0, 0, Math.PI * 2); ctx.fill(); 
+    // Передняя нога (вытянута вперед)
+    ctx.strokeStyle = colorLimb; ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.moveTo(cx + 5, cy + 5); ctx.lineTo(cx + 25, GROUND - 3); ctx.stroke();
+    ctx.fillStyle = colorShoe; ctx.beginPath(); ctx.ellipse(cx + 28, GROUND - 3, 8, 3.5, -0.2, 0, Math.PI * 2); ctx.fill();
 
-    // Рука в подкате (Чистый серый цвет, искры больше не закрашивают её)
-    ctx.strokeStyle = colorFrontLimb; ctx.lineWidth = 5;
-    ctx.beginPath(); ctx.moveTo(cx + 15, cy - 2); ctx.lineTo(cx + 25, GROUND - 1); ctx.stroke();
-    ctx.fillStyle = "#dcdcdc"; ctx.beginPath(); ctx.arc(cx + 25, GROUND - 1, 3.5, 0, Math.PI * 2); ctx.fill(); 
-
-    ctx.fillStyle = colorHood; ctx.beginPath(); ctx.arc(cx + 22, cy - 10, 13, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = colorFaceBg; ctx.beginPath(); ctx.arc(cx + 24, cy - 9, 10, 0, Math.PI * 2); ctx.fill(); 
-    drawCreepyFace(ctx, cx + 25, cy - 9);
+    // Капюшон и Лицо
+    ctx.fillStyle = colorHood; ctx.beginPath(); ctx.arc(cx + 20, cy - 8, 14, 0, Math.PI * 2); ctx.fill();
+    drawCreepyFace(ctx, cx + 22, cy - 6);
 
   } else if (!player.grounded) {
-    // НОВЫЙ ДИНАМИЧНЫЙ ПРЫЖОК ПАРКУРИСТА
-    const shoulderX = cx + 5; // Сильный наклон вперед
-    const shoulderY = y + 18;
-    const hipX = cx - 2;
-    const hipY = y + 38;
+    // ПРЫЖОК (Группировка в воздухе, как в паркуре. Убран баг с ногой-хвостом)
+    const cy = y + 30;
 
-    // Задняя рука (отведена назад и вверх)
-    ctx.strokeStyle = colorBackLimb; ctx.lineWidth = 5;
-    ctx.beginPath(); ctx.moveTo(shoulderX, shoulderY); 
-    ctx.lineTo(shoulderX - 12, shoulderY - 8); 
-    ctx.lineTo(shoulderX - 8, shoulderY - 18); ctx.stroke(); 
-    ctx.fillStyle = "#a9a9a9"; ctx.beginPath(); ctx.arc(shoulderX - 8, shoulderY - 18, 3, 0, Math.PI * 2); ctx.fill();
+    // Задняя нога (поджата)
+    ctx.strokeStyle = colorLimb; ctx.lineWidth = 7;
+    ctx.beginPath(); ctx.moveTo(cx - 2, cy + 10); ctx.lineTo(cx - 12, cy + 15); ctx.lineTo(cx - 8, cy + 25); ctx.stroke();
+    ctx.fillStyle = colorShoe; ctx.beginPath(); ctx.ellipse(cx - 6, cy + 26, 7, 3.5, 0.4, 0, Math.PI * 2); ctx.fill();
 
-    // Задняя нога (вытянута назад, как хвост)
-    ctx.strokeStyle = colorBackLimb; ctx.lineWidth = 7;
-    ctx.beginPath(); ctx.moveTo(hipX, hipY); 
-    ctx.lineTo(hipX - 10, hipY + 12); 
-    ctx.lineTo(hipX - 20, hipY + 15); ctx.stroke(); 
-    ctx.fillStyle = "#111"; ctx.beginPath(); ctx.ellipse(hipX - 22, hipY + 14, 6, 3, -Math.PI/6, 0, Math.PI * 2); ctx.fill();
+    // Торс худи
+    ctx.fillStyle = colorBody;
+    ctx.beginPath();
+    ctx.roundRect(cx - 12, y + 15, 24, 28, 8);
+    ctx.fill();
 
-    // Тело (Наклонено)
-    ctx.strokeStyle = colorBody; ctx.lineWidth = 17;
-    ctx.beginPath(); ctx.moveTo(hipX, hipY); ctx.lineTo(shoulderX, shoulderY); ctx.stroke();
-    ctx.fillStyle = "#fff"; ctx.font = "bold 12px 'Courier New', monospace";
-    ctx.save(); ctx.translate(cx + 2, y + 30); ctx.rotate(0.2); ctx.fillText("NP", -8, 4); ctx.restore();
+    // Логотип NP
+    ctx.fillStyle = "#eee"; ctx.font = "bold 16px 'Times New Roman', serif";
+    ctx.fillText("NP", cx - 11, cy + 10);
 
-    // Передняя нога (Колено высоко поднято к груди)
-    ctx.strokeStyle = colorFrontLimb; ctx.lineWidth = 7;
-    ctx.beginPath(); ctx.moveTo(hipX, hipY); 
-    ctx.lineTo(hipX + 14, hipY - 2); // Бедро вверх
-    ctx.lineTo(hipX + 8, hipY + 14); ctx.stroke(); // Голень вниз
-    ctx.fillStyle = "#111"; ctx.beginPath(); ctx.ellipse(hipX + 9, hipY + 15, 6, 3, 0, 0, Math.PI * 2); ctx.fill();
+    // Передняя нога (колено вперед)
+    ctx.strokeStyle = colorLimb; ctx.lineWidth = 7;
+    ctx.beginPath(); ctx.moveTo(cx + 2, cy + 10); ctx.lineTo(cx + 12, cy + 5); ctx.lineTo(cx + 8, cy + 20); ctx.stroke();
+    ctx.fillStyle = colorShoe; ctx.beginPath(); ctx.ellipse(cx + 10, cy + 22, 7, 3.5, -0.2, 0, Math.PI * 2); ctx.fill();
 
-    // Передняя рука (Взмах вперед для баланса)
-    ctx.strokeStyle = colorFrontLimb; ctx.lineWidth = 5;
-    ctx.beginPath(); ctx.moveTo(shoulderX, shoulderY); 
-    ctx.lineTo(shoulderX + 12, shoulderY + 5); 
-    ctx.lineTo(shoulderX + 6, shoulderY - 5); ctx.stroke();
-    ctx.fillStyle = "#dcdcdc"; ctx.beginPath(); ctx.arc(shoulderX + 6, shoulderY - 5, 3.5, 0, Math.PI * 2); ctx.fill();
+    // Руки (раскинуты для баланса)
+    ctx.strokeStyle = colorLimb; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(cx, cy - 5); ctx.lineTo(cx - 15, cy - 10); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx, cy - 5); ctx.lineTo(cx + 15, cy + 5); ctx.stroke();
 
-    // Голова
-    ctx.fillStyle = colorHood; ctx.beginPath(); ctx.arc(shoulderX + 6, shoulderY - 10, 14, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = colorFaceBg; ctx.beginPath(); ctx.arc(shoulderX + 8, shoulderY - 9, 11, 0, Math.PI * 2); ctx.fill(); 
-    drawCreepyFace(ctx, shoulderX + 9, shoulderY - 9);
+    // Капюшон и Лицо
+    ctx.fillStyle = colorHood; ctx.beginPath(); ctx.arc(cx + 5, y + 12, 16, 0, Math.PI * 2); ctx.fill();
+    drawCreepyFace(ctx, cx + 7, y + 14);
 
   } else {
-    // БЕГ
-    const runCycle = worldDistance / 18;
-    const phase = runCycle;
+    // БЕГ (Динамичный бег)
+    const phase = worldDistance / 20;
     const bobY = Math.abs(Math.sin(phase * 2)) * 3;
     
-    const shoulderX = cx + 2;
-    const shoulderY = y + 20 + bobY;
-    const hipX = cx - 3;
-    const hipY = y + 42 + bobY;
-
-    const legSwing = Math.sin(phase) * 14;
+    const cy = y + 25 + bobY;
+    const legSwing = Math.sin(phase) * 16;
     const armSwing = Math.cos(phase) * 12;
 
-    ctx.strokeStyle = colorBackLimb; ctx.lineWidth = 5;
-    ctx.beginPath(); ctx.moveTo(shoulderX, shoulderY); 
-    ctx.lineTo(shoulderX + armSwing - 5, shoulderY + 8); 
-    ctx.lineTo(shoulderX + armSwing + 5, shoulderY + 2); ctx.stroke();
-    ctx.fillStyle = "#a9a9a9"; ctx.beginPath(); ctx.arc(shoulderX + armSwing + 5, shoulderY + 2, 3, 0, Math.PI * 2); ctx.fill();
+    // Задняя нога
+    ctx.strokeStyle = colorLimb; ctx.lineWidth = 7;
+    ctx.beginPath(); ctx.moveTo(cx, cy + 15); ctx.lineTo(cx - legSwing, GROUND - 4); ctx.stroke();
+    ctx.fillStyle = colorShoe; ctx.beginPath(); ctx.ellipse(cx - legSwing + 4, GROUND - 2, 8, 3.5, 0, 0, Math.PI * 2); ctx.fill();
 
-    ctx.strokeStyle = colorBackLimb; ctx.lineWidth = 7;
-    ctx.beginPath(); ctx.moveTo(hipX, hipY); 
-    ctx.lineTo(hipX - legSwing - 4, hipY + 10); 
-    ctx.lineTo(hipX - legSwing, Math.min(GROUND - 3, hipY + 18)); ctx.stroke();
-    ctx.fillStyle = "#111"; ctx.beginPath(); ctx.ellipse(hipX - legSwing + 3, Math.min(GROUND - 2, hipY + 19), 6, 3, 0, 0, Math.PI * 2); ctx.fill();
+    // Задняя рука
+    ctx.strokeStyle = colorLimb; ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.moveTo(cx, cy - 5); ctx.lineTo(cx + armSwing, cy + 10); ctx.stroke();
 
-    ctx.strokeStyle = colorBody; ctx.lineWidth = 17;
-    ctx.beginPath(); ctx.moveTo(hipX, hipY); ctx.lineTo(shoulderX, shoulderY); ctx.stroke();
-    ctx.fillStyle = "#fff"; ctx.font = "bold 12px 'Courier New', monospace";
-    ctx.save(); ctx.translate(cx, y + 33 + bobY); ctx.rotate(0.15); ctx.fillText("NP", -8, 4); ctx.restore();
+    // Торс худи
+    ctx.fillStyle = colorBody;
+    ctx.beginPath();
+    ctx.roundRect(cx - 12, cy - 12, 24, 30, 8);
+    ctx.fill();
 
-    ctx.strokeStyle = colorFrontLimb; ctx.lineWidth = 7;
-    ctx.beginPath(); ctx.moveTo(hipX, hipY); 
-    ctx.lineTo(hipX + legSwing + 4, hipY + 10); 
-    ctx.lineTo(hipX + legSwing, Math.min(GROUND - 3, hipY + 18)); ctx.stroke();
-    ctx.fillStyle = "#111"; ctx.beginPath(); ctx.ellipse(hipX + legSwing + 3, Math.min(GROUND - 2, hipY + 19), 6, 3, 0, 0, Math.PI * 2); ctx.fill();
+    // Логотип NP
+    ctx.fillStyle = "#eee"; ctx.font = "bold 16px 'Times New Roman', serif";
+    ctx.fillText("NP", cx - 11, cy + 8);
 
-    ctx.strokeStyle = colorFrontLimb; ctx.lineWidth = 5;
-    ctx.beginPath(); ctx.moveTo(shoulderX, shoulderY); 
-    ctx.lineTo(shoulderX - armSwing - 5, shoulderY + 8); 
-    ctx.lineTo(shoulderX - armSwing + 5, shoulderY + 2); ctx.stroke();
-    ctx.fillStyle = "#dcdcdc"; ctx.beginPath(); ctx.arc(shoulderX - armSwing + 5, shoulderY + 2, 3.5, 0, Math.PI * 2); ctx.fill();
+    // Передняя нога
+    ctx.strokeStyle = colorLimb; ctx.lineWidth = 7;
+    ctx.beginPath(); ctx.moveTo(cx, cy + 15); ctx.lineTo(cx + legSwing, GROUND - 4); ctx.stroke();
+    ctx.fillStyle = colorShoe; ctx.beginPath(); ctx.ellipse(cx + legSwing + 4, GROUND - 2, 8, 3.5, 0, 0, Math.PI * 2); ctx.fill();
 
-    ctx.fillStyle = colorHood; ctx.beginPath(); ctx.arc(shoulderX + 5, shoulderY - 12, 14, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = colorFaceBg; ctx.beginPath(); ctx.arc(shoulderX + 6, shoulderY - 11, 11, 0, Math.PI * 2); ctx.fill(); 
-    drawCreepyFace(ctx, shoulderX + 7, shoulderY - 11);
+    // Передняя рука
+    ctx.strokeStyle = colorLimb; ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.moveTo(cx, cy - 5); ctx.lineTo(cx - armSwing, cy + 12); ctx.stroke();
+
+    // Капюшон и Лицо
+    ctx.fillStyle = colorHood; ctx.beginPath(); ctx.arc(cx + 2, cy - 15, 16, 0, Math.PI * 2); ctx.fill();
+    drawCreepyFace(ctx, cx + 4, cy - 13);
   }
   
   ctx.restore();
@@ -609,10 +583,16 @@ function drawObstacles() {
 function drawParticles() {
   for (const p of dustParticles) {
     ctx.fillStyle = p.color + (p.life / p.maxLife) * 0.8 + ")";
-    ctx.beginPath(); ctx.arc(p.x, p.y, p.size * (p.life / p.maxLife), 0, Math.PI * 2); ctx.fill();
+    if (p.isSpark) {
+      // Искры рисуем как вытянутые линии, чтобы они не были "кляксами"
+      ctx.fillRect(p.x, p.y, p.size * 4, p.size);
+    } else {
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.size * (p.life / p.maxLife), 0, Math.PI * 2); ctx.fill();
+    }
   }
   for (const p of particles) {
-    ctx.globalAlpha = p.life / p.maxLife; ctx.fillStyle = p.color;
+    ctx.globalAlpha = Math.max(0, p.life / p.maxLife); 
+    ctx.fillStyle = p.color;
     ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
   }
   ctx.globalAlpha = 1;
