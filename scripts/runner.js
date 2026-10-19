@@ -1,5 +1,5 @@
 // ==========================================
-// NIGHTMAR RUNNER - Full Engine Script
+// NIGHTMAR RUNNER - Full Engine Script (Fixed)
 // ==========================================
 
 const canvas = document.getElementById('game');
@@ -13,7 +13,7 @@ const GROUND = 370;
 canvas.width = CANVAS_WIDTH;
 canvas.height = CANVAS_HEIGHT;
 
-// Audio Context (Synthesized sound effects)
+// Audio Context (Safe Synthesized sound effects)
 let audioCtx = null;
 function playSound(freq, type, duration) {
     if (!audioCtx) return;
@@ -22,13 +22,31 @@ function playSound(freq, type, duration) {
         const gain = audioCtx.createGain();
         osc.type = type;
         osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+        gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
         osc.connect(gain);
         gain.connect(audioCtx.destination);
         osc.start();
         osc.stop(audioCtx.currentTime + duration);
     } catch(e) {}
+}
+
+// Helper: Universal Rounded Rectangle (Prevents Browser Crashes)
+function drawRoundedRect(ctx, x, y, width, height, radius) {
+    let r = typeof radius === 'number' ? radius : 6;
+    if (width < 2 * r) r = width / 2;
+    if (height < 2 * r) r = height / 2;
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + width - r, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + r);
+    ctx.lineTo(x + width, y + height - r);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+    ctx.lineTo(x + r, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
 }
 
 // Game State
@@ -38,25 +56,25 @@ let highScore = localStorage.getItem('nightmar_highscore') || 0;
 let gameSpeed = 6;
 let frameCount = 0;
 
-// Colors & Color Helper
+// Color Helper Functions
 function parseColor(colorStr) {
     if (!colorStr) return [0, 0, 0, 1];
     if (colorStr.startsWith('#')) {
         let hex = colorStr.slice(1);
         if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
         return [
-            parseInt(hex.slice(0, 2), 16),
-            parseInt(hex.slice(2, 4), 16),
-            parseInt(hex.slice(4, 6), 16),
+            parseInt(hex.substr(0, 2), 16) || 0,
+            parseInt(hex.substr(2, 2), 16) || 0,
+            parseInt(hex.substr(4, 2), 16) || 0,
             1
         ];
     }
-    if (colorStr.startsWith('rgb')) {
-        const parts = colorStr.match(/[\d.]+/g);
+    const parts = colorStr.match(/[\d.]+/g);
+    if (parts && parts.length >= 3) {
         return [
-            parseFloat(parts[0]),
-            parseFloat(parts[1]),
-            parseFloat(parts[2]),
+            parseFloat(parts[0]) || 0,
+            parseFloat(parts[1]) || 0,
+            parseFloat(parts[2]) || 0,
             parts[3] !== undefined ? parseFloat(parts[3]) : 1
         ];
     }
@@ -78,30 +96,27 @@ function mixColor(c1, c2, factor) {
 const BIOMES = {
     city: {
         skyTop: '#0d1b2a', skyBottom: '#1b263b',
-        ground: '#2b2d42', line: '#4895ef',
-        name: 'Neon City'
+        ground: '#2b2d42', line: '#4895ef'
     },
     desert: {
         skyTop: '#2b1e3a', skyBottom: '#6b304b',
-        ground: '#d4a373', line: '#faedcd',
-        name: 'Crimson Desert'
+        ground: '#d4a373', line: '#faedcd'
     },
     forest: {
         skyTop: '#051923', skyBottom: '#003554',
-        ground: '#132a13', line: '#31572c',
-        name: 'Dark Forest'
+        ground: '#132a13', line: '#31572c'
     }
 };
 
 let currentBiomeKey = 'city';
 let nextBiomeKey = 'desert';
 let biomeTransitionProgress = 1;
-const BIOME_DURATION = 1000;
+const BIOME_DURATION = 900;
 let biomeTimer = 0;
 
 // Day / Night Cycle (0.0 to 1.0)
 let dayCycle = 0;
-const DAY_DURATION = 2400; // frames per full day/night
+const DAY_DURATION = 2400;
 
 // Player Object
 const player = {
@@ -118,52 +133,62 @@ const player = {
     isDucking: false,
     isRiding: false,
     normalHeight: 60,
-    duckHeight: 32,
-    animFrame: 0
+    duckHeight: 32
 };
 
-// Arrays for Game World
+// World Entities
 let obstacles = [];
 let particles = [];
 let obstacleTimer = 0;
 let minObstacleInterval = 90;
 
-// Controls State
-const keys = { jump: false, duck: false };
+// -------------------------------------------------------------
+// INPUT & CONTROLS
+// -------------------------------------------------------------
+function triggerStart() {
+    if (gameState !== 'playing') {
+        startGame();
+    }
+}
 
-// -------------------------------------------------------------
-// EVENT LISTENERS & INPUT
-// -------------------------------------------------------------
 window.addEventListener('keydown', (e) => {
     if (e.code === 'Space' || e.code === 'ArrowUp') {
-        if (!keys.jump) handleJump();
-        keys.jump = true;
+        if (gameState !== 'playing') {
+            triggerStart();
+        } else {
+            handleJump();
+        }
         e.preventDefault();
     }
-    if (e.code === 'ArrowDown') {
+    if (e.code === 'ArrowDown' && gameState === 'playing') {
         handleDuck(true);
-        keys.duck = true;
         e.preventDefault();
     }
 });
 
 window.addEventListener('keyup', (e) => {
-    if (e.code === 'Space' || e.code === 'ArrowUp') keys.jump = false;
-    if (e.code === 'ArrowDown') {
+    if (e.code === 'ArrowDown' && gameState === 'playing') {
         handleDuck(false);
-        keys.duck = false;
     }
 });
+
+// Click / Touch Global Listeners
+canvas.addEventListener('click', () => {
+    if (gameState !== 'playing') triggerStart();
+});
+
+const startBtn = document.getElementById('start-btn');
+const restartBtn = document.getElementById('restart-btn');
+if (startBtn) startBtn.addEventListener('click', triggerStart);
+if (restartBtn) restartBtn.addEventListener('click', triggerStart);
 
 // Mobile Controls
 const btnJump = document.getElementById('btn-jump');
 const btnDuck = document.getElementById('btn-duck');
-const btnStart = document.getElementById('start-btn');
-const btnRestart = document.getElementById('restart-btn');
 
 if (btnJump) {
-    btnJump.addEventListener('touchstart', (e) => { e.preventDefault(); handleJump(); });
-    btnJump.addEventListener('mousedown', (e) => { e.preventDefault(); handleJump(); });
+    btnJump.addEventListener('touchstart', (e) => { e.preventDefault(); if (gameState !== 'playing') triggerStart(); else handleJump(); });
+    btnJump.addEventListener('mousedown', (e) => { e.preventDefault(); if (gameState !== 'playing') triggerStart(); else handleJump(); });
 }
 if (btnDuck) {
     btnDuck.addEventListener('touchstart', (e) => { e.preventDefault(); handleDuck(true); });
@@ -172,11 +197,7 @@ if (btnDuck) {
     btnDuck.addEventListener('mouseup', (e) => { e.preventDefault(); handleDuck(false); });
 }
 
-if (btnStart) btnStart.addEventListener('click', startGame);
-if (btnRestart) btnRestart.addEventListener('click', startGame);
-
 function handleJump() {
-    if (gameState !== 'playing') return;
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
     if (player.grounded || player.isRiding || player.jumpCount < player.maxJumps) {
@@ -185,12 +206,11 @@ function handleJump() {
         player.grounded = false;
         player.isRiding = false;
         player.jumpCount++;
-        playSound(350 + player.jumpCount * 100, 'square', 0.15);
+        playSound(360 + player.jumpCount * 90, 'square', 0.12);
     }
 }
 
 function handleDuck(isDucking) {
-    if (gameState !== 'playing') return;
     if (isDucking && !player.isDucking) {
         player.isDucking = true;
         if (player.grounded) {
@@ -205,7 +225,7 @@ function handleDuck(isDucking) {
 }
 
 // -------------------------------------------------------------
-// GAME LOGIC
+// GAME ENGINE LOGIC
 // -------------------------------------------------------------
 function startGame() {
     gameState = 'playing';
@@ -214,7 +234,7 @@ function startGame() {
     frameCount = 0;
     obstacles = [];
     particles = [];
-    
+
     player.y = GROUND - player.normalHeight;
     player.velocityY = 0;
     player.isJumping = false;
@@ -224,25 +244,27 @@ function startGame() {
     player.grounded = true;
     player.isRiding = false;
 
-    document.getElementById('start-screen').classList.add('hidden');
-    document.getElementById('gameover-screen').classList.add('hidden');
-    
+    const startScreen = document.getElementById('start-screen');
+    const gameOverScreen = document.getElementById('gameover-screen');
+    if (startScreen) startScreen.classList.add('hidden');
+    if (gameOverScreen) gameOverScreen.classList.add('hidden');
+
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 }
 
 function gameOver() {
     gameState = 'gameover';
-    playSound(120, 'sawtooth', 0.4);
-    
-    // Death Explosion Particles ONLY
-    for (let i = 0; i < 35; i++) {
+    playSound(110, 'sawtooth', 0.35);
+
+    // ONLY Death Explosion Particles
+    for (let i = 0; i < 40; i++) {
         particles.push({
             x: player.x + player.width / 2,
             y: player.y + player.height / 2,
-            vx: (Math.random() - 0.5) * 12,
-            vy: (Math.random() - 0.5) * 12,
+            vx: (Math.random() - 0.5) * 14,
+            vy: (Math.random() - 0.5) * 14,
             size: Math.random() * 6 + 2,
-            color: Math.random() > 0.5 ? '#ff4d4d' : '#ffffff',
+            color: Math.random() > 0.5 ? '#ff3366' : '#ffffff',
             life: 1
         });
     }
@@ -252,21 +274,22 @@ function gameOver() {
         localStorage.setItem('nightmar_highscore', highScore);
     }
 
-    document.getElementById('final-score').innerText = Math.floor(score);
-    document.getElementById('high-score').innerText = highScore;
-    document.getElementById('gameover-screen').classList.remove('hidden');
+    const finalScoreEl = document.getElementById('final-score');
+    const highScoreEl = document.getElementById('high-score');
+    if (finalScoreEl) finalScoreEl.innerText = Math.floor(score);
+    if (highScoreEl) highScoreEl.innerText = highScore;
+
+    const gameOverScreen = document.getElementById('gameover-screen');
+    if (gameOverScreen) gameOverScreen.classList.remove('hidden');
 }
 
-// -------------------------------------------------------------
-// OBSTACLE SPAGHETTI & GENERATION
-// -------------------------------------------------------------
 function spawnObstacle() {
     const types = ['rock', 'log', 'spikes', 'stump', 'saw', 'drone', 'missile', 'cactus'];
     const type = types[Math.floor(Math.random() * types.length)];
 
     let obs = {
         type: type,
-        x: CANVAS_WIDTH + 50,
+        x: CANVAS_WIDTH + 40,
         y: GROUND,
         width: 35,
         height: 35,
@@ -277,25 +300,24 @@ function spawnObstacle() {
     if (type === 'rock') {
         obs.width = 40; obs.height = 30; obs.y = GROUND - 30;
     } else if (type === 'log') {
-        obs.width = 50; obs.height = 25; obs.y = GROUND - 25;
+        obs.width = 50; obs.height = 24; obs.y = GROUND - 24;
     } else if (type === 'spikes') {
         obs.width = 45; obs.height = 20; obs.y = GROUND - 20;
     } else if (type === 'stump') {
-        obs.width = 35; obs.height = 40; obs.y = GROUND - 40;
+        obs.width = 35; obs.height = 38; obs.y = GROUND - 38;
     } else if (type === 'saw') {
         obs.width = 40; obs.height = 40; obs.y = GROUND - 40;
     } else if (type === 'drone') {
-        obs.width = 45; obs.height = 30; obs.y = GROUND - 90 - Math.random() * 40;
+        obs.width = 45; obs.height = 28; obs.y = GROUND - 90 - Math.random() * 35;
     } else if (type === 'missile') {
-        obs.width = 65; obs.height = 24; obs.y = GROUND - 75 - Math.random() * 50;
+        obs.width = 80; obs.height = 26; obs.y = GROUND - 80 - Math.random() * 45; // Longer missile
     } else if (type === 'cactus') {
-        obs.width = 30; obs.height = 55; obs.y = GROUND - 55;
-        // Pre-generate thorns to prevent frame flickering
-        for (let i = 0; i < 6; i++) {
+        obs.width = 32; obs.height = 55; obs.y = GROUND - 55;
+        for (let i = 0; i < 5; i++) {
             obs.thorns.push({
-                x: (Math.random() - 0.5) * 25,
+                x: (Math.random() - 0.5) * 22,
                 y: Math.random() * 45,
-                length: 6 + Math.random() * 4,
+                length: 5 + Math.random() * 4,
                 angle: (Math.random() - 0.5) * Math.PI
             });
         }
@@ -305,32 +327,28 @@ function spawnObstacle() {
 }
 
 function updatePlayer() {
-    // Apply gravity
     player.velocityY += player.gravity;
     player.y += player.velocityY;
 
-    // Reset riding state for check
     player.isRiding = false;
 
-    // Platform & Riding Logic (Missile)
+    // Smooth & Long Missile Riding Logic
     obstacles.forEach(obs => {
         if (obs.type === 'missile') {
             const playerFeet = player.y + player.height;
             const missileTop = obs.y;
-            const isOverMissile = (player.x + player.width > obs.x + 5) && (player.x < obs.x + obs.width - 5);
+            const isOverMissile = (player.x + player.width > obs.x + 4) && (player.x < obs.x + obs.width - 4);
 
-            // Stable snap to missile top when coming from above
-            if (isOverMissile && player.velocityY >= 0 && playerFeet <= missileTop + 25 && playerFeet >= missileTop - 15) {
+            if (isOverMissile && player.velocityY >= 0 && playerFeet <= missileTop + 24 && playerFeet >= missileTop - 12) {
                 player.y = missileTop - player.height;
                 player.velocityY = 0;
                 player.grounded = true;
                 player.isRiding = true;
-                player.jumpCount = 0; // Grants jump capability off the missile!
+                player.jumpCount = 0; // Allows jumping off missile anytime
             }
         }
     });
 
-    // Check ground collision
     if (!player.isRiding && player.y + player.height >= GROUND) {
         player.y = GROUND - player.height;
         player.velocityY = 0;
@@ -346,9 +364,9 @@ function update() {
 
     frameCount++;
     score += 0.15;
-    gameSpeed += 0.0008;
+    gameSpeed += 0.0007;
 
-    // Biome Cycle Logic
+    // Biomes Transition
     biomeTimer++;
     if (biomeTimer > BIOME_DURATION) {
         biomeTimer = 0;
@@ -358,57 +376,56 @@ function update() {
         nextBiomeKey = keysList[nextIdx];
         biomeTransitionProgress = 0;
     }
+    if (biomeTransitionProgress < 1) biomeTransitionProgress += 0.003;
 
-    if (biomeTransitionProgress < 1) {
-        biomeTransitionProgress += 0.002;
-    }
-
-    // Day / Night Cycle (0.0 - 1.0)
     dayCycle = (frameCount % DAY_DURATION) / DAY_DURATION;
 
-    // Update Player
     updatePlayer();
 
-    // Spawn Obstacles
+    // Spawning
     obstacleTimer++;
     if (obstacleTimer > minObstacleInterval) {
         spawnObstacle();
         obstacleTimer = 0;
-        minObstacleInterval = Math.max(50, 100 - Math.floor(score / 50) + (Math.random() * 30 - 15));
+        minObstacleInterval = Math.max(50, 95 - Math.floor(score / 55) + (Math.random() * 25 - 12));
     }
 
-    // Update Obstacles & Collisions
+    // Move & Collision
     for (let i = obstacles.length - 1; i >= 0; i--) {
         let obs = obstacles[i];
 
-        // Unique obstacle speeds
-        if (obs.type === 'missile') obs.x -= (gameSpeed + 4);
-        else if (obs.type === 'drone') obs.x -= (gameSpeed + 1.5);
-        else obs.x -= gameSpeed;
+        // If player is riding this missile, slow it down so flight lasts long!
+        if (obs.type === 'missile') {
+            let speed = player.isRiding ? gameSpeed + 0.8 : gameSpeed + 3.5;
+            obs.x -= speed;
+        } else if (obs.type === 'drone') {
+            obs.x -= (gameSpeed + 1.5);
+        } else {
+            obs.x -= gameSpeed;
+        }
 
         if (obs.type === 'saw') obs.rotation += 0.15;
 
-        // Clean out of bounds
-        if (obs.x + obs.width < -60) {
+        if (obs.x + obs.width < -80) {
             obstacles.splice(i, 1);
             continue;
         }
 
-        // Precise Collision Detection
+        // Collision Check
         let isRidingThis = (player.isRiding && (player.x + player.width > obs.x) && (player.x < obs.x + obs.width));
-        
+
         if (!isRidingThis) {
-            const pad = 8; // Softened hitboxes
-            if (player.x + pad < obs.x + obs.width &&
-                player.x + player.width - pad > obs.x &&
-                player.y + pad < obs.y + obs.height &&
-                player.y + player.height - pad > obs.y) {
+            const p = 8;
+            if (player.x + p < obs.x + obs.width &&
+                player.x + player.width - p > obs.x &&
+                player.y + p < obs.y + obs.height &&
+                player.y + player.height - p > obs.y) {
                 gameOver();
             }
         }
     }
 
-    // Update Particles (Only Death Explosion)
+    // Update Death Particles
     for (let i = particles.length - 1; i >= 0; i--) {
         let p = particles[i];
         p.x += p.vx;
@@ -417,14 +434,13 @@ function update() {
         if (p.life <= 0) particles.splice(i, 1);
     }
 
-    // Update Score Display UI
-    document.getElementById('score').innerText = Math.floor(score);
+    const scoreEl = document.getElementById('score');
+    if (scoreEl) scoreEl.innerText = Math.floor(score).toString().padStart(5, '0');
 }
 
 // -------------------------------------------------------------
-// RENDERERS & RENDERING ENGINE
+// RENDERERS
 // -------------------------------------------------------------
-
 function getBiomeColors() {
     const b1 = BIOMES[currentBiomeKey];
     const b2 = BIOMES[nextBiomeKey];
@@ -441,40 +457,37 @@ function getBiomeColors() {
 function drawBackground() {
     const colors = getBiomeColors();
 
-    // Sky Gradient
     let skyGrad = ctx.createLinearGradient(0, 0, 0, GROUND);
     skyGrad.addColorStop(0, colors.skyTop);
     skyGrad.addColorStop(1, colors.skyBottom);
     ctx.fillStyle = skyGrad;
     ctx.fillRect(0, 0, CANVAS_WIDTH, GROUND);
 
-    // Sun / Moon Cycle Calculation
+    // Sun / Moon Cycle
     const sunAngle = dayCycle * Math.PI * 2;
     const sunX = CANVAS_WIDTH / 2 + Math.cos(sunAngle) * 320;
     const sunY = 200 + Math.sin(sunAngle) * 160;
 
-    // Sun
-    if (sunY < GROUND + 50) {
+    if (sunY < GROUND + 40) {
         ctx.save();
         ctx.shadowColor = '#ffea00';
-        ctx.shadowBlur = 25;
+        ctx.shadowBlur = 20;
         ctx.fillStyle = '#fff4cc';
         ctx.beginPath();
-        ctx.arc(sunX, sunY, 26, 0, Math.PI * 2);
+        ctx.arc(sunX, sunY, 24, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
     }
 
-    // Moon (opposite to sun)
     const moonX = CANVAS_WIDTH / 2 + Math.cos(sunAngle + Math.PI) * 320;
     const moonY = 200 + Math.sin(sunAngle + Math.PI) * 160;
-    if (moonY < GROUND + 50) {
+    if (moonY < GROUND + 40) {
         ctx.save();
         ctx.shadowColor = '#a2d2ff';
-        ctx.shadowBlur = 20;
+        ctx.shadowBlur = 18;
         ctx.fillStyle = '#e0e1dd';
         ctx.beginPath();
-        ctx.arc(moonX, moonY, 22, 0, Math.PI * 2);
+        ctx.arc(moonX, moonY, 20, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
     }
@@ -487,7 +500,6 @@ function drawBackground() {
             let bh = 100 + (Math.sin(i * 12) * 50);
             ctx.fillRect(bx, GROUND - bh, 70, bh);
 
-            // Deterministic windows (no flickering)
             ctx.fillStyle = 'rgba(255, 230, 150, 0.15)';
             for (let wy = GROUND - bh + 10; wy < GROUND - 10; wy += 20) {
                 if ((Math.sin(i * 99 + wy) * 10000) % 1 > 0.4) {
@@ -523,7 +535,7 @@ function drawBackground() {
     ctx.fillStyle = colors.ground;
     ctx.fillRect(0, GROUND, CANVAS_WIDTH, CANVAS_HEIGHT - GROUND);
 
-    // Highlight Grid Line
+    // Accent Line
     ctx.strokeStyle = colors.line;
     ctx.lineWidth = 4;
     ctx.beginPath();
@@ -532,65 +544,58 @@ function drawBackground() {
     ctx.stroke();
 }
 
-// -------------------------------------------------------------
-// DRAW CHARACTER & OBSTACLES
-// -------------------------------------------------------------
 function drawPlayer() {
     ctx.save();
 
-    // Blueish/Soft Glow Aura so player never blends into darkness
+    // Soft Blue Glowing Aura
     const centerX = player.x + player.width / 2;
     const centerY = player.y + player.height / 2;
-    let aura = ctx.createRadialGradient(centerX, centerY, 10, centerX, centerY, 45);
-    aura.addColorStop(0, 'rgba(100, 200, 255, 0.3)');
+    let aura = ctx.createRadialGradient(centerX, centerY, 8, centerX, centerY, 42);
+    aura.addColorStop(0, 'rgba(100, 200, 255, 0.35)');
     aura.addColorStop(1, 'rgba(0, 0, 0, 0)');
     ctx.fillStyle = aura;
     ctx.beginPath();
-    ctx.arc(centerX, centerY, 45, 0, Math.PI * 2);
+    ctx.arc(centerX, centerY, 42, 0, Math.PI * 2);
     ctx.fill();
 
-    // Body dimensions & ducking adjustments
     const px = player.x;
     const py = player.y;
     const pw = player.width;
     const ph = player.height;
 
-    // Outer Hood / Cloak (Dark Grey/Black)
+    // Outer Hood Body
     ctx.fillStyle = '#121418';
-    ctx.beginPath();
-    ctx.roundRect(px, py, pw, ph, player.isDucking ? [10, 10, 5, 5] : [14, 14, 6, 6]);
+    drawRoundedRect(ctx, px, py, pw, ph, player.isDucking ? 6 : 12);
     ctx.fill();
 
-    // Distinct Rim Lighting (Arm & Leg Lines)
+    // Rim Highlights
     ctx.strokeStyle = '#6d8096';
     ctx.lineWidth = 2.5;
-
-    // Back Rim Highlight
     ctx.beginPath();
-    ctx.moveTo(px + 2, py + 10);
-    ctx.lineTo(px + 2, py + ph - 5);
+    ctx.moveTo(px + 3, py + 8);
+    ctx.lineTo(px + 3, py + ph - 5);
     ctx.stroke();
 
-    // Legs / Arm Silhouette
+    // Legs
     ctx.strokeStyle = '#4a5768';
     if (!player.isDucking) {
-        let legAnim = Math.sin(frameCount * 0.3) * 6;
+        let legAnim = Math.sin(frameCount * 0.35) * 6;
         ctx.beginPath();
-        ctx.moveTo(px + 10, py + ph - 15);
+        ctx.moveTo(px + 10, py + ph - 14);
         ctx.lineTo(px + 8 - legAnim, py + ph);
-        ctx.moveTo(px + pw - 10, py + ph - 15);
+        ctx.moveTo(px + pw - 10, py + ph - 14);
         ctx.lineTo(px + pw - 8 + legAnim, py + ph);
         ctx.stroke();
     }
 
-    // Face Inner Shadow (Void Face)
+    // Face Cutout
     ctx.fillStyle = '#050608';
     const headY = player.isDucking ? py + 4 : py + 8;
     ctx.beginPath();
     ctx.ellipse(px + pw - 12, headY + 12, 10, 12, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Glowing White Eyes
+    // Glowing Eyes
     ctx.shadowColor = '#ffffff';
     ctx.shadowBlur = 8;
     ctx.fillStyle = '#ffffff';
@@ -599,7 +604,7 @@ function drawPlayer() {
     ctx.arc(px + pw - 15, headY + 9, 2.5, 0, Math.PI * 2);
     ctx.fill();
 
-    // Glowing Zigzag Toothy Smile
+    // Glowing Zigzag Smile
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 1.8;
     ctx.beginPath();
@@ -611,13 +616,12 @@ function drawPlayer() {
     ctx.lineTo(px + pw - 6, mouthY);
     ctx.stroke();
 
-    // Reset shadow for logo
     ctx.shadowBlur = 0;
 
-    // Small Serif "NP" Logo on Chest
+    // Small "NP" Logo
     ctx.fillStyle = '#c5d3e8';
     ctx.font = 'bold 9px serif';
-    const logoY = player.isDucking ? py + ph - 8 : py + 34;
+    const logoY = player.isDucking ? py + ph - 6 : py + 34;
     ctx.fillText('NP', px + 8, logoY);
 
     ctx.restore();
@@ -627,8 +631,8 @@ function drawObstacles() {
     obstacles.forEach(obs => {
         ctx.save();
 
-        // Distinct blue glow aura so obstacles are clearly visible at night
-        ctx.shadowColor = 'rgba(120, 190, 255, 0.65)';
+        // Night Visibility Glow
+        ctx.shadowColor = 'rgba(140, 200, 255, 0.7)';
         ctx.shadowBlur = 12;
 
         if (obs.type === 'rock') {
@@ -642,11 +646,8 @@ function drawObstacles() {
             ctx.fill();
         } else if (obs.type === 'log') {
             ctx.fillStyle = '#7f5539';
-            ctx.beginPath();
-            ctx.roundRect(obs.x, obs.y, obs.width, obs.height, 6);
+            drawRoundedRect(ctx, obs.x, obs.y, obs.width, obs.height, 5);
             ctx.fill();
-            ctx.fillStyle = '#9c6644';
-            ctx.fillRect(obs.x + 5, obs.y + 4, obs.width - 10, 4);
         } else if (obs.type === 'spikes') {
             ctx.fillStyle = '#d62828';
             let count = 4;
@@ -679,27 +680,21 @@ function drawObstacles() {
             }
         } else if (obs.type === 'drone') {
             ctx.fillStyle = '#3a86ff';
-            ctx.beginPath();
-            ctx.roundRect(obs.x, obs.y, obs.width, obs.height - 10, 8);
+            drawRoundedRect(ctx, obs.x, obs.y, obs.width, obs.height - 8, 6);
             ctx.fill();
-            // Propellers
             ctx.fillStyle = '#80ed99';
             ctx.fillRect(obs.x - 4, obs.y - 4, 14, 4);
             ctx.fillRect(obs.x + obs.width - 10, obs.y - 4, 14, 4);
         } else if (obs.type === 'missile') {
-            // Missile body
             ctx.fillStyle = '#ff0054';
-            ctx.beginPath();
-            ctx.roundRect(obs.x, obs.y, obs.width - 12, obs.height, [6, 0, 0, 6]);
+            drawRoundedRect(ctx, obs.x, obs.y, obs.width - 14, obs.height, 4);
             ctx.fill();
-            // Cone tip
             ctx.fillStyle = '#ffbd00';
             ctx.beginPath();
-            ctx.moveTo(obs.x + obs.width - 12, obs.y);
+            ctx.moveTo(obs.x + obs.width - 14, obs.y);
             ctx.lineTo(obs.x + obs.width, obs.y + obs.height / 2);
-            ctx.lineTo(obs.x + obs.width - 12, obs.y + obs.height);
+            ctx.lineTo(obs.x + obs.width - 14, obs.y + obs.height);
             ctx.fill();
-            // Thruster fire tail
             ctx.fillStyle = '#ff5400';
             ctx.beginPath();
             ctx.moveTo(obs.x, obs.y + 4);
@@ -708,15 +703,13 @@ function drawObstacles() {
             ctx.fill();
         } else if (obs.type === 'cactus') {
             ctx.fillStyle = '#2a9d8f';
-            ctx.beginPath();
-            ctx.roundRect(obs.x + 8, obs.y, 14, obs.height, 6);
+            drawRoundedRect(ctx, obs.x + 8, obs.y, 14, obs.height, 5);
             ctx.fill();
-            // Branches
             ctx.fillRect(obs.x, obs.y + 15, 12, 8);
             ctx.fillRect(obs.x, obs.y + 8, 8, 15);
             ctx.fillRect(obs.x + 18, obs.y + 25, 12, 8);
             ctx.fillRect(obs.x + 22, obs.y + 18, 8, 15);
-            // Pre-cached thorns (No random frame flicker)
+
             ctx.strokeStyle = '#e9c46a';
             ctx.lineWidth = 1.5;
             obs.thorns.forEach(t => {
@@ -743,7 +736,7 @@ function drawParticles() {
     });
 }
 
-// Main Render Loop
+// Render Loop
 function draw() {
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
@@ -753,12 +746,11 @@ function draw() {
     drawParticles();
 }
 
-// Master Loop Execution
 function loop() {
     update();
     draw();
     requestAnimationFrame(loop);
 }
 
-// Start Game Loop Engine
+// Launch Loop
 requestAnimationFrame(loop);
