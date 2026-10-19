@@ -39,7 +39,6 @@ bestElement.textContent = String(best).padStart(5, "0");
 let particles = [];
 let dustParticles = [];
 let stars = [];
-let clouds = [];
 let screenShake = 0;
 let deathFlash = 0;
 let trailPositions = [];
@@ -48,25 +47,39 @@ let trailPositions = [];
 for (let i = 0; i < 80; i++) {
   stars.push({
     x: Math.random() * W,
-    y: Math.random() * (GROUND - 40),
-    size: Math.random() * 2.5 + 0.5,
+    y: Math.random() * (GROUND - 80),
+    size: Math.random() * 2 + 0.5,
     twinkleSpeed: Math.random() * 3 + 1,
     twinkleOffset: Math.random() * Math.PI * 2,
     brightness: Math.random() * 0.5 + 0.5
   });
 }
 
-// Генерация облаков
-for (let i = 0; i < 6; i++) {
-  clouds.push({
-    x: Math.random() * W,
-    y: 30 + Math.random() * 100,
-    width: 60 + Math.random() * 80,
-    height: 20 + Math.random() * 15,
-    speed: 8 + Math.random() * 15,
-    opacity: 0.3 + Math.random() * 0.4
-  });
-}
+// ===============================
+// ГЕНЕРАЦИЯ ГОРОДА (ПАРАЛЛАКС)
+// ===============================
+
+const cityLayers = [
+  { speed: 0.05, colors: ["#506070", "#0c111c"], data: [], totalW: 0 },
+  { speed: 0.15, colors: ["#3a4a5a", "#070b14"], data: [], totalW: 0 },
+  { speed: 0.45, colors: ["#202c38", "#020408"], data: [], totalW: 0 }
+];
+
+// Создаем здания один раз при загрузке
+cityLayers.forEach((layer, index) => {
+  let x = 0;
+  while (x < 2000) { // Ширина достаточная для скроллинга
+    let w = 30 + Math.random() * 70;
+    let h = 80 + Math.random() * (80 + index * 50); // Ближние здания выше
+    let hasWindows = index === 2 && Math.random() > 0.3; // Окна только на ближнем фоне
+    let hasAntenna = Math.random() > 0.6;
+    let windowSeed = Math.random();
+    
+    layer.data.push({ x, w, h, hasWindows, hasAntenna, windowSeed });
+    x += w + (Math.random() * 10); // Отступ между зданиями
+  }
+  layer.totalW = x;
+});
 
 function spawnDust(x, y, count) {
   for (let i = 0; i < count; i++) {
@@ -83,18 +96,19 @@ function spawnDust(x, y, count) {
 }
 
 function spawnDeathParticles(x, y) {
-  for (let i = 0; i < 30; i++) {
+  // Черно-белые осколки для мрачного персонажа
+  for (let i = 0; i < 40; i++) {
     const angle = Math.random() * Math.PI * 2;
-    const force = 50 + Math.random() * 200;
+    const force = 50 + Math.random() * 250;
     particles.push({
       x: x,
       y: y,
       vx: Math.cos(angle) * force,
       vy: Math.sin(angle) * force - 100,
-      life: 0.5 + Math.random() * 0.8,
-      maxLife: 0.5 + Math.random() * 0.8,
-      size: 3 + Math.random() * 5,
-      color: ["#ff3030", "#ff6020", "#ffaa00", "#d00000", "#151515"][Math.floor(Math.random() * 5)],
+      life: 0.6 + Math.random() * 0.8,
+      maxLife: 0.6 + Math.random() * 0.8,
+      size: 3 + Math.random() * 6,
+      color: ["#ffffff", "#aaaaaa", "#333333", "#000000", "#111111"][Math.floor(Math.random() * 5)],
       gravity: true
     });
   }
@@ -158,10 +172,6 @@ const player = {
   grounded: true,
   sliding: false
 };
-
-// ===============================
-// УПРАВЛЕНИЕ
-// ===============================
 
 function jump() {
   if (!running) return;
@@ -266,7 +276,6 @@ function update(dt) {
 
   scoreElement.textContent = String(Math.floor(score)).padStart(5, "0");
 
-  // Буфер прыжка
   if (jumpBuffer > 0) {
     jumpBuffer -= dt;
     if (player.grounded) {
@@ -277,7 +286,6 @@ function update(dt) {
     }
   }
 
-  // Физика
   player.velocityY += GRAVITY * dt;
   player.y += player.velocityY * dt;
 
@@ -290,43 +298,29 @@ function update(dt) {
     player.grounded = true;
   }
 
-  // Подкат
-  const wasSliding = player.sliding;
   player.sliding = slideHeld && player.grounded;
   if (player.sliding) {
     spawnSlideParticles(player.x, GROUND - 5);
   }
 
-  // Бег — пыль
   if (player.grounded && !player.sliding && Math.random() < 0.3) {
     spawnDust(player.x + 10, GROUND, 1);
   }
 
-  // След за игроком
-  trailPositions.unshift({ x: player.x, y: player.y, sliding: player.sliding, time: 0.15 });
-  if (trailPositions.length > 6) trailPositions.pop();
+  // Мрачный след за персонажем
+  trailPositions.unshift({ x: player.x, y: player.y, sliding: player.sliding, time: 0.12 });
+  if (trailPositions.length > 5) trailPositions.pop();
   for (let i = trailPositions.length - 1; i >= 0; i--) {
     trailPositions[i].time -= dt;
     if (trailPositions[i].time <= 0) trailPositions.splice(i, 1);
   }
 
-  // Облака
-  for (const c of clouds) {
-    c.x -= c.speed * dt;
-    if (c.x + c.width < 0) {
-      c.x = W + 20;
-      c.y = 30 + Math.random() * 100;
-    }
-  }
-
-  // Создание препятствий
   spawnDistance -= movement;
   if (spawnDistance <= 0) {
     spawnObstacle();
     spawnDistance = 390 + Math.random() * 200;
   }
 
-  // Столкновения
   for (const o of obstacles) {
     o.x -= movement;
 
@@ -354,7 +348,6 @@ function update(dt) {
 
   obstacles = obstacles.filter(o => o.x + o.width > 0);
 
-  // Обновление эффектов
   if (screenShake > 0) screenShake -= dt;
   if (deathFlash > 0) deathFlash -= dt;
 
@@ -385,18 +378,17 @@ function getDaylight() {
 }
 
 // ===============================
-// РЕНДЕР ФОНА
+// РЕНДЕР ФОНА (ГОРОД)
 // ===============================
 
 function drawBackground() {
   const cycle = (worldDistance / 12000) % 1;
   const daylight = getDaylight();
 
-  // Градиент неба
+  // Градиент неба (грязноватый городской)
   const skyGrad = ctx.createLinearGradient(0, 0, 0, GROUND);
-  skyGrad.addColorStop(0, mixColor("#060d1f", "#4a90c2", daylight));
-  skyGrad.addColorStop(0.5, mixColor("#101b35", "#8bbfe8", daylight));
-  skyGrad.addColorStop(1, mixColor("#1a2540", "#c8dde8", daylight));
+  skyGrad.addColorStop(0, mixColor("#0a0f1c", "#5a7a92", daylight));
+  skyGrad.addColorStop(1, mixColor("#1c2536", "#a0b8c8", daylight));
   ctx.fillStyle = skyGrad;
   ctx.fillRect(0, 0, W, GROUND);
 
@@ -410,147 +402,97 @@ function drawBackground() {
       ctx.beginPath();
       ctx.arc(s.x, s.y, s.size * (0.7 + twinkle * 0.3), 0, Math.PI * 2);
       ctx.fill();
-
-      // Свечение ярких звёзд
-      if (s.size > 1.8) {
-        ctx.fillStyle = `rgba(200, 220, 255, ${alpha * 0.15})`;
-        ctx.beginPath();
-        ctx.arc(s.x, s.y, s.size * 3, 0, Math.PI * 2);
-        ctx.fill();
-      }
     }
   }
 
-  // Облака
-  for (const c of clouds) {
-    const alpha = c.opacity * (0.15 + daylight * 0.6);
-    ctx.fillStyle = mixColorAlpha("#354060", "#ffffff", daylight, alpha);
-
-    ctx.beginPath();
-    ctx.ellipse(c.x + c.width * 0.5, c.y, c.width * 0.5, c.height * 0.5, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.ellipse(c.x + c.width * 0.25, c.y + 3, c.width * 0.35, c.height * 0.4, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.ellipse(c.x + c.width * 0.7, c.y + 2, c.width * 0.3, c.height * 0.35, 0, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  // Солнце / луна с свечением
+  // Солнце / луна
   const orbX = 90 + cycle * 720;
   const orbY = 95 - Math.sin(cycle * Math.PI) * 50;
-
-  // Свечение
-  const glowRadius = 60;
-  const glowGrad = ctx.createRadialGradient(orbX, orbY, 10, orbX, orbY, glowRadius);
-  glowGrad.addColorStop(0, mixColorAlpha("#c0c8ff", "#ffee80", daylight, 0.35));
-  glowGrad.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.fillStyle = glowGrad;
-  ctx.beginPath();
-  ctx.arc(orbX, orbY, glowRadius, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Диск
   const orbGrad = ctx.createRadialGradient(orbX - 5, orbY - 5, 2, orbX, orbY, 24);
   orbGrad.addColorStop(0, mixColor("#f0f4ff", "#fff8c0", daylight));
   orbGrad.addColorStop(1, mixColor("#c0c8e8", "#ffcc40", daylight));
+  
+  ctx.shadowColor = mixColor("#a0b0ff", "#ffcc40", daylight);
+  ctx.shadowBlur = 30;
   ctx.fillStyle = orbGrad;
   ctx.beginPath();
   ctx.arc(orbX, orbY, 24, 0, Math.PI * 2);
   ctx.fill();
+  ctx.shadowBlur = 0;
 
-  // Кратеры на луне (ночью)
-  if (daylight < 0.4) {
-    const craterAlpha = (1 - daylight / 0.4) * 0.2;
-    ctx.fillStyle = `rgba(100, 110, 140, ${craterAlpha})`;
-    ctx.beginPath(); ctx.arc(orbX - 6, orbY - 4, 5, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(orbX + 8, orbY + 3, 3.5, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(orbX + 2, orbY + 9, 4, 0, Math.PI * 2); ctx.fill();
-  }
+  // Отрисовка слоев города
+  cityLayers.forEach(layer => {
+    const offset = (worldDistance * layer.speed) % layer.totalW;
+    ctx.fillStyle = mixColor(layer.colors[1], layer.colors[0], daylight); // Ночь / День
 
-  // Далёкие горы (параллакс слой 1)
-  ctx.fillStyle = mixColorAlpha("#1a2230", "#6a8898", daylight, 0.5);
-  ctx.beginPath();
-  ctx.moveTo(0, GROUND);
-  const farOffset = -(worldDistance * 0.02) % W;
-  for (let i = -1; i <= 2; i++) {
-    const base = farOffset + i * 400;
-    ctx.lineTo(base + 50, 200);
-    ctx.lineTo(base + 120, 220);
-    ctx.lineTo(base + 200, 180);
-    ctx.lineTo(base + 280, 215);
-    ctx.lineTo(base + 400, GROUND);
-  }
-  ctx.lineTo(W, GROUND);
-  ctx.fill();
+    for (let i = 0; i < 2; i++) { // Дублируем для бесшовности
+      ctx.save();
+      ctx.translate(-offset + (i * layer.totalW), 0);
 
-  // Ближние горы (параллакс слой 2)
-  ctx.fillStyle = mixColor("#293344", "#748f9c", daylight);
-  ctx.beginPath();
-  ctx.moveTo(0, GROUND);
-  const nearOffset = -(worldDistance * 0.05) % 650;
-  for (let i = -1; i <= 2; i++) {
-    const base = nearOffset + i * 650;
-    ctx.lineTo(base + 140, 185);
-    ctx.lineTo(base + 300, GROUND - 20);
-    ctx.lineTo(base + 470, 195);
-    ctx.lineTo(base + 650, GROUND);
-  }
-  ctx.lineTo(W, GROUND);
-  ctx.fill();
+      layer.data.forEach(b => {
+        // Тело здания
+        ctx.fillRect(b.x, GROUND - b.h, b.w, b.h);
 
-  // Земля с градиентом
+        // Антенны на крыше
+        if (b.hasAntenna) {
+          ctx.fillRect(b.x + b.w * 0.2, GROUND - b.h - 15, 2, 15);
+          if (b.windowSeed > 0.5) ctx.fillRect(b.x + b.w * 0.8, GROUND - b.h - 8, 1, 8);
+        }
+
+        // Светящиеся окна ночью
+        if (b.hasWindows && daylight < 0.4) {
+          const windowAlpha = (1 - daylight / 0.4);
+          ctx.fillStyle = `rgba(255, 230, 120, ${windowAlpha})`;
+          
+          for (let wy = GROUND - b.h + 15; wy < GROUND - 15; wy += 18) {
+            for (let wx = b.x + 8; wx < b.x + b.w - 12; wx += 14) {
+              // Псевдослучайное свечение окон
+              if ((wx + wy * b.windowSeed) % 3 > 1.2) {
+                ctx.fillRect(wx, wy, 6, 8);
+              }
+            }
+          }
+          ctx.fillStyle = mixColor(layer.colors[1], layer.colors[0], daylight); // Возвращаем цвет здания
+        }
+      });
+      ctx.restore();
+    }
+  });
+
+  // Земля (Асфальт)
   const groundGrad = ctx.createLinearGradient(0, GROUND, 0, H);
-  groundGrad.addColorStop(0, mixColor("#253028", "#5a7a50", daylight));
-  groundGrad.addColorStop(1, mixColor("#151a18", "#3a5235", daylight));
+  groundGrad.addColorStop(0, mixColor("#1a1e24", "#30353c", daylight));
+  groundGrad.addColorStop(1, mixColor("#0a0c10", "#181b20", daylight));
   ctx.fillStyle = groundGrad;
   ctx.fillRect(0, GROUND, W, H - GROUND);
 
-  // Текстура земли — штрихи
-  const texOffset = -(worldDistance * 0.8) % 40;
-  ctx.strokeStyle = mixColorAlpha("#1a201c", "#4a6a40", daylight, 0.3);
-  ctx.lineWidth = 1;
-  for (let i = -1; i < W / 40 + 2; i++) {
-    const tx = texOffset + i * 40;
-    ctx.beginPath();
-    ctx.moveTo(tx, GROUND + 5);
-    ctx.lineTo(tx + 15, GROUND + 5);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(tx + 20, GROUND + 15);
-    ctx.lineTo(tx + 30, GROUND + 15);
-    ctx.stroke();
-  }
-
   // Линия горизонта
-  ctx.strokeStyle = mixColor("#8b3030", "#304e30", daylight);
+  ctx.strokeStyle = mixColor("#303a45", "#556677", daylight);
   ctx.lineWidth = 3;
   ctx.beginPath();
   ctx.moveTo(0, GROUND);
   ctx.lineTo(W, GROUND);
   ctx.stroke();
 
-  // Нижняя подсветка горизонта
-  const horizonGrad = ctx.createLinearGradient(0, GROUND - 8, 0, GROUND + 8);
-  horizonGrad.addColorStop(0, "rgba(0,0,0,0)");
-  horizonGrad.addColorStop(0.5, mixColorAlpha("#ff6030", "#80c060", daylight, 0.1));
-  horizonGrad.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.fillStyle = horizonGrad;
-  ctx.fillRect(0, GROUND - 8, W, 16);
+  // Разметка на дороге (эффект скорости)
+  const roadTex = -(worldDistance * 1.2) % 60;
+  ctx.fillStyle = mixColor("rgba(255,255,255,0.05)", "rgba(255,255,255,0.15)", daylight);
+  for (let i = -1; i < W / 60 + 2; i++) {
+    ctx.fillRect(roadTex + i * 60, GROUND + 15, 30, 4);
+  }
 }
 
 // ===============================
-// ПЕРСОНАЖ
+// ПЕРСОНАЖ (CREEPY HOODIE)
 // ===============================
 
 function drawPlayerTrail() {
   for (let i = 0; i < trailPositions.length; i++) {
     const t = trailPositions[i];
-    const alpha = (t.time / 0.15) * 0.08;
+    const alpha = (t.time / 0.12) * 0.15;
     if (alpha <= 0) continue;
 
-    ctx.fillStyle = `rgba(200, 50, 50, ${alpha})`;
+    ctx.fillStyle = `rgba(0, 0, 0, ${alpha})`;
     if (t.sliding) {
       ctx.fillRect(t.x + 5, GROUND - 22, 45, 18);
     } else {
@@ -560,76 +502,79 @@ function drawPlayerTrail() {
 }
 
 function drawPlayer() {
-  if (!running && deathFlash > 0) return; // Скрыть при смерти с флешом
+  if (!running && deathFlash > 0) return;
 
   const x = player.x;
   const y = player.y;
 
   ctx.save();
 
-  // Тень
+  // Тень под ногами
   const shadowScale = player.grounded ? 1 : 0.6;
-  const shadowAlpha = player.grounded ? 0.3 : 0.15;
+  const shadowAlpha = player.grounded ? 0.4 : 0.15;
   ctx.fillStyle = `rgba(0, 0, 0, ${shadowAlpha})`;
   ctx.beginPath();
   ctx.ellipse(x + 18, GROUND + 2, 18 * shadowScale, 4 * shadowScale, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // След
   drawPlayerTrail();
 
   if (player.sliding) {
-    const sy = GROUND - 26;
+    const sy = GROUND - 24;
 
-    // Тело при скольжении
-    ctx.strokeStyle = "#111";
-    ctx.lineWidth = 8;
-    ctx.lineCap = "round";
+    // Туловище в подкате (худи)
+    ctx.fillStyle = "#1a1a1a";
     ctx.beginPath();
-    ctx.moveTo(x + 20, sy + 15);
-    ctx.lineTo(x + 55, sy + 21);
-    ctx.stroke();
-
-    // Корпус
-    const bodyGrad = ctx.createLinearGradient(x, sy, x + 48, sy + 24);
-    bodyGrad.addColorStop(0, "#252525");
-    bodyGrad.addColorStop(1, "#151515");
-    ctx.fillStyle = bodyGrad;
-    ctx.beginPath();
-    ctx.ellipse(x + 22, sy + 11, 24, 12, -0.15, 0, Math.PI * 2);
+    ctx.roundRect(x + 5, sy + 2, 38, 18, 8);
     ctx.fill();
 
-    // Голова
-    ctx.fillStyle = "#282828";
-    ctx.beginPath();
-    ctx.arc(x + 10, sy + 5, 12, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Визор
-    ctx.fillStyle = "#070707";
-    ctx.fillRect(x + 2, sy + 2, 14, 8);
-    ctx.fillStyle = "#e02020";
-    ctx.fillRect(x + 12, sy + 5, 3, 2);
-
-    // Блик визора
-    ctx.fillStyle = "rgba(255, 255, 255, 0.06)";
-    ctx.fillRect(x + 3, sy + 3, 6, 3);
-
-    // Лейбл
+    // Лого "NP"
     ctx.fillStyle = "#eee";
-    ctx.font = "bold 10px monospace";
-    ctx.fillText("NP", x + 20, sy + 15);
+    ctx.font = "bold 13px 'Courier New', monospace";
+    ctx.fillText("NP", x + 15, sy + 15);
 
-    ctx.lineCap = "butt";
+    // Капюшон сбоку
+    ctx.fillStyle = "#111";
+    ctx.beginPath();
+    ctx.arc(x + 42, sy + 10, 11, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Мрак внутри капюшона
+    ctx.fillStyle = "#000";
+    ctx.beginPath();
+    ctx.arc(x + 44, sy + 10, 8, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Светящиеся глаза
+    ctx.fillStyle = "#fff";
+    ctx.shadowColor = "#fff";
+    ctx.shadowBlur = 5;
+    ctx.beginPath();
+    ctx.arc(x + 47, sy + 7, 2.5, 0, Math.PI * 2);
+    ctx.arc(x + 47, sy + 13, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Зубастая пасть (повернута)
+    ctx.fillStyle = "#fff";
+    ctx.beginPath();
+    ctx.moveTo(x + 51, sy + 3);
+    ctx.lineTo(x + 48, sy + 6);
+    ctx.lineTo(x + 52, sy + 8);
+    ctx.lineTo(x + 49, sy + 10);
+    ctx.lineTo(x + 52, sy + 12);
+    ctx.lineTo(x + 48, sy + 14);
+    ctx.lineTo(x + 51, sy + 17);
+    ctx.quadraticCurveTo(x + 55, sy + 10, x + 51, sy + 3);
+    ctx.fill();
+
   } else {
-    const legSwing = player.grounded
-      ? Math.sin(worldDistance / 16) * 11
-      : 0;
-
+    // Анимация ног и покачивания
+    const legSwing = player.grounded ? Math.sin(worldDistance / 16) * 11 : 0;
     const bobY = player.grounded ? Math.sin(worldDistance / 8) * 1.5 : 0;
 
-    // Ноги
-    ctx.strokeStyle = "#111";
+    // Ноги (темные джинсы/штаны)
+    ctx.strokeStyle = "#0d0d0d";
     ctx.lineWidth = 8;
     ctx.lineCap = "round";
     ctx.beginPath();
@@ -640,79 +585,77 @@ function drawPlayer() {
     ctx.stroke();
 
     // Ботинки
-    ctx.fillStyle = "#1a1a1a";
+    ctx.fillStyle = "#050505";
     ctx.beginPath();
-    ctx.ellipse(x + 12 + legSwing, y + 63, 6, 3, 0, 0, Math.PI * 2);
+    ctx.ellipse(x + 13 + legSwing, y + 63, 7, 3.5, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.beginPath();
-    ctx.ellipse(x + 25 - legSwing, y + 63, 6, 3, 0, 0, Math.PI * 2);
+    ctx.ellipse(x + 26 - legSwing, y + 63, 7, 3.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.lineCap = "butt";
+
+    // Туловище (Худи)
+    const bodyGrad = ctx.createLinearGradient(x + 2, y + 18, x + 34, y + 46);
+    bodyGrad.addColorStop(0, "#222");
+    bodyGrad.addColorStop(1, "#111");
+    ctx.fillStyle = bodyGrad;
+    ctx.beginPath();
+    ctx.roundRect(x + 4, y + 18 + bobY, 28, 28, 6);
     ctx.fill();
 
-    // Руки
-    ctx.strokeStyle = "#202020";
-    ctx.lineWidth = 7;
+    // Руки в карманах
+    ctx.strokeStyle = "#151515";
+    ctx.lineWidth = 6;
+    ctx.lineCap = "round";
     ctx.beginPath();
     ctx.moveTo(x + 6, y + 22 + bobY);
-    ctx.lineTo(x - 3 - legSwing * 0.5, y + 42);
+    ctx.lineTo(x + 12, y + 42 + bobY);
     ctx.moveTo(x + 30, y + 22 + bobY);
-    ctx.lineTo(x + 39 + legSwing * 0.5, y + 40);
+    ctx.lineTo(x + 24, y + 42 + bobY);
     ctx.stroke();
     ctx.lineCap = "butt";
 
-    // Тело
-    const bodyGrad = ctx.createLinearGradient(x + 3, y + 17, x + 34, y + 47);
-    bodyGrad.addColorStop(0, "#1d1d1d");
-    bodyGrad.addColorStop(1, "#111111");
-    ctx.fillStyle = bodyGrad;
-    ctx.fillRect(x + 3, y + 17 + bobY, 31, 30);
+    // Лого "NP"
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 15px 'Courier New', monospace";
+    ctx.fillText("NP", x + 9, y + 36 + bobY);
 
-    // Детали на теле
-    ctx.strokeStyle = "#2a2a2a";
-    ctx.lineWidth = 1;
+    // Голова (Капюшон)
+    ctx.fillStyle = "#161616";
     ctx.beginPath();
-    ctx.moveTo(x + 18, y + 17 + bobY);
-    ctx.lineTo(x + 18, y + 47 + bobY);
-    ctx.stroke();
-
-    // Голова (шлем)
-    const headGrad = ctx.createRadialGradient(x + 16, y + 12, 3, x + 19, y + 15, 17);
-    headGrad.addColorStop(0, "#333");
-    headGrad.addColorStop(1, "#1a1a1a");
-    ctx.fillStyle = headGrad;
-    ctx.beginPath();
-    ctx.arc(x + 19, y + 15 + bobY, 17, Math.PI, 0);
-    ctx.lineTo(x + 36, y + 27 + bobY);
-    ctx.lineTo(x + 2, y + 27 + bobY);
+    ctx.arc(x + 18, y + 14 + bobY, 15, 0, Math.PI * 2);
     ctx.fill();
 
-    // Полоска на шлеме
-    ctx.strokeStyle = "#d00000";
-    ctx.lineWidth = 2;
+    // Лицо (черная пустота)
+    ctx.fillStyle = "#000";
     ctx.beginPath();
-    ctx.arc(x + 19, y + 15 + bobY, 17, Math.PI + 0.3, -0.3);
-    ctx.stroke();
+    ctx.arc(x + 18, y + 16 + bobY, 12, 0, Math.PI * 2);
+    ctx.fill();
 
-    // Визор
-    ctx.fillStyle = "#050505";
-    ctx.fillRect(x + 10, y + 11 + bobY, 18, 15);
-
-    // Блик визора
-    ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
-    ctx.fillRect(x + 11, y + 12 + bobY, 8, 6);
-
-    // Глаза
-    const eyeGlow = 0.6 + Math.sin(worldDistance * 0.1) * 0.4;
-    ctx.shadowColor = "#ff0000";
-    ctx.shadowBlur = 6 * eyeGlow;
-    ctx.fillStyle = `rgba(220, 0, 0, ${0.7 + eyeGlow * 0.3})`;
-    ctx.fillRect(x + 14, y + 17 + bobY, 4, 3);
-    ctx.fillRect(x + 23, y + 17 + bobY, 4, 3);
+    // Светящиеся белые глаза
+    ctx.fillStyle = "#fff";
+    ctx.shadowColor = "#fff";
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.arc(x + 13, y + 13 + bobY, 3, 0, Math.PI * 2);
+    ctx.arc(x + 23, y + 13 + bobY, 3, 0, Math.PI * 2);
+    ctx.fill();
     ctx.shadowBlur = 0;
 
-    // Лейбл
-    ctx.fillStyle = "#eee";
-    ctx.font = "bold 12px monospace";
-    ctx.fillText("NP", x + 10, y + 38 + bobY);
+    // Жуткая улыбка (зубы)
+    ctx.beginPath();
+    ctx.moveTo(x + 9, y + 19 + bobY);   // Левый уголок
+    ctx.lineTo(x + 12, y + 24 + bobY);  // Клык вниз
+    ctx.lineTo(x + 14, y + 20 + bobY);  // Вверх
+    ctx.lineTo(x + 17, y + 25 + bobY);  // Вниз
+    ctx.lineTo(x + 19, y + 20 + bobY);  // Вверх
+    ctx.lineTo(x + 22, y + 25 + bobY);  // Вниз
+    ctx.lineTo(x + 24, y + 20 + bobY);  // Вверх
+    ctx.lineTo(x + 27, y + 24 + bobY);  // Клык вниз
+    ctx.lineTo(x + 28, y + 19 + bobY);  // Правый уголок
+    // Дуга снизу (нижняя губа)
+    ctx.quadraticCurveTo(x + 18, y + 30 + bobY, x + 9, y + 19 + bobY);
+    ctx.fill();
   }
 
   ctx.restore();
@@ -723,12 +666,10 @@ function drawPlayer() {
 // ===============================
 
 function drawObstacles() {
-  const daylight = getDaylight();
-
   for (const o of obstacles) {
     ctx.save();
 
-    // Тень препятствия
+    // Тень
     ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
     if (o.type !== "drone") {
       ctx.beginPath();
@@ -736,11 +677,9 @@ function drawObstacles() {
       ctx.fill();
     }
 
-    // Камень
     if (o.type === "rock") {
       const rockGrad = ctx.createLinearGradient(o.x, o.y, o.x + o.width, GROUND);
       rockGrad.addColorStop(0, "#777");
-      rockGrad.addColorStop(0.5, "#555");
       rockGrad.addColorStop(1, "#3a3a3a");
       ctx.fillStyle = rockGrad;
       ctx.beginPath();
@@ -752,27 +691,13 @@ function drawObstacles() {
       ctx.lineTo(o.x + 38, o.y + 10);
       ctx.lineTo(o.x + o.width, GROUND);
       ctx.fill();
-
-      // Детализация
-      ctx.strokeStyle = "rgba(255,255,255,0.08)";
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(o.x + 15, o.y + 8);
-      ctx.lineTo(o.x + 20, o.y + 20);
-      ctx.moveTo(o.x + 30, o.y + 10);
-      ctx.lineTo(o.x + 25, o.y + 25);
-      ctx.stroke();
     }
 
-    // Бревно
     if (o.type === "log") {
       const logGrad = ctx.createLinearGradient(o.x, o.y, o.x, o.y + o.height);
-      logGrad.addColorStop(0, "#7d5636");
-      logGrad.addColorStop(0.5, "#69452c");
-      logGrad.addColorStop(1, "#4a2f1a");
+      logGrad.addColorStop(0, "#5a4536");
+      logGrad.addColorStop(1, "#2a1f1a");
       ctx.fillStyle = logGrad;
-
-      // Закруглённое бревно
       const r = o.height / 2;
       ctx.beginPath();
       ctx.moveTo(o.x + r, o.y);
@@ -781,41 +706,24 @@ function drawObstacles() {
       ctx.lineTo(o.x + r, o.y + o.height);
       ctx.arc(o.x + r, o.y + r, r, Math.PI / 2, -Math.PI / 2);
       ctx.fill();
-
-      // Текстура колец
-      ctx.strokeStyle = "#382313";
-      ctx.lineWidth = 1;
+      
+      ctx.strokeStyle = "#1a0f0a";
       ctx.beginPath();
       ctx.ellipse(o.x + o.width - r, o.y + r, 5, r - 3, 0, 0, Math.PI * 2);
       ctx.stroke();
-      ctx.beginPath();
-      ctx.ellipse(o.x + o.width - r, o.y + r, 2, r - 6, 0, 0, Math.PI * 2);
-      ctx.stroke();
-
-      ctx.strokeStyle = "#4a2f1a";
-      ctx.lineWidth = 1;
-      for (let i = 1; i < 4; i++) {
-        ctx.beginPath();
-        ctx.moveTo(o.x + i * 18, o.y + 3);
-        ctx.lineTo(o.x + i * 18, o.y + o.height - 3);
-        ctx.stroke();
-      }
     }
 
-    // Дрон
     if (o.type === "drone") {
       const x = o.x;
       const y = o.y;
       const hover = Math.sin(worldDistance * 0.15) * 3;
 
-      // Тень на земле
-      ctx.fillStyle = "rgba(0, 0, 0, 0.15)";
+      ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
       ctx.beginPath();
       ctx.ellipse(x + 37, GROUND + 2, 20, 3, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      // Стойки
-      ctx.strokeStyle = "#555";
+      ctx.strokeStyle = "#444";
       ctx.lineWidth = 3;
       ctx.beginPath();
       ctx.moveTo(x + 10, y + 4 + hover);
@@ -824,20 +732,8 @@ function drawObstacles() {
       ctx.lineTo(x + 64, y - 5 + hover);
       ctx.stroke();
 
-      // Пропеллеры (размытие)
       const spin = Math.sin(worldDistance / 3) * 14;
-      ctx.strokeStyle = `rgba(200, 210, 220, 0.5)`;
-      ctx.lineWidth = 2;
-
-      // Диски пропеллеров
-      ctx.fillStyle = "rgba(180, 200, 215, 0.15)";
-      ctx.beginPath();
-      ctx.ellipse(x + 10, y - 5 + hover, 14, 3, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.ellipse(x + 64, y - 5 + hover, 14, 3, 0, 0, Math.PI * 2);
-      ctx.fill();
-
+      ctx.strokeStyle = `rgba(180, 200, 220, 0.4)`;
       ctx.beginPath();
       ctx.moveTo(x + 10 - spin, y - 5 + hover);
       ctx.lineTo(x + 10 + spin, y - 5 + hover);
@@ -845,212 +741,72 @@ function drawObstacles() {
       ctx.lineTo(x + 64 + spin, y - 5 + hover);
       ctx.stroke();
 
-      // Корпус
-      const droneGrad = ctx.createRadialGradient(x + 37, y + 10 + hover, 5, x + 37, y + 12 + hover, 28);
-      droneGrad.addColorStop(0, "#404a55");
-      droneGrad.addColorStop(1, "#252b33");
-      ctx.fillStyle = droneGrad;
+      ctx.fillStyle = "#252b33";
       ctx.beginPath();
       ctx.ellipse(x + 37, y + 12 + hover, 28, 12, 0, 0, Math.PI * 2);
       ctx.fill();
-
-      ctx.strokeStyle = "#66717e";
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = "#555";
       ctx.stroke();
 
-      // Глаз
-      const eyePulse = (Math.sin(worldDistance * 0.2) + 1) / 2;
+      ctx.fillStyle = "#ff2222";
       ctx.shadowColor = "#ff0000";
-      ctx.shadowBlur = 10 + eyePulse * 6;
-      ctx.fillStyle = `rgba(255, ${Math.floor(30 + eyePulse * 20)}, ${Math.floor(30 + eyePulse * 20)}, 1)`;
+      ctx.shadowBlur = 10;
       ctx.beginPath();
-      ctx.arc(x + 37, y + 13 + hover, 5, 0, Math.PI * 2);
+      ctx.arc(x + 37, y + 13 + hover, 4, 0, Math.PI * 2);
       ctx.fill();
       ctx.shadowBlur = 0;
-
-      // Блик на глазу
-      ctx.fillStyle = "rgba(255, 200, 200, 0.4)";
-      ctx.beginPath();
-      ctx.arc(x + 35, y + 11 + hover, 2, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Антенна
-      ctx.strokeStyle = "#888";
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(x + 37, y + hover);
-      ctx.lineTo(x + 40, y - 10 + hover);
-      ctx.stroke();
-
-      // Мигающий огонёк
-      if (Math.sin(worldDistance * 0.3) > 0.5) {
-        ctx.fillStyle = "#00ff00";
-        ctx.beginPath();
-        ctx.arc(x + 40, y - 10 + hover, 1.5, 0, Math.PI * 2);
-        ctx.fill();
-      }
     }
 
-    // Кактус
     if (o.type === "cactus") {
-      const x = o.x;
-      const y = o.y;
-
-      // Более детальный кактус
-      const cactusGrad = ctx.createLinearGradient(x, y, x + 32, GROUND);
-      cactusGrad.addColorStop(0, "#35883f");
-      cactusGrad.addColorStop(1, "#1e5528");
-      ctx.strokeStyle = cactusGrad;
+      ctx.strokeStyle = "#2e5528";
       ctx.lineWidth = 11;
       ctx.lineCap = "round";
-
       ctx.beginPath();
-      ctx.moveTo(x + 16, GROUND);
-      ctx.lineTo(x + 16, y + 5);
+      ctx.moveTo(o.x + 16, GROUND);
+      ctx.lineTo(o.x + 16, o.y + 5);
       ctx.stroke();
-
       ctx.lineWidth = 9;
       ctx.beginPath();
-      ctx.moveTo(x + 16, y + 30);
-      ctx.lineTo(x + 5, y + 30);
-      ctx.lineTo(x + 5, y + 17);
+      ctx.moveTo(o.x + 16, o.y + 30);
+      ctx.lineTo(o.x + 5, o.y + 30);
+      ctx.lineTo(o.x + 5, o.y + 17);
       ctx.stroke();
-
       ctx.beginPath();
-      ctx.moveTo(x + 16, y + 40);
-      ctx.lineTo(x + 28, y + 40);
-      ctx.lineTo(x + 28, y + 25);
+      ctx.moveTo(o.x + 16, o.y + 40);
+      ctx.lineTo(o.x + 28, o.y + 40);
+      ctx.lineTo(o.x + 28, o.y + 25);
       ctx.stroke();
-
-      // Светлые полосы
-      ctx.strokeStyle = "rgba(100, 200, 100, 0.2)";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(x + 14, GROUND - 5);
-      ctx.lineTo(x + 14, y + 8);
-      ctx.moveTo(x + 18, GROUND - 5);
-      ctx.lineTo(x + 18, y + 8);
-      ctx.stroke();
-
-      // Шипы
-      ctx.strokeStyle = "#90cc80";
-      ctx.lineWidth = 1;
-      for (let i = 0; i < 5; i++) {
-        const sy = y + 8 + i * 10;
-        ctx.beginPath();
-        ctx.moveTo(x + 10, sy);
-        ctx.lineTo(x + 6, sy - 3);
-        ctx.moveTo(x + 22, sy);
-        ctx.lineTo(x + 26, sy - 3);
-        ctx.stroke();
-      }
-
       ctx.lineCap = "butt";
     }
 
-    // Шипы
     if (o.type === "spikes") {
       const count = 5;
       const spikeWidth = o.width / count;
-
       for (let i = 0; i < count; i++) {
         const sx = o.x + i * spikeWidth;
-
-        // Градиент для каждого шипа
-        const spikeGrad = ctx.createLinearGradient(sx + spikeWidth / 2, o.y, sx + spikeWidth / 2, GROUND);
-        spikeGrad.addColorStop(0, "#b0b0b0");
-        spikeGrad.addColorStop(0.3, "#888");
-        spikeGrad.addColorStop(1, "#555");
-
+        const spikeGrad = ctx.createLinearGradient(sx, o.y, sx, GROUND);
+        spikeGrad.addColorStop(0, "#999");
+        spikeGrad.addColorStop(1, "#333");
         ctx.fillStyle = spikeGrad;
-        ctx.strokeStyle = "#333";
-        ctx.lineWidth = 1.5;
-
         ctx.beginPath();
         ctx.moveTo(sx + 1, GROUND);
         ctx.lineTo(sx + spikeWidth / 2, o.y);
         ctx.lineTo(sx + spikeWidth - 1, GROUND);
-        ctx.closePath();
         ctx.fill();
-        ctx.stroke();
-
-        // Блик
-        ctx.strokeStyle = "rgba(255,255,255,0.2)";
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(sx + spikeWidth / 2 - 2, o.y + 5);
-        ctx.lineTo(sx + 3, GROUND - 2);
-        ctx.stroke();
       }
-
-      // Основание
-      ctx.fillStyle = "#444";
+      ctx.fillStyle = "#222";
       ctx.fillRect(o.x, GROUND - 4, o.width, 4);
     }
 
-    // Пень
     if (o.type === "stump") {
-      const x = o.x;
-      const y = o.y;
-
-      // Кора
-      const barkGrad = ctx.createLinearGradient(x + 5, y + 8, x + o.width - 5, y + o.height);
-      barkGrad.addColorStop(0, "#6d4030");
-      barkGrad.addColorStop(0.5, "#5c3824");
-      barkGrad.addColorStop(1, "#4a2a18");
-      ctx.fillStyle = barkGrad;
-      ctx.fillRect(x + 5, y + 8, o.width - 10, o.height - 8);
-
-      // Текстура коры
+      ctx.fillStyle = "#4a2a18";
+      ctx.fillRect(o.x + 5, o.y + 8, o.width - 10, o.height - 8);
+      ctx.fillStyle = "#8a6038";
+      ctx.beginPath();
+      ctx.ellipse(o.x + o.width / 2, o.y + 8, o.width / 2, 9, 0, 0, Math.PI * 2);
+      ctx.fill();
       ctx.strokeStyle = "#362014";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(x + 12, y + 14);
-      ctx.lineTo(x + 12, GROUND);
-      ctx.moveTo(x + 22, y + 12);
-      ctx.lineTo(x + 22, GROUND);
-      ctx.moveTo(x + 30, y + 12);
-      ctx.lineTo(x + 30, GROUND);
       ctx.stroke();
-
-      // Горизонтальные трещины
-      ctx.strokeStyle = "#4a2a18";
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(x + 7, y + 20);
-      ctx.lineTo(x + o.width - 7, y + 22);
-      ctx.moveTo(x + 7, y + 32);
-      ctx.lineTo(x + o.width - 7, y + 30);
-      ctx.stroke();
-
-      // Верхушка
-      const topGrad = ctx.createRadialGradient(x + o.width / 2, y + 8, 3, x + o.width / 2, y + 8, o.width / 2);
-      topGrad.addColorStop(0, "#c4956a");
-      topGrad.addColorStop(0.6, "#a4774c");
-      topGrad.addColorStop(1, "#8a6038");
-      ctx.fillStyle = topGrad;
-      ctx.beginPath();
-      ctx.ellipse(x + o.width / 2, y + 8, o.width / 2, 9, 0, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Кольца на спиле
-      ctx.strokeStyle = "#6d472b";
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.ellipse(x + o.width / 2, y + 8, o.width / 2, 9, 0, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.ellipse(x + o.width / 2, y + 8, o.width / 3, 6, 0, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.ellipse(x + o.width / 2, y + 8, o.width / 6, 3, 0, 0, Math.PI * 2);
-      ctx.stroke();
-
-      // Точка центра
-      ctx.fillStyle = "#5a3820";
-      ctx.beginPath();
-      ctx.arc(x + o.width / 2, y + 8, 2, 0, Math.PI * 2);
-      ctx.fill();
     }
 
     ctx.restore();
@@ -1058,68 +814,54 @@ function drawObstacles() {
 }
 
 // ===============================
-// ЧАСТИЦЫ (РЕНДЕР)
+// ЧАСТИЦЫ И ПОСТ-ОБРАБОТКА
 // ===============================
 
 function drawParticles() {
   const daylight = getDaylight();
-
-  // Пыль
   for (const p of dustParticles) {
     const alpha = (p.life / p.maxLife) * 0.5;
-    ctx.fillStyle = mixColorAlpha("#6b5540", "#8a7a60", daylight, alpha);
+    ctx.fillStyle = mixColorAlpha("#4b5055", "#6a7a80", daylight, alpha);
     ctx.beginPath();
     ctx.arc(p.x, p.y, p.size * (p.life / p.maxLife), 0, Math.PI * 2);
     ctx.fill();
   }
 
-  // Взрывные частицы
   for (const p of particles) {
-    const alpha = (p.life / p.maxLife);
-    ctx.globalAlpha = alpha;
+    ctx.globalAlpha = p.life / p.maxLife;
     ctx.fillStyle = p.color;
     ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
   }
   ctx.globalAlpha = 1;
 }
 
-// ===============================
-// ПОСТ-ОБРАБОТКА
-// ===============================
-
 function drawPostEffects() {
-  // Виньетка
-  const vigGrad = ctx.createRadialGradient(W / 2, H / 2, W * 0.3, W / 2, H / 2, W * 0.75);
+  const vigGrad = ctx.createRadialGradient(W / 2, H / 2, W * 0.4, W / 2, H / 2, W * 0.8);
   vigGrad.addColorStop(0, "rgba(0,0,0,0)");
-  vigGrad.addColorStop(1, "rgba(0,0,0,0.35)");
+  vigGrad.addColorStop(1, "rgba(0,0,0,0.5)"); // Сильная виньетка для мрака
   ctx.fillStyle = vigGrad;
   ctx.fillRect(0, 0, W, H);
 
-  // Вспышка при смерти
   if (deathFlash > 0) {
-    ctx.fillStyle = `rgba(255, 50, 30, ${deathFlash * 1.5})`;
+    ctx.fillStyle = `rgba(200, 0, 0, ${deathFlash * 1.5})`;
     ctx.fillRect(0, 0, W, H);
   }
 
-  // Скан-лайны (лёгкие)
-  ctx.fillStyle = "rgba(0, 0, 0, 0.03)";
+  // Скан-лайны
+  ctx.fillStyle = "rgba(0, 0, 0, 0.04)";
   for (let y = 0; y < H; y += 4) {
     ctx.fillRect(0, y, W, 1);
   }
 }
 
 // ===============================
-// РЕНДЕР
+// ОСНОВНОЙ ЦИКЛ РЕНДЕРА
 // ===============================
 
 function render() {
   ctx.save();
-
-  // Тряска экрана
   if (screenShake > 0) {
-    const shakeX = (Math.random() - 0.5) * screenShake * 20;
-    const shakeY = (Math.random() - 0.5) * screenShake * 20;
-    ctx.translate(shakeX, shakeY);
+    ctx.translate((Math.random() - 0.5) * screenShake * 20, (Math.random() - 0.5) * screenShake * 20);
   }
 
   drawBackground();
@@ -1128,7 +870,6 @@ function render() {
   drawObstacles();
 
   ctx.restore();
-
   drawPostEffects();
 }
 
@@ -1139,7 +880,6 @@ function loop(timestamp) {
   if (running) {
     update(dt);
   } else {
-    // Обновление эффектов даже когда не бежим
     if (screenShake > 0) screenShake -= dt;
     if (deathFlash > 0) deathFlash -= dt;
     updateParticles(dt);
@@ -1150,56 +890,27 @@ function loop(timestamp) {
 }
 
 // ===============================
-// КЛАВИАТУРА
+// КЛАВИАТУРА И ТАЧ
 // ===============================
 
 document.addEventListener("keydown", e => {
   if (!["Space", "ArrowUp", "ArrowDown"].includes(e.code)) return;
   e.preventDefault();
-
-  if (!running) {
-    startGame();
-    return;
-  }
-
-  if (e.code === "ArrowDown") {
-    slide();
-  } else if (!e.repeat) {
-    jump();
-  }
+  if (!running) { startGame(); return; }
+  if (e.code === "ArrowDown") slide();
+  else if (!e.repeat) jump();
 });
 
 document.addEventListener("keyup", e => {
-  if (e.code === "ArrowDown") {
-    e.preventDefault();
-    stopSlide();
-  }
+  if (e.code === "ArrowDown") { e.preventDefault(); stopSlide(); }
 });
-
 window.addEventListener("blur", stopSlide);
 
-// ===============================
-// МОБИЛЬНОЕ УПРАВЛЕНИЕ
-// ===============================
-
-jumpButton.addEventListener("pointerdown", e => {
-  e.preventDefault();
-  jump();
-});
-
-slideButton.addEventListener("pointerdown", e => {
-  e.preventDefault();
-  slide();
-  slideButton.setPointerCapture(e.pointerId);
-});
-
+jumpButton.addEventListener("pointerdown", e => { e.preventDefault(); jump(); });
+slideButton.addEventListener("pointerdown", e => { e.preventDefault(); slide(); slideButton.setPointerCapture(e.pointerId); });
 slideButton.addEventListener("pointerup", stopSlide);
 slideButton.addEventListener("pointercancel", stopSlide);
 slideButton.addEventListener("lostpointercapture", stopSlide);
-
-// ===============================
-// ЗАПУСК
-// ===============================
 
 startButton.addEventListener("click", startGame);
 requestAnimationFrame(loop);
