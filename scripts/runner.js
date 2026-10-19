@@ -56,7 +56,7 @@ for (let i = 0; i < 80; i++) {
 }
 
 // ===============================
-// ГЕНЕРАЦИЯ ГОРОДА (ПАРАЛЛАКС)
+// ГЕНЕРАЦИЯ ГОРОДА
 // ===============================
 
 const cityLayers = [
@@ -65,18 +65,16 @@ const cityLayers = [
   { speed: 0.45, colors: ["#202c38", "#020408"], data: [], totalW: 0 }
 ];
 
-// Создаем здания один раз при загрузке
 cityLayers.forEach((layer, index) => {
   let x = 0;
-  while (x < 2000) { // Ширина достаточная для скроллинга
+  while (x < 2000) {
     let w = 30 + Math.random() * 70;
-    let h = 80 + Math.random() * (80 + index * 50); // Ближние здания выше
-    let hasWindows = index === 2 && Math.random() > 0.3; // Окна только на ближнем фоне
+    let h = 80 + Math.random() * (80 + index * 50);
+    let hasWindows = index === 2 && Math.random() > 0.3;
     let hasAntenna = Math.random() > 0.6;
     let windowSeed = Math.random();
-    
     layer.data.push({ x, w, h, hasWindows, hasAntenna, windowSeed });
-    x += w + (Math.random() * 10); // Отступ между зданиями
+    x += w + (Math.random() * 10);
   }
   layer.totalW = x;
 });
@@ -90,19 +88,32 @@ function spawnDust(x, y, count) {
       vy: -Math.random() * 30 - 10,
       life: 0.3 + Math.random() * 0.4,
       maxLife: 0.3 + Math.random() * 0.4,
-      size: 2 + Math.random() * 3
+      size: 2 + Math.random() * 3,
+      color: "rgba(100, 110, 120, "
     });
   }
 }
 
+// Искры для руки при подкате
+function spawnSparks(x, y) {
+  dustParticles.push({
+    x: x + Math.random() * 5,
+    y: y,
+    vx: -speed * 0.5 + Math.random() * 50,
+    vy: -Math.random() * 40 - 10,
+    life: 0.15 + Math.random() * 0.15,
+    maxLife: 0.15 + Math.random() * 0.15,
+    size: 1.5 + Math.random() * 2,
+    color: "rgba(255, 200, 100, " // Желтые искры
+  });
+}
+
 function spawnDeathParticles(x, y) {
-  // Черно-белые осколки для мрачного персонажа
   for (let i = 0; i < 40; i++) {
     const angle = Math.random() * Math.PI * 2;
     const force = 50 + Math.random() * 250;
     particles.push({
-      x: x,
-      y: y,
+      x: x, y: y,
       vx: Math.cos(angle) * force,
       vy: Math.sin(angle) * force - 100,
       life: 0.6 + Math.random() * 0.8,
@@ -116,28 +127,8 @@ function spawnDeathParticles(x, y) {
 
 function spawnJumpParticles(x, y) {
   for (let i = 0; i < 8; i++) {
-    dustParticles.push({
-      x: x + Math.random() * 20,
-      y: y,
-      vx: (Math.random() - 0.5) * 60,
-      vy: -Math.random() * 20 - 5,
-      life: 0.25 + Math.random() * 0.2,
-      maxLife: 0.25 + Math.random() * 0.2,
-      size: 3 + Math.random() * 4
-    });
+    spawnDust(x + Math.random() * 20, y, 1);
   }
-}
-
-function spawnSlideParticles(x, y) {
-  dustParticles.push({
-    x: x + 40 + Math.random() * 10,
-    y: y + Math.random() * 5,
-    vx: 20 + Math.random() * 30,
-    vy: -Math.random() * 25 - 5,
-    life: 0.2 + Math.random() * 0.2,
-    maxLife: 0.2 + Math.random() * 0.2,
-    size: 2 + Math.random() * 3
-  });
 }
 
 function updateParticles(dt) {
@@ -148,7 +139,6 @@ function updateParticles(dt) {
     p.life -= dt;
     if (p.life <= 0) dustParticles.splice(i, 1);
   }
-
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i];
     p.x += p.vx * dt;
@@ -199,10 +189,8 @@ function startGame() {
   obstacles = [];
   spawnDistance = 450;
   worldDistance = 0;
-
   jumpBuffer = 0;
   slideHeld = false;
-
   particles = [];
   dustParticles = [];
   screenShake = 0;
@@ -225,7 +213,6 @@ function gameOver() {
   spawnDeathParticles(player.x + 18, player.y + 30);
 
   const result = Math.floor(score);
-
   if (result > best) {
     best = result;
     localStorage.setItem("nightmarRunnerBest", best);
@@ -236,19 +223,16 @@ function gameOver() {
   overlayText.textContent = `SCORE: ${result}`;
   startButton.textContent = "RECONNECT";
 
-  setTimeout(() => {
-    overlay.classList.remove("hidden");
-  }, 600);
+  setTimeout(() => overlay.classList.remove("hidden"), 600);
 }
 
 // ===============================
-// ГЕНЕРАЦИЯ ПРЕПЯТСТВИЙ
+// ОБНОВЛЕНИЕ ИГРЫ
 // ===============================
 
 function spawnObstacle() {
   const types = ["rock", "log", "drone", "cactus", "spikes", "stump"];
   const type = types[Math.floor(Math.random() * types.length)];
-
   let width, height, y;
 
   switch (type) {
@@ -259,21 +243,14 @@ function spawnObstacle() {
     case "spikes": width = 85; height = 25; y = GROUND - height; break;
     case "stump": width = 45; height = 42; y = GROUND - height; break;
   }
-
   obstacles.push({ x: W + 30, y, width, height, type });
 }
 
-// ===============================
-// ОБНОВЛЕНИЕ ИГРЫ
-// ===============================
-
 function update(dt) {
   score += dt * 12;
-  speed = Math.min(420, 250 + score * 0.45);
-
+  speed = Math.min(450, 250 + score * 0.45);
   const movement = speed * dt;
   worldDistance += movement;
-
   scoreElement.textContent = String(Math.floor(score)).padStart(5, "0");
 
   if (jumpBuffer > 0) {
@@ -290,25 +267,23 @@ function update(dt) {
   player.y += player.velocityY * dt;
 
   if (player.y >= GROUND - player.height) {
-    if (!player.grounded && player.velocityY > 200) {
-      spawnDust(player.x + 18, GROUND, 6);
-    }
+    if (!player.grounded && player.velocityY > 200) spawnDust(player.x + 18, GROUND, 6);
     player.y = GROUND - player.height;
     player.velocityY = 0;
     player.grounded = true;
   }
 
   player.sliding = slideHeld && player.grounded;
+  
   if (player.sliding) {
-    spawnSlideParticles(player.x, GROUND - 5);
-  }
-
-  if (player.grounded && !player.sliding && Math.random() < 0.3) {
+    // Искры от руки при скольжении
+    if (Math.random() < 0.6) spawnSparks(player.x + 35, GROUND - 2);
+  } else if (player.grounded && Math.random() < 0.3) {
     spawnDust(player.x + 10, GROUND, 1);
   }
 
   // Мрачный след за персонажем
-  trailPositions.unshift({ x: player.x, y: player.y, sliding: player.sliding, time: 0.12 });
+  trailPositions.unshift({ x: player.x, y: player.y, sliding: player.sliding, time: 0.1 });
   if (trailPositions.length > 5) trailPositions.pop();
   for (let i = trailPositions.length - 1; i >= 0; i--) {
     trailPositions[i].time -= dt;
@@ -323,7 +298,6 @@ function update(dt) {
 
   for (const o of obstacles) {
     o.x -= movement;
-
     const px = player.x + 6;
     const pw = player.sliding ? 48 : 24;
     const py = player.sliding ? GROUND - 24 : player.y + 5;
@@ -333,21 +307,14 @@ function update(dt) {
     const horizontalCollision = px < o.x + o.width - margin && px + pw > o.x + margin;
 
     if (o.type === "drone") {
-      if (horizontalCollision && !player.sliding) {
-        gameOver();
-        return;
-      }
+      if (horizontalCollision && !player.sliding) { gameOver(); return; }
     } else {
       const verticalCollision = py < o.y + o.height - margin && py + ph > o.y + margin;
-      if (horizontalCollision && verticalCollision) {
-        gameOver();
-        return;
-      }
+      if (horizontalCollision && verticalCollision) { gameOver(); return; }
     }
   }
 
   obstacles = obstacles.filter(o => o.x + o.width > 0);
-
   if (screenShake > 0) screenShake -= dt;
   if (deathFlash > 0) deathFlash -= dt;
 
@@ -355,7 +322,7 @@ function update(dt) {
 }
 
 // ===============================
-// ЦВЕТА И СМЕНА СУТОК
+// РЕНДЕР ФОНА (ГОРОД)
 // ===============================
 
 function mixColor(a, b, t) {
@@ -365,53 +332,37 @@ function mixColor(a, b, t) {
   return `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
 }
 
-function mixColorAlpha(a, b, t, alpha) {
-  const c1 = a.match(/\w\w/g).map(x => parseInt(x, 16));
-  const c2 = b.match(/\w\w/g).map(x => parseInt(x, 16));
-  const c = c1.map((v, i) => Math.round(v + (c2[i] - v) * t));
-  return `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${alpha})`;
-}
-
 function getDaylight() {
   const cycle = (worldDistance / 12000) % 1;
   return (Math.cos(cycle * Math.PI * 2) + 1) / 2;
 }
 
-// ===============================
-// РЕНДЕР ФОНА (ГОРОД)
-// ===============================
-
 function drawBackground() {
   const cycle = (worldDistance / 12000) % 1;
   const daylight = getDaylight();
 
-  // Градиент неба (грязноватый городской)
   const skyGrad = ctx.createLinearGradient(0, 0, 0, GROUND);
   skyGrad.addColorStop(0, mixColor("#0a0f1c", "#5a7a92", daylight));
   skyGrad.addColorStop(1, mixColor("#1c2536", "#a0b8c8", daylight));
   ctx.fillStyle = skyGrad;
   ctx.fillRect(0, 0, W, GROUND);
 
-  // Звёзды (только ночью)
   if (daylight < 0.7) {
     const starAlpha = Math.max(0, 1 - daylight / 0.7);
     for (const s of stars) {
       const twinkle = (Math.sin(worldDistance * 0.01 * s.twinkleSpeed + s.twinkleOffset) + 1) / 2;
-      const alpha = starAlpha * s.brightness * (0.4 + twinkle * 0.6);
-      ctx.fillStyle = `rgba(255, 255, 240, ${alpha})`;
+      ctx.fillStyle = `rgba(255, 255, 240, ${starAlpha * s.brightness * (0.4 + twinkle * 0.6)})`;
       ctx.beginPath();
       ctx.arc(s.x, s.y, s.size * (0.7 + twinkle * 0.3), 0, Math.PI * 2);
       ctx.fill();
     }
   }
 
-  // Солнце / луна
   const orbX = 90 + cycle * 720;
   const orbY = 95 - Math.sin(cycle * Math.PI) * 50;
   const orbGrad = ctx.createRadialGradient(orbX - 5, orbY - 5, 2, orbX, orbY, 24);
   orbGrad.addColorStop(0, mixColor("#f0f4ff", "#fff8c0", daylight));
   orbGrad.addColorStop(1, mixColor("#c0c8e8", "#ffcc40", daylight));
-  
   ctx.shadowColor = mixColor("#a0b0ff", "#ffcc40", daylight);
   ctx.shadowBlur = 30;
   ctx.fillStyle = orbGrad;
@@ -420,53 +371,39 @@ function drawBackground() {
   ctx.fill();
   ctx.shadowBlur = 0;
 
-  // Отрисовка слоев города
   cityLayers.forEach(layer => {
     const offset = (worldDistance * layer.speed) % layer.totalW;
-    ctx.fillStyle = mixColor(layer.colors[1], layer.colors[0], daylight); // Ночь / День
+    ctx.fillStyle = mixColor(layer.colors[1], layer.colors[0], daylight);
 
-    for (let i = 0; i < 2; i++) { // Дублируем для бесшовности
+    for (let i = 0; i < 2; i++) {
       ctx.save();
       ctx.translate(-offset + (i * layer.totalW), 0);
-
       layer.data.forEach(b => {
-        // Тело здания
         ctx.fillRect(b.x, GROUND - b.h, b.w, b.h);
-
-        // Антенны на крыше
         if (b.hasAntenna) {
           ctx.fillRect(b.x + b.w * 0.2, GROUND - b.h - 15, 2, 15);
           if (b.windowSeed > 0.5) ctx.fillRect(b.x + b.w * 0.8, GROUND - b.h - 8, 1, 8);
         }
-
-        // Светящиеся окна ночью
         if (b.hasWindows && daylight < 0.4) {
-          const windowAlpha = (1 - daylight / 0.4);
-          ctx.fillStyle = `rgba(255, 230, 120, ${windowAlpha})`;
-          
+          ctx.fillStyle = `rgba(255, 230, 120, ${1 - daylight / 0.4})`;
           for (let wy = GROUND - b.h + 15; wy < GROUND - 15; wy += 18) {
             for (let wx = b.x + 8; wx < b.x + b.w - 12; wx += 14) {
-              // Псевдослучайное свечение окон
-              if ((wx + wy * b.windowSeed) % 3 > 1.2) {
-                ctx.fillRect(wx, wy, 6, 8);
-              }
+              if ((wx + wy * b.windowSeed) % 3 > 1.2) ctx.fillRect(wx, wy, 6, 8);
             }
           }
-          ctx.fillStyle = mixColor(layer.colors[1], layer.colors[0], daylight); // Возвращаем цвет здания
+          ctx.fillStyle = mixColor(layer.colors[1], layer.colors[0], daylight);
         }
       });
       ctx.restore();
     }
   });
 
-  // Земля (Асфальт)
   const groundGrad = ctx.createLinearGradient(0, GROUND, 0, H);
   groundGrad.addColorStop(0, mixColor("#1a1e24", "#30353c", daylight));
   groundGrad.addColorStop(1, mixColor("#0a0c10", "#181b20", daylight));
   ctx.fillStyle = groundGrad;
   ctx.fillRect(0, GROUND, W, H - GROUND);
 
-  // Линия горизонта
   ctx.strokeStyle = mixColor("#303a45", "#556677", daylight);
   ctx.lineWidth = 3;
   ctx.beginPath();
@@ -474,30 +411,23 @@ function drawBackground() {
   ctx.lineTo(W, GROUND);
   ctx.stroke();
 
-  // Разметка на дороге (эффект скорости)
   const roadTex = -(worldDistance * 1.2) % 60;
   ctx.fillStyle = mixColor("rgba(255,255,255,0.05)", "rgba(255,255,255,0.15)", daylight);
-  for (let i = -1; i < W / 60 + 2; i++) {
-    ctx.fillRect(roadTex + i * 60, GROUND + 15, 30, 4);
-  }
+  for (let i = -1; i < W / 60 + 2; i++) ctx.fillRect(roadTex + i * 60, GROUND + 15, 30, 4);
 }
 
 // ===============================
-// ПЕРСОНАЖ (CREEPY HOODIE)
+// ПЕРСОНАЖ (CREEPY HOODIE + GLOW)
 // ===============================
 
 function drawPlayerTrail() {
   for (let i = 0; i < trailPositions.length; i++) {
     const t = trailPositions[i];
-    const alpha = (t.time / 0.12) * 0.15;
+    const alpha = (t.time / 0.1) * 0.12;
     if (alpha <= 0) continue;
-
-    ctx.fillStyle = `rgba(0, 0, 0, ${alpha})`;
-    if (t.sliding) {
-      ctx.fillRect(t.x + 5, GROUND - 22, 45, 18);
-    } else {
-      ctx.fillRect(t.x + 5, t.y + 10, 28, 45);
-    }
+    ctx.fillStyle = `rgba(180, 220, 255, ${alpha})`;
+    if (t.sliding) ctx.fillRect(t.x, GROUND - 25, 50, 25);
+    else ctx.fillRect(t.x, t.y, 35, 60);
   }
 }
 
@@ -509,152 +439,229 @@ function drawPlayer() {
 
   ctx.save();
 
-  // Тень под ногами
+  // Тень
   const shadowScale = player.grounded ? 1 : 0.6;
-  const shadowAlpha = player.grounded ? 0.4 : 0.15;
-  ctx.fillStyle = `rgba(0, 0, 0, ${shadowAlpha})`;
+  ctx.fillStyle = `rgba(0, 0, 0, ${player.grounded ? 0.5 : 0.2})`;
   ctx.beginPath();
-  ctx.ellipse(x + 18, GROUND + 2, 18 * shadowScale, 4 * shadowScale, 0, 0, Math.PI * 2);
+  ctx.ellipse(x + 18, GROUND + 2, 22 * shadowScale, 4 * shadowScale, 0, 0, Math.PI * 2);
   ctx.fill();
 
   drawPlayerTrail();
 
+  // --- СВЕЧЕНИЕ (АУРА) ДЛЯ КОНТРАСТА ---
+  ctx.shadowColor = "rgba(180, 220, 255, 0.7)"; // Ледяное неоновое свечение
+  ctx.shadowBlur = 18;
+
   if (player.sliding) {
-    const sy = GROUND - 24;
+    // ДИНАМИЧНЫЙ ПОДКАТ (Откинувшись назад)
+    const sx = x + 15;
+    const sy = GROUND - 12;
 
-    // Туловище в подкате (худи)
-    ctx.fillStyle = "#1a1a1a";
+    // Задняя рука (опирается о землю или откинута назад)
+    ctx.strokeStyle = "#080808";
+    ctx.lineWidth = 6;
+    ctx.lineCap = "round";
     ctx.beginPath();
-    ctx.roundRect(x + 5, sy + 2, 38, 18, 8);
-    ctx.fill();
+    ctx.moveTo(sx - 2, sy - 15);
+    ctx.lineTo(sx - 15, sy - 5);
+    ctx.stroke();
 
-    // Лого "NP"
-    ctx.fillStyle = "#eee";
-    ctx.font = "bold 13px 'Courier New', monospace";
-    ctx.fillText("NP", x + 15, sy + 15);
+    // Задняя нога (согнута под собой)
+    ctx.strokeStyle = "#0d0d0d";
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+    ctx.moveTo(sx + 5, sy);
+    ctx.lineTo(sx - 8, sy + 10);
+    ctx.stroke();
 
-    // Капюшон сбоку
+    // Тело (Худи, наклонено назад)
+    ctx.translate(sx, sy);
+    ctx.rotate(Math.PI / 4.5); // Наклон назад
     ctx.fillStyle = "#111";
     ctx.beginPath();
-    ctx.arc(x + 42, sy + 10, 11, 0, Math.PI * 2);
+    ctx.roundRect(-10, -25, 24, 30, 6);
     ctx.fill();
 
-    // Мрак внутри капюшона
+    // Лого на груди
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 12px 'Courier New', monospace";
+    ctx.fillText("NP", -5, -5);
+
+    // Капюшон
+    ctx.beginPath();
+    ctx.arc(2, -26, 14, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Лицо во мраке
     ctx.fillStyle = "#000";
     ctx.beginPath();
-    ctx.arc(x + 44, sy + 10, 8, 0, Math.PI * 2);
+    ctx.arc(5, -28, 11, 0, Math.PI * 2);
     ctx.fill();
 
-    // Светящиеся глаза
+    // Глаза
     ctx.fillStyle = "#fff";
     ctx.shadowColor = "#fff";
-    ctx.shadowBlur = 5;
+    ctx.shadowBlur = 8;
     ctx.beginPath();
-    ctx.arc(x + 47, sy + 7, 2.5, 0, Math.PI * 2);
-    ctx.arc(x + 47, sy + 13, 2.5, 0, Math.PI * 2);
+    ctx.arc(2, -31, 2.5, 0, Math.PI * 2);
+    ctx.arc(9, -29, 2.5, 0, Math.PI * 2);
     ctx.fill();
-    ctx.shadowBlur = 0;
+    ctx.shadowBlur = 0; // Отключаем свечение для зубов, чтобы были четкими
 
-    // Зубастая пасть (повернута)
+    // Зубы
     ctx.fillStyle = "#fff";
     ctx.beginPath();
-    ctx.moveTo(x + 51, sy + 3);
-    ctx.lineTo(x + 48, sy + 6);
-    ctx.lineTo(x + 52, sy + 8);
-    ctx.lineTo(x + 49, sy + 10);
-    ctx.lineTo(x + 52, sy + 12);
-    ctx.lineTo(x + 48, sy + 14);
-    ctx.lineTo(x + 51, sy + 17);
-    ctx.quadraticCurveTo(x + 55, sy + 10, x + 51, sy + 3);
+    ctx.moveTo(-1, -22); ctx.lineTo(1, -19); ctx.lineTo(3, -23);
+    ctx.lineTo(5, -20);  ctx.lineTo(7, -24); ctx.lineTo(9, -21);
+    ctx.lineTo(11, -25);
+    ctx.quadraticCurveTo(5, -16, -1, -22);
+    ctx.fill();
+
+    // Возвращаем трансформацию
+    ctx.rotate(-Math.PI / 4.5);
+    ctx.translate(-sx, -sy);
+
+    // Снова включаем внешнее свечение для передних конечностей
+    ctx.shadowColor = "rgba(180, 220, 255, 0.7)";
+    ctx.shadowBlur = 18;
+
+    // Передняя нога (вытянута вперед)
+    ctx.strokeStyle = "#151515"; // Чуть светлее штанина
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+    ctx.moveTo(sx + 5, sy);
+    ctx.lineTo(sx + 30, sy + 8); // Вытянута вдоль земли
+    ctx.stroke();
+    
+    // Ботинок
+    ctx.fillStyle = "#050505";
+    ctx.beginPath();
+    ctx.ellipse(sx + 33, sy + 8, 6, 3.5, -0.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Передняя рука (касается земли)
+    ctx.strokeStyle = "#1a1a1a";
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(sx, sy - 15);
+    ctx.lineTo(sx + 20, sy + 8);
+    ctx.stroke();
+
+    // Кулак (касается асфальта, генерирует искры)
+    ctx.fillStyle = "#dcdcdc"; // Бледная кожа
+    ctx.beginPath();
+    ctx.arc(sx + 20, sy + 9, 3.5, 0, Math.PI * 2);
     ctx.fill();
 
   } else {
-    // Анимация ног и покачивания
-    const legSwing = player.grounded ? Math.sin(worldDistance / 16) * 11 : 0;
-    const bobY = player.grounded ? Math.sin(worldDistance / 8) * 1.5 : 0;
+    // БЕГ (ДИНАМИЧНЫЙ)
+    const runCycle = worldDistance / 16;
+    const legSwing = player.grounded ? Math.sin(runCycle) * 14 : 0;
+    const armSwing = player.grounded ? Math.cos(runCycle) * 12 : 5; // Руки двигаются в противовес
+    const bobY = player.grounded ? Math.abs(Math.sin(runCycle * 2)) * 3 : 0;
 
-    // Ноги (темные джинсы/штаны)
-    ctx.strokeStyle = "#0d0d0d";
-    ctx.lineWidth = 8;
+    // Задняя рука (тёмная)
+    ctx.strokeStyle = "#0a0a0a";
+    ctx.lineWidth = 6;
     ctx.lineCap = "round";
     ctx.beginPath();
-    ctx.moveTo(x + 12, y + 43 + bobY);
-    ctx.lineTo(x + 12 + legSwing, y + 62);
-    ctx.moveTo(x + 25, y + 43 + bobY);
-    ctx.lineTo(x + 25 - legSwing, y + 62);
+    ctx.moveTo(x + 18, y + 22 + bobY); // Плечо
+    ctx.lineTo(x + 18 + armSwing, y + 34 + bobY); // Локоть
+    ctx.lineTo(x + 18 + armSwing + 8, y + 26 + bobY); // Предплечье
     ctx.stroke();
 
-    // Ботинки
-    ctx.fillStyle = "#050505";
+    // Задняя кисть
+    ctx.fillStyle = "#a9a9a9";
     ctx.beginPath();
-    ctx.ellipse(x + 13 + legSwing, y + 63, 7, 3.5, 0, 0, Math.PI * 2);
+    ctx.arc(x + 18 + armSwing + 8, y + 26 + bobY, 3, 0, Math.PI * 2);
     ctx.fill();
-    ctx.beginPath();
-    ctx.ellipse(x + 26 - legSwing, y + 63, 7, 3.5, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.lineCap = "butt";
 
-    // Туловище (Худи)
-    const bodyGrad = ctx.createLinearGradient(x + 2, y + 18, x + 34, y + 46);
-    bodyGrad.addColorStop(0, "#222");
-    bodyGrad.addColorStop(1, "#111");
-    ctx.fillStyle = bodyGrad;
+    // Задняя нога (тёмная)
+    ctx.strokeStyle = "#080808";
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+    ctx.moveTo(x + 18, y + 43 + bobY);
+    ctx.lineTo(x + 18 - legSwing, y + 62);
+    ctx.stroke();
+    ctx.fillStyle = "#000";
+    ctx.beginPath();
+    ctx.ellipse(x + 19 - legSwing, y + 63, 7, 3.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Тело (Худи)
+    ctx.fillStyle = "#111";
     ctx.beginPath();
     ctx.roundRect(x + 4, y + 18 + bobY, 28, 28, 6);
     ctx.fill();
 
-    // Руки в карманах
-    ctx.strokeStyle = "#151515";
-    ctx.lineWidth = 6;
-    ctx.lineCap = "round";
-    ctx.beginPath();
-    ctx.moveTo(x + 6, y + 22 + bobY);
-    ctx.lineTo(x + 12, y + 42 + bobY);
-    ctx.moveTo(x + 30, y + 22 + bobY);
-    ctx.lineTo(x + 24, y + 42 + bobY);
-    ctx.stroke();
-    ctx.lineCap = "butt";
-
     // Лого "NP"
     ctx.fillStyle = "#fff";
     ctx.font = "bold 15px 'Courier New', monospace";
-    ctx.fillText("NP", x + 9, y + 36 + bobY);
+    ctx.fillText("NP", x + 9, y + 38 + bobY);
 
-    // Голова (Капюшон)
+    // Передняя нога (светлее)
+    ctx.strokeStyle = "#151515";
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+    ctx.moveTo(x + 18, y + 43 + bobY);
+    ctx.lineTo(x + 18 + legSwing, y + 62);
+    ctx.stroke();
+    ctx.fillStyle = "#050505";
+    ctx.beginPath();
+    ctx.ellipse(x + 19 + legSwing, y + 63, 7, 3.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Капюшон
     ctx.fillStyle = "#161616";
     ctx.beginPath();
     ctx.arc(x + 18, y + 14 + bobY, 15, 0, Math.PI * 2);
     ctx.fill();
 
-    // Лицо (черная пустота)
+    // Лицо
     ctx.fillStyle = "#000";
     ctx.beginPath();
     ctx.arc(x + 18, y + 16 + bobY, 12, 0, Math.PI * 2);
     ctx.fill();
 
-    // Светящиеся белые глаза
+    // Светящиеся глаза
     ctx.fillStyle = "#fff";
     ctx.shadowColor = "#fff";
     ctx.shadowBlur = 8;
     ctx.beginPath();
-    ctx.arc(x + 13, y + 13 + bobY, 3, 0, Math.PI * 2);
-    ctx.arc(x + 23, y + 13 + bobY, 3, 0, Math.PI * 2);
+    ctx.arc(x + 14, y + 13 + bobY, 3, 0, Math.PI * 2);
+    ctx.arc(x + 24, y + 13 + bobY, 3, 0, Math.PI * 2);
     ctx.fill();
     ctx.shadowBlur = 0;
 
-    // Жуткая улыбка (зубы)
+    // Зубы
+    ctx.fillStyle = "#fff";
     ctx.beginPath();
-    ctx.moveTo(x + 9, y + 19 + bobY);   // Левый уголок
-    ctx.lineTo(x + 12, y + 24 + bobY);  // Клык вниз
-    ctx.lineTo(x + 14, y + 20 + bobY);  // Вверх
-    ctx.lineTo(x + 17, y + 25 + bobY);  // Вниз
-    ctx.lineTo(x + 19, y + 20 + bobY);  // Вверх
-    ctx.lineTo(x + 22, y + 25 + bobY);  // Вниз
-    ctx.lineTo(x + 24, y + 20 + bobY);  // Вверх
-    ctx.lineTo(x + 27, y + 24 + bobY);  // Клык вниз
-    ctx.lineTo(x + 28, y + 19 + bobY);  // Правый уголок
-    // Дуга снизу (нижняя губа)
-    ctx.quadraticCurveTo(x + 18, y + 30 + bobY, x + 9, y + 19 + bobY);
+    ctx.moveTo(x + 10, y + 19 + bobY);
+    ctx.lineTo(x + 12, y + 24 + bobY); ctx.lineTo(x + 14, y + 20 + bobY);
+    ctx.lineTo(x + 17, y + 25 + bobY); ctx.lineTo(x + 19, y + 20 + bobY);
+    ctx.lineTo(x + 22, y + 25 + bobY); ctx.lineTo(x + 24, y + 20 + bobY);
+    ctx.lineTo(x + 26, y + 24 + bobY); ctx.lineTo(x + 27, y + 19 + bobY);
+    ctx.quadraticCurveTo(x + 18, y + 30 + bobY, x + 10, y + 19 + bobY);
+    ctx.fill();
+
+    // Возвращаем ауру для передней руки
+    ctx.shadowColor = "rgba(180, 220, 255, 0.7)";
+    ctx.shadowBlur = 18;
+
+    // Передняя рука (светлее, согнута)
+    ctx.strokeStyle = "#1a1a1a";
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(x + 18, y + 22 + bobY); // Плечо
+    ctx.lineTo(x + 18 - armSwing, y + 34 + bobY); // Локоть
+    ctx.lineTo(x + 18 - armSwing + 10, y + 24 + bobY); // Предплечье
+    ctx.stroke();
+    ctx.lineCap = "butt";
+
+    // Передняя кисть (кулак)
+    ctx.fillStyle = "#dcdcdc"; // Бледная кожа
+    ctx.beginPath();
+    ctx.arc(x + 18 - armSwing + 10, y + 24 + bobY, 3.5, 0, Math.PI * 2);
     ctx.fill();
   }
 
@@ -668,9 +675,7 @@ function drawPlayer() {
 function drawObstacles() {
   for (const o of obstacles) {
     ctx.save();
-
-    // Тень
-    ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
+    ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
     if (o.type !== "drone") {
       ctx.beginPath();
       ctx.ellipse(o.x + o.width / 2, GROUND + 2, o.width * 0.4, 3, 0, 0, Math.PI * 2);
@@ -679,136 +684,56 @@ function drawObstacles() {
 
     if (o.type === "rock") {
       const rockGrad = ctx.createLinearGradient(o.x, o.y, o.x + o.width, GROUND);
-      rockGrad.addColorStop(0, "#777");
-      rockGrad.addColorStop(1, "#3a3a3a");
+      rockGrad.addColorStop(0, "#777"); rockGrad.addColorStop(1, "#3a3a3a");
       ctx.fillStyle = rockGrad;
       ctx.beginPath();
-      ctx.moveTo(o.x, GROUND);
-      ctx.lineTo(o.x + 5, o.y + 15);
-      ctx.lineTo(o.x + 8, o.y + 8);
-      ctx.lineTo(o.x + 20, o.y);
-      ctx.lineTo(o.x + 28, o.y + 3);
-      ctx.lineTo(o.x + 38, o.y + 10);
-      ctx.lineTo(o.x + o.width, GROUND);
-      ctx.fill();
-    }
-
-    if (o.type === "log") {
+      ctx.moveTo(o.x, GROUND); ctx.lineTo(o.x + 5, o.y + 15); ctx.lineTo(o.x + 8, o.y + 8);
+      ctx.lineTo(o.x + 20, o.y); ctx.lineTo(o.x + 28, o.y + 3); ctx.lineTo(o.x + 38, o.y + 10);
+      ctx.lineTo(o.x + o.width, GROUND); ctx.fill();
+    } else if (o.type === "log") {
       const logGrad = ctx.createLinearGradient(o.x, o.y, o.x, o.y + o.height);
-      logGrad.addColorStop(0, "#5a4536");
-      logGrad.addColorStop(1, "#2a1f1a");
+      logGrad.addColorStop(0, "#5a4536"); logGrad.addColorStop(1, "#2a1f1a");
       ctx.fillStyle = logGrad;
       const r = o.height / 2;
       ctx.beginPath();
-      ctx.moveTo(o.x + r, o.y);
-      ctx.lineTo(o.x + o.width - r, o.y);
+      ctx.moveTo(o.x + r, o.y); ctx.lineTo(o.x + o.width - r, o.y);
       ctx.arc(o.x + o.width - r, o.y + r, r, -Math.PI / 2, Math.PI / 2);
-      ctx.lineTo(o.x + r, o.y + o.height);
-      ctx.arc(o.x + r, o.y + r, r, Math.PI / 2, -Math.PI / 2);
+      ctx.lineTo(o.x + r, o.y + o.height); ctx.arc(o.x + r, o.y + r, r, Math.PI / 2, -Math.PI / 2);
       ctx.fill();
-      
-      ctx.strokeStyle = "#1a0f0a";
-      ctx.beginPath();
-      ctx.ellipse(o.x + o.width - r, o.y + r, 5, r - 3, 0, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-
-    if (o.type === "drone") {
-      const x = o.x;
-      const y = o.y;
-      const hover = Math.sin(worldDistance * 0.15) * 3;
-
-      ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
-      ctx.beginPath();
-      ctx.ellipse(x + 37, GROUND + 2, 20, 3, 0, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.strokeStyle = "#444";
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(x + 10, y + 4 + hover);
-      ctx.lineTo(x + 10, y - 5 + hover);
-      ctx.moveTo(x + 64, y + 4 + hover);
-      ctx.lineTo(x + 64, y - 5 + hover);
-      ctx.stroke();
-
+      ctx.strokeStyle = "#1a0f0a"; ctx.beginPath(); ctx.ellipse(o.x + o.width - r, o.y + r, 5, r - 3, 0, 0, Math.PI * 2); ctx.stroke();
+    } else if (o.type === "drone") {
+      const x = o.x, y = o.y, hover = Math.sin(worldDistance * 0.15) * 3;
+      ctx.fillStyle = "rgba(0, 0, 0, 0.2)"; ctx.beginPath(); ctx.ellipse(x + 37, GROUND + 2, 20, 3, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = "#444"; ctx.lineWidth = 3; ctx.beginPath();
+      ctx.moveTo(x + 10, y + 4 + hover); ctx.lineTo(x + 10, y - 5 + hover);
+      ctx.moveTo(x + 64, y + 4 + hover); ctx.lineTo(x + 64, y - 5 + hover); ctx.stroke();
       const spin = Math.sin(worldDistance / 3) * 14;
-      ctx.strokeStyle = `rgba(180, 200, 220, 0.4)`;
-      ctx.beginPath();
-      ctx.moveTo(x + 10 - spin, y - 5 + hover);
-      ctx.lineTo(x + 10 + spin, y - 5 + hover);
-      ctx.moveTo(x + 64 - spin, y - 5 + hover);
-      ctx.lineTo(x + 64 + spin, y - 5 + hover);
-      ctx.stroke();
-
-      ctx.fillStyle = "#252b33";
-      ctx.beginPath();
-      ctx.ellipse(x + 37, y + 12 + hover, 28, 12, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = "#555";
-      ctx.stroke();
-
-      ctx.fillStyle = "#ff2222";
-      ctx.shadowColor = "#ff0000";
-      ctx.shadowBlur = 10;
-      ctx.beginPath();
-      ctx.arc(x + 37, y + 13 + hover, 4, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.shadowBlur = 0;
-    }
-
-    if (o.type === "cactus") {
-      ctx.strokeStyle = "#2e5528";
-      ctx.lineWidth = 11;
-      ctx.lineCap = "round";
-      ctx.beginPath();
-      ctx.moveTo(o.x + 16, GROUND);
-      ctx.lineTo(o.x + 16, o.y + 5);
-      ctx.stroke();
-      ctx.lineWidth = 9;
-      ctx.beginPath();
-      ctx.moveTo(o.x + 16, o.y + 30);
-      ctx.lineTo(o.x + 5, o.y + 30);
-      ctx.lineTo(o.x + 5, o.y + 17);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(o.x + 16, o.y + 40);
-      ctx.lineTo(o.x + 28, o.y + 40);
-      ctx.lineTo(o.x + 28, o.y + 25);
-      ctx.stroke();
-      ctx.lineCap = "butt";
-    }
-
-    if (o.type === "spikes") {
-      const count = 5;
-      const spikeWidth = o.width / count;
+      ctx.strokeStyle = `rgba(180, 200, 220, 0.4)`; ctx.beginPath();
+      ctx.moveTo(x + 10 - spin, y - 5 + hover); ctx.lineTo(x + 10 + spin, y - 5 + hover);
+      ctx.moveTo(x + 64 - spin, y - 5 + hover); ctx.lineTo(x + 64 + spin, y - 5 + hover); ctx.stroke();
+      ctx.fillStyle = "#252b33"; ctx.beginPath(); ctx.ellipse(x + 37, y + 12 + hover, 28, 12, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = "#555"; ctx.stroke();
+      ctx.fillStyle = "#ff2222"; ctx.shadowColor = "#ff0000"; ctx.shadowBlur = 10;
+      ctx.beginPath(); ctx.arc(x + 37, y + 13 + hover, 4, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
+    } else if (o.type === "cactus") {
+      ctx.strokeStyle = "#2e5528"; ctx.lineWidth = 11; ctx.lineCap = "round"; ctx.beginPath();
+      ctx.moveTo(o.x + 16, GROUND); ctx.lineTo(o.x + 16, o.y + 5); ctx.stroke(); ctx.lineWidth = 9; ctx.beginPath();
+      ctx.moveTo(o.x + 16, o.y + 30); ctx.lineTo(o.x + 5, o.y + 30); ctx.lineTo(o.x + 5, o.y + 17); ctx.stroke(); ctx.beginPath();
+      ctx.moveTo(o.x + 16, o.y + 40); ctx.lineTo(o.x + 28, o.y + 40); ctx.lineTo(o.x + 28, o.y + 25); ctx.stroke(); ctx.lineCap = "butt";
+    } else if (o.type === "spikes") {
+      const count = 5, spikeWidth = o.width / count;
       for (let i = 0; i < count; i++) {
-        const sx = o.x + i * spikeWidth;
-        const spikeGrad = ctx.createLinearGradient(sx, o.y, sx, GROUND);
-        spikeGrad.addColorStop(0, "#999");
-        spikeGrad.addColorStop(1, "#333");
-        ctx.fillStyle = spikeGrad;
-        ctx.beginPath();
-        ctx.moveTo(sx + 1, GROUND);
-        ctx.lineTo(sx + spikeWidth / 2, o.y);
-        ctx.lineTo(sx + spikeWidth - 1, GROUND);
-        ctx.fill();
+        const sx = o.x + i * spikeWidth, spikeGrad = ctx.createLinearGradient(sx, o.y, sx, GROUND);
+        spikeGrad.addColorStop(0, "#999"); spikeGrad.addColorStop(1, "#333");
+        ctx.fillStyle = spikeGrad; ctx.beginPath(); ctx.moveTo(sx + 1, GROUND);
+        ctx.lineTo(sx + spikeWidth / 2, o.y); ctx.lineTo(sx + spikeWidth - 1, GROUND); ctx.fill();
       }
-      ctx.fillStyle = "#222";
-      ctx.fillRect(o.x, GROUND - 4, o.width, 4);
+      ctx.fillStyle = "#222"; ctx.fillRect(o.x, GROUND - 4, o.width, 4);
+    } else if (o.type === "stump") {
+      ctx.fillStyle = "#4a2a18"; ctx.fillRect(o.x + 5, o.y + 8, o.width - 10, o.height - 8);
+      ctx.fillStyle = "#8a6038"; ctx.beginPath(); ctx.ellipse(o.x + o.width / 2, o.y + 8, o.width / 2, 9, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = "#362014"; ctx.stroke();
     }
-
-    if (o.type === "stump") {
-      ctx.fillStyle = "#4a2a18";
-      ctx.fillRect(o.x + 5, o.y + 8, o.width - 10, o.height - 8);
-      ctx.fillStyle = "#8a6038";
-      ctx.beginPath();
-      ctx.ellipse(o.x + o.width / 2, o.y + 8, o.width / 2, 9, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = "#362014";
-      ctx.stroke();
-    }
-
     ctx.restore();
   }
 }
@@ -818,15 +743,12 @@ function drawObstacles() {
 // ===============================
 
 function drawParticles() {
-  const daylight = getDaylight();
   for (const p of dustParticles) {
-    const alpha = (p.life / p.maxLife) * 0.5;
-    ctx.fillStyle = mixColorAlpha("#4b5055", "#6a7a80", daylight, alpha);
+    ctx.fillStyle = p.color + (p.life / p.maxLife) * 0.8 + ")";
     ctx.beginPath();
     ctx.arc(p.x, p.y, p.size * (p.life / p.maxLife), 0, Math.PI * 2);
     ctx.fill();
   }
-
   for (const p of particles) {
     ctx.globalAlpha = p.life / p.maxLife;
     ctx.fillStyle = p.color;
@@ -838,7 +760,7 @@ function drawParticles() {
 function drawPostEffects() {
   const vigGrad = ctx.createRadialGradient(W / 2, H / 2, W * 0.4, W / 2, H / 2, W * 0.8);
   vigGrad.addColorStop(0, "rgba(0,0,0,0)");
-  vigGrad.addColorStop(1, "rgba(0,0,0,0.5)"); // Сильная виньетка для мрака
+  vigGrad.addColorStop(1, "rgba(0,0,0,0.6)");
   ctx.fillStyle = vigGrad;
   ctx.fillRect(0, 0, W, H);
 
@@ -847,11 +769,8 @@ function drawPostEffects() {
     ctx.fillRect(0, 0, W, H);
   }
 
-  // Скан-лайны
   ctx.fillStyle = "rgba(0, 0, 0, 0.04)";
-  for (let y = 0; y < H; y += 4) {
-    ctx.fillRect(0, y, W, 1);
-  }
+  for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 1);
 }
 
 // ===============================
@@ -877,9 +796,8 @@ function loop(timestamp) {
   const dt = Math.min((timestamp - lastTime) / 1000 || 0, 0.033);
   lastTime = timestamp;
 
-  if (running) {
-    update(dt);
-  } else {
+  if (running) update(dt);
+  else {
     if (screenShake > 0) screenShake -= dt;
     if (deathFlash > 0) deathFlash -= dt;
     updateParticles(dt);
