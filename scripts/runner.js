@@ -103,28 +103,60 @@ function gameOver() {
   overlay.classList.remove("hidden");
 }
 
+// ===============================
+// ГЕНЕРАЦИЯ ПРЕПЯТСТВИЙ
+// ===============================
+
 function spawnObstacle() {
-  const types = ["rock", "log", "drone"];
+  const types = [
+    "rock",
+    "log",
+    "drone",
+    "cactus",
+    "spikes",
+    "stump"
+  ];
+
   const type = types[Math.floor(Math.random() * types.length)];
 
   let width, height, y;
 
-  if (type === "rock") {
-    width = 42;
-    height = 36;
-    y = GROUND - height;
-  }
+  switch (type) {
+    case "rock":
+      width = 42;
+      height = 36;
+      y = GROUND - height;
+      break;
 
-  if (type === "log") {
-    width = 72;
-    height = 27;
-    y = GROUND - height;
-  }
+    case "log":
+      width = 72;
+      height = 27;
+      y = GROUND - height;
+      break;
 
-  if (type === "drone") {
-    width = 74;
-    height = 22;
-    y = GROUND - 55;
+    case "drone":
+      width = 74;
+      height = 38;
+      y = GROUND - 60;
+      break;
+
+    case "cactus":
+      width = 32;
+      height = 55;
+      y = GROUND - height;
+      break;
+
+    case "spikes":
+      width = 85;
+      height = 25;
+      y = GROUND - height;
+      break;
+
+    case "stump":
+      width = 45;
+      height = 42;
+      y = GROUND - height;
+      break;
   }
 
   obstacles.push({
@@ -136,6 +168,10 @@ function spawnObstacle() {
   });
 }
 
+// ===============================
+// ОБНОВЛЕНИЕ ИГРЫ
+// ===============================
+
 function update(dt) {
   score += dt * 12;
   speed = Math.min(420, 250 + score * 0.45);
@@ -145,7 +181,7 @@ function update(dt) {
 
   scoreElement.textContent = String(Math.floor(score)).padStart(5, "0");
 
-  // Прыжок с буфером
+  // Буфер прыжка
   if (jumpBuffer > 0) {
     jumpBuffer -= dt;
 
@@ -169,7 +205,7 @@ function update(dt) {
   // Подкат
   player.sliding = slideHeld && player.grounded;
 
-  // Препятствия
+  // Создание препятствий
   spawnDistance -= movement;
 
   if (spawnDistance <= 0) {
@@ -177,26 +213,36 @@ function update(dt) {
     spawnDistance = 390 + Math.random() * 200;
   }
 
+  // Столкновения
   for (const o of obstacles) {
     o.x -= movement;
 
-    // Хитбокс игрока
     const px = player.x + 6;
     const pw = player.sliding ? 48 : 24;
     const py = player.sliding ? GROUND - 24 : player.y + 5;
     const ph = player.sliding ? 20 : player.height - 10;
 
-    // Уменьшенный хитбокс препятствий
     const margin = 5;
 
-    if (
+    const horizontalCollision =
       px < o.x + o.width - margin &&
-      px + pw > o.x + margin &&
-      py < o.y + o.height - margin &&
-      py + ph > o.y + margin
-    ) {
-      gameOver();
-      return;
+      px + pw > o.x + margin;
+
+    if (o.type === "drone") {
+      // Дрон преодолевается исключительно подкатом
+      if (horizontalCollision && !player.sliding) {
+        gameOver();
+        return;
+      }
+    } else {
+      const verticalCollision =
+        py < o.y + o.height - margin &&
+        py + ph > o.y + margin;
+
+      if (horizontalCollision && verticalCollision) {
+        gameOver();
+        return;
+      }
     }
   }
 
@@ -204,7 +250,7 @@ function update(dt) {
 }
 
 // ===============================
-// ПЛАВНАЯ СМЕНА ДНЯ И НОЧИ
+// ЦВЕТА И СМЕНА СУТОК
 // ===============================
 
 function mixColor(a, b, t) {
@@ -235,7 +281,7 @@ function drawBackground() {
   ctx.arc(orbX, orbY, 24, 0, Math.PI * 2);
   ctx.fill();
 
-  // Дальние горы
+  // Горы
   ctx.fillStyle = mixColor("#293344", "#748f9c", daylight);
   ctx.beginPath();
   ctx.moveTo(0, GROUND);
@@ -270,10 +316,8 @@ function drawPlayer() {
   ctx.save();
 
   if (player.sliding) {
-    // Подкат с пригнутой фигурой
     const sy = GROUND - 26;
 
-    // Ноги
     ctx.strokeStyle = "#111";
     ctx.lineWidth = 8;
     ctx.beginPath();
@@ -281,27 +325,22 @@ function drawPlayer() {
     ctx.lineTo(x + 55, sy + 21);
     ctx.stroke();
 
-    // Корпус
     ctx.fillStyle = "#191919";
     ctx.beginPath();
     ctx.ellipse(x + 22, sy + 11, 24, 12, -0.15, 0, Math.PI * 2);
     ctx.fill();
 
-    // Голова в капюшоне
     ctx.fillStyle = "#252525";
     ctx.beginPath();
     ctx.arc(x + 10, sy + 5, 12, 0, Math.PI * 2);
     ctx.fill();
 
-    // Лицо
     ctx.fillStyle = "#070707";
     ctx.fillRect(x + 2, sy + 2, 14, 8);
 
-    // Глаз
     ctx.fillStyle = "#e02020";
     ctx.fillRect(x + 12, sy + 5, 3, 2);
 
-    // Логотип
     ctx.fillStyle = "#eee";
     ctx.font = "bold 10px monospace";
     ctx.fillText("NP", x + 20, sy + 15);
@@ -310,7 +349,6 @@ function drawPlayer() {
       ? Math.sin(worldDistance / 16) * 11
       : 0;
 
-    // Ноги
     ctx.strokeStyle = "#111";
     ctx.lineWidth = 8;
     ctx.beginPath();
@@ -320,7 +358,6 @@ function drawPlayer() {
     ctx.lineTo(x + 25 - legSwing, y + 62);
     ctx.stroke();
 
-    // Руки
     ctx.strokeStyle = "#202020";
     ctx.lineWidth = 7;
     ctx.beginPath();
@@ -330,11 +367,9 @@ function drawPlayer() {
     ctx.lineTo(x + 39 + legSwing * 0.5, y + 40);
     ctx.stroke();
 
-    // Тело
     ctx.fillStyle = "#151515";
     ctx.fillRect(x + 3, y + 17, 31, 30);
 
-    // Капюшон
     ctx.fillStyle = "#252525";
     ctx.beginPath();
     ctx.arc(x + 19, y + 15, 17, Math.PI, 0);
@@ -342,16 +377,13 @@ function drawPlayer() {
     ctx.lineTo(x + 2, y + 27);
     ctx.fill();
 
-    // Лицо
     ctx.fillStyle = "#050505";
     ctx.fillRect(x + 10, y + 11, 18, 15);
 
-    // Глаза
     ctx.fillStyle = "#d00000";
     ctx.fillRect(x + 14, y + 17, 4, 3);
     ctx.fillRect(x + 23, y + 17, 4, 3);
 
-    // NP
     ctx.fillStyle = "#eee";
     ctx.font = "bold 12px monospace";
     ctx.fillText("NP", x + 10, y + 38);
@@ -366,6 +398,8 @@ function drawPlayer() {
 
 function drawObstacles() {
   for (const o of obstacles) {
+
+    // Камень
     if (o.type === "rock") {
       ctx.fillStyle = "#555";
       ctx.beginPath();
@@ -376,6 +410,7 @@ function drawObstacles() {
       ctx.fill();
     }
 
+    // Бревно
     if (o.type === "log") {
       ctx.fillStyle = "#69452c";
       ctx.fillRect(o.x, o.y, o.width, o.height);
@@ -383,11 +418,11 @@ function drawObstacles() {
       ctx.strokeRect(o.x, o.y, o.width, o.height);
     }
 
+    // Дрон
     if (o.type === "drone") {
       const x = o.x;
       const y = o.y;
 
-      // Пропеллеры
       ctx.strokeStyle = "#444";
       ctx.lineWidth = 3;
       ctx.beginPath();
@@ -408,7 +443,6 @@ function drawObstacles() {
       ctx.lineTo(x + 64 + spin, y - 5);
       ctx.stroke();
 
-      // Корпус
       ctx.fillStyle = "#303640";
       ctx.beginPath();
       ctx.ellipse(x + 37, y + 12, 28, 12, 0, 0, Math.PI * 2);
@@ -418,11 +452,85 @@ function drawObstacles() {
       ctx.lineWidth = 2;
       ctx.stroke();
 
-      // Красный сенсор
       ctx.fillStyle = "#ff3030";
       ctx.beginPath();
       ctx.arc(x + 37, y + 13, 5, 0, Math.PI * 2);
       ctx.fill();
+    }
+
+    // Кактус
+    if (o.type === "cactus") {
+      const x = o.x;
+      const y = o.y;
+
+      ctx.strokeStyle = "#276b35";
+      ctx.lineWidth = 11;
+      ctx.lineCap = "round";
+
+      ctx.beginPath();
+      ctx.moveTo(x + 16, GROUND);
+      ctx.lineTo(x + 16, y + 5);
+
+      ctx.moveTo(x + 16, y + 30);
+      ctx.lineTo(x + 5, y + 30);
+      ctx.lineTo(x + 5, y + 17);
+
+      ctx.moveTo(x + 16, y + 40);
+      ctx.lineTo(x + 28, y + 40);
+      ctx.lineTo(x + 28, y + 25);
+
+      ctx.stroke();
+      ctx.lineCap = "butt";
+    }
+
+    // Шипы
+    if (o.type === "spikes") {
+      const count = 5;
+      const spikeWidth = o.width / count;
+
+      ctx.fillStyle = "#888";
+      ctx.strokeStyle = "#444";
+      ctx.lineWidth = 2;
+
+      for (let i = 0; i < count; i++) {
+        const x = o.x + i * spikeWidth;
+
+        ctx.beginPath();
+        ctx.moveTo(x, GROUND);
+        ctx.lineTo(x + spikeWidth / 2, o.y);
+        ctx.lineTo(x + spikeWidth, GROUND);
+        ctx.closePath();
+
+        ctx.fill();
+        ctx.stroke();
+      }
+    }
+
+    // Пень
+    if (o.type === "stump") {
+      const x = o.x;
+      const y = o.y;
+
+      ctx.fillStyle = "#5c3824";
+      ctx.fillRect(x + 5, y + 8, o.width - 10, o.height - 8);
+
+      ctx.strokeStyle = "#362014";
+      ctx.lineWidth = 3;
+
+      ctx.beginPath();
+      ctx.moveTo(x + 12, y + 14);
+      ctx.lineTo(x + 12, GROUND);
+      ctx.moveTo(x + 30, y + 12);
+      ctx.lineTo(x + 30, GROUND);
+      ctx.stroke();
+
+      ctx.fillStyle = "#a4774c";
+      ctx.beginPath();
+      ctx.ellipse(x + o.width / 2, y + 8, o.width / 2, 9, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = "#6d472b";
+      ctx.stroke();
     }
   }
 }
