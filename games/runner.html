@@ -1,1 +1,50 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+  <title>Nightmar Runner | Nightmar's Production</title>
+
+  <link rel="stylesheet" href="../css/runner.css">
+</head>
+
+<body>
+
+  <main class="game-container">
+
+    <a href="../index.html" class="back-button">
+      ← НА ГЛАВНУЮ
+    </a>
+
+    <header>
+      <h1>NIGHTMAR RUNNER</h1>
+      <p class="subtitle">RUN // SURVIVE // RECONNECT</p>
+    </header>
+
+    <div class="game-info">
+      <span>SCORE: <strong id="score">00000</strong></span>
+      <span>BEST: <strong id="best">00000</strong></span>
+    </div>
+
+    <div class="game-wrapper">
+      <canvas id="game" width="900" height="350"></canvas>
+
+      <div id="gameOverlay" class="game-overlay">
+        <h2 id="overlayTitle">NIGHTMAR RUNNER</h2>
+        <p id="overlayText">Нажми, чтобы начать</p>
+        <button id="startButton">START GAME</button>
+      </div>
+    </div>
+
+    <p class="controls">
+      ПК: ПРОБЕЛ / ↑ — ПРЫЖОК<br>
+      ТЕЛЕФОН: КАСАНИЕ ЭКРАНА — ПРЫЖОК
+    </p>
+
+  </main>
+
+  <script src="../scripts/runner.js"></script>
+
+</body>
+</html>
