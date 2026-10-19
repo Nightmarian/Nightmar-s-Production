@@ -260,14 +260,20 @@ function update(dt) {
 }
 
 // ===============================
-// РЕНДЕР ФОНА (УЛУЧШЕННЫЙ ГОРОД)
+// РЕНДЕР ФОНА (УЛУЧШЕННЫЙ И ИСПРАВЛЕННЫЙ)
 // ===============================
 
+// ИСПРАВЛЕННАЯ ФУНКЦИЯ ЦВЕТОВ (Теперь она не крашит игру!)
 function mixColor(a, b, t) {
-  const c1 = a.match(/\w\w/g).map(x => parseInt(x, 16));
-  const c2 = b.match(/\w\w/g).map(x => parseInt(x, 16));
-  const c = c1.map((v, i) => Math.round(v + (c2[i] - v) * t));
-  return `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
+  function getRGB(c) {
+    if (c.startsWith("rgb")) return c.match(/\d+/g).map(Number);
+    let hex = c.replace("#", "");
+    if (hex.length === 3) hex = hex.split("").map(x => x + x).join("");
+    return hex.match(/.{2}/g).map(x => parseInt(x, 16));
+  }
+  const c1 = getRGB(a);
+  const c2 = getRGB(b);
+  return `rgb(${c1.map((v, i) => Math.round(v + (c2[i] - v) * t)).join(",")})`;
 }
 
 function getDaylight() { return (Math.cos((worldDistance / 12000) % 1 * Math.PI * 2) + 1) / 2; }
@@ -302,14 +308,12 @@ function drawBackground() {
     for (let i = 0; i < 2; i++) {
       ctx.save(); ctx.translate(-offset + (i * layer.totalW), 0);
       layer.data.forEach(b => {
-        // Здание с градиентом для объёма
         const bGrad = ctx.createLinearGradient(b.x, GROUND - b.h, b.x, GROUND);
         bGrad.addColorStop(0, color);
-        bGrad.addColorStop(1, mixColor("#000", color, 0.5));
+        bGrad.addColorStop(1, mixColor("#000000", color, 0.5)); // Исправлен #000 на #000000
         ctx.fillStyle = bGrad;
         ctx.fillRect(b.x, GROUND - b.h, b.w, b.h);
 
-        // Обводка/ребро здания
         ctx.strokeStyle = "rgba(255,255,255,0.03)"; ctx.lineWidth = 1;
         ctx.strokeRect(b.x, GROUND - b.h, b.w, b.h);
 
@@ -317,7 +321,7 @@ function drawBackground() {
           ctx.fillStyle = color;
           ctx.fillRect(b.x + b.w * 0.2, GROUND - b.h - 15, 2, 15);
           if (b.windowSeed > 0.5) {
-             ctx.fillStyle = daylight < 0.4 ? "#ff3333" : color; // Красный маячок ночью
+             ctx.fillStyle = daylight < 0.4 ? "#ff3333" : color;
              ctx.fillRect(b.x + b.w * 0.2, GROUND - b.h - 17, 2, 2);
           }
         }
@@ -349,11 +353,7 @@ function drawBackground() {
 }
 
 // ===============================
-// ПЕРСОНАЖ (ПРАВИЛЬНАЯ АНАТОМИЯ)
-// ===============================
-
-// ===============================
-// ПЕРСОНАЖ (ПРАВИЛЬНАЯ АНАТОМИЯ И ИСПРАВЛЕННЫЙ СВЕТ)
+// ПЕРСОНАЖ (ПРАВИЛЬНАЯ АНАТОМИЯ И СВЕТ)
 // ===============================
 
 function drawCreepyFace(ctx, fx, fy) {
@@ -369,7 +369,7 @@ function drawCreepyFace(ctx, fx, fy) {
   ctx.lineTo(fx - 1, fy + 7); ctx.lineTo(fx + 1, fy + 3);
   ctx.lineTo(fx + 3, fy + 7); ctx.lineTo(fx + 5, fy + 3);
   ctx.lineTo(fx + 7, fy + 6); ctx.lineTo(fx + 9, fy + 2);
-  ctx.quadraticCurveTo(fx + 1, fy + 9, fx - 7, fy + 3); // Нижняя челюсть
+  ctx.quadraticCurveTo(fx + 1, fy + 9, fx - 7, fy + 3); 
   ctx.fill();
 }
 
@@ -382,8 +382,7 @@ function drawPlayer() {
 
   const cx = x + 15;
   
-  // 1. ИСПРАВЛЕНИЕ УРОДЛИВОГО КВАДРАТА
-  // Вместо наслаивающегося shadowBlur рисуем одну чистую ауру с помощью градиента
+  // Красивое свечение вместо уродливого квадрата
   const auraCenterY = player.sliding ? GROUND - 15 : y + 30;
   const glow = ctx.createRadialGradient(cx, auraCenterY, 5, cx, auraCenterY, 35);
   glow.addColorStop(0, "rgba(180, 220, 255, 0.25)");
@@ -400,24 +399,21 @@ function drawPlayer() {
   ctx.ellipse(cx, GROUND + 2, player.sliding ? 28 : 14, 3, 0, 0, Math.PI * 2); 
   ctx.fill();
 
-  // ОБЯЗАТЕЛЬНО отключаем тени Canvas, чтобы избежать квадратов
   ctx.shadowBlur = 0; 
   ctx.lineCap = "round"; 
   ctx.lineJoin = "round";
 
   if (player.sliding) {
-    // --- ДИНАМИЧНЫЙ ПОДКАТ (Опирается на руку) ---
     const cy = GROUND - 12;
 
-    // Задняя рука (убрана назад для баланса)
+    // Задняя рука и нога
     ctx.strokeStyle = "#080808"; ctx.lineWidth = 5;
     ctx.beginPath(); ctx.moveTo(cx + 5, cy - 8); ctx.lineTo(cx - 15, cy - 18); ctx.stroke();
 
-    // Задняя нога (подогнута под себя)
     ctx.strokeStyle = "#080808"; ctx.lineWidth = 7;
     ctx.beginPath(); ctx.moveTo(cx - 5, cy + 2); ctx.lineTo(cx - 20, GROUND - 4); ctx.lineTo(cx - 8, GROUND - 2); ctx.stroke();
 
-    // Тело (Худи) - Наклонено вперед и вниз
+    // Тело (Худи) 
     ctx.strokeStyle = "#111"; ctx.lineWidth = 15;
     ctx.beginPath(); ctx.moveTo(cx - 5, cy + 2); ctx.lineTo(cx + 12, cy - 6); ctx.stroke();
     
@@ -425,26 +421,23 @@ function drawPlayer() {
     ctx.fillStyle = "#fff"; ctx.font = "bold 10px 'Courier New', monospace";
     ctx.save(); ctx.translate(cx + 2, cy - 2); ctx.rotate(-0.3); ctx.fillText("NP", -6, 4); ctx.restore();
 
-    // Передняя нога (вытянута далеко вперед)
+    // Передняя нога
     ctx.strokeStyle = "#151515"; ctx.lineWidth = 7;
     ctx.beginPath(); ctx.moveTo(cx - 5, cy + 2); ctx.lineTo(cx + 25, GROUND - 4); ctx.stroke();
-    // Кроссовок
     ctx.fillStyle = "#050505"; ctx.beginPath(); ctx.ellipse(cx + 28, GROUND - 3, 7, 3.5, 0, 0, Math.PI * 2); ctx.fill(); 
 
-    // Передняя рука (Опирается в землю перед собой, генерирует искры)
+    // Передняя рука 
     ctx.strokeStyle = "#1a1a1a"; ctx.lineWidth = 5;
     ctx.beginPath(); ctx.moveTo(cx + 12, cy - 6); ctx.lineTo(cx + 30, GROUND - 1); ctx.stroke();
-    ctx.fillStyle = "#dcdcdc"; ctx.beginPath(); ctx.arc(cx + 30, GROUND - 1, 3.5, 0, Math.PI * 2); ctx.fill(); // Кулак
+    ctx.fillStyle = "#dcdcdc"; ctx.beginPath(); ctx.arc(cx + 30, GROUND - 1, 3.5, 0, Math.PI * 2); ctx.fill(); 
 
-    // Голова
+    // Голова и Лицо
     ctx.fillStyle = "#161616"; ctx.beginPath(); ctx.arc(cx + 20, cy - 12, 13, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(cx + 22, cy - 11, 10, 0, Math.PI * 2); ctx.fill(); // Темная бездна в капюшоне
-    
-    // Лицо
+    ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(cx + 22, cy - 11, 10, 0, Math.PI * 2); ctx.fill(); 
     drawCreepyFace(ctx, cx + 23, cy - 11);
 
   } else {
-    // --- ПРАВИЛЬНЫЙ БЕГ (Наклон вперед, суставы гнутся) ---
+    // Бег
     const runCycle = worldDistance / 18;
     const phase = player.grounded ? runCycle : 0;
     const bobY = player.grounded ? Math.abs(Math.sin(phase * 2)) * 3 : 0;
@@ -454,25 +447,23 @@ function drawPlayer() {
     const hipX = cx - 3;
     const hipY = y + 42 + bobY;
 
-    // Размах рук и ног
     const legSwing = Math.sin(phase) * 14;
     const armSwing = Math.cos(phase) * 12;
 
-    // Задняя рука (сгибается в локте)
+    // Задняя рука и нога
     ctx.strokeStyle = "#080808"; ctx.lineWidth = 5;
     ctx.beginPath(); ctx.moveTo(shoulderX, shoulderY); 
     ctx.lineTo(shoulderX + armSwing - 5, shoulderY + 8); 
     ctx.lineTo(shoulderX + armSwing + 5, shoulderY + 2); ctx.stroke();
     ctx.fillStyle = "#a9a9a9"; ctx.beginPath(); ctx.arc(shoulderX + armSwing + 5, shoulderY + 2, 3, 0, Math.PI * 2); ctx.fill();
 
-    // Задняя нога (сгибается в колене)
     ctx.strokeStyle = "#080808"; ctx.lineWidth = 7;
     ctx.beginPath(); ctx.moveTo(hipX, hipY); 
     ctx.lineTo(hipX - legSwing - 4, hipY + 10); 
     ctx.lineTo(hipX - legSwing, GROUND - 3); ctx.stroke();
     ctx.fillStyle = "#000"; ctx.beginPath(); ctx.ellipse(hipX - legSwing + 3, GROUND - 2, 6, 3, 0, 0, Math.PI * 2); ctx.fill();
 
-    // Тело (Худи) - Динамичный наклон вперед (толстая линия вместо квадрата)
+    // Тело
     ctx.strokeStyle = "#111"; ctx.lineWidth = 17;
     ctx.beginPath(); ctx.moveTo(hipX, hipY); ctx.lineTo(shoulderX, shoulderY); ctx.stroke();
     
@@ -480,30 +471,29 @@ function drawPlayer() {
     ctx.fillStyle = "#fff"; ctx.font = "bold 12px 'Courier New', monospace";
     ctx.save(); ctx.translate(cx, y + 33 + bobY); ctx.rotate(0.15); ctx.fillText("NP", -8, 4); ctx.restore();
 
-    // Передняя нога (сгибается в колене)
+    // Передняя нога
     ctx.strokeStyle = "#151515"; ctx.lineWidth = 7;
     ctx.beginPath(); ctx.moveTo(hipX, hipY); 
     ctx.lineTo(hipX + legSwing + 4, hipY + 10); 
     ctx.lineTo(hipX + legSwing, GROUND - 3); ctx.stroke();
     ctx.fillStyle = "#050505"; ctx.beginPath(); ctx.ellipse(hipX + legSwing + 3, GROUND - 2, 6, 3, 0, 0, Math.PI * 2); ctx.fill();
 
-    // Передняя рука (сгибается в локте)
+    // Передняя рука
     ctx.strokeStyle = "#1a1a1a"; ctx.lineWidth = 5;
     ctx.beginPath(); ctx.moveTo(shoulderX, shoulderY); 
     ctx.lineTo(shoulderX - armSwing - 5, shoulderY + 8); 
     ctx.lineTo(shoulderX - armSwing + 5, shoulderY + 2); ctx.stroke();
     ctx.fillStyle = "#dcdcdc"; ctx.beginPath(); ctx.arc(shoulderX - armSwing + 5, shoulderY + 2, 3.5, 0, Math.PI * 2); ctx.fill();
 
-    // Капюшон
+    // Голова и Лицо
     ctx.fillStyle = "#161616"; ctx.beginPath(); ctx.arc(shoulderX + 5, shoulderY - 12, 14, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(shoulderX + 6, shoulderY - 11, 11, 0, Math.PI * 2); ctx.fill(); // Темное лицо
-    
-    // Лицо
+    ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(shoulderX + 6, shoulderY - 11, 11, 0, Math.PI * 2); ctx.fill(); 
     drawCreepyFace(ctx, shoulderX + 7, shoulderY - 11);
   }
   
   ctx.restore();
 }
+
 // ===============================
 // ПРЕПЯТСТВИЯ
 // ===============================
@@ -586,9 +576,13 @@ function render() {
   ctx.save();
   if (screenShake > 0) ctx.translate((Math.random() - 0.5) * screenShake * 20, (Math.random() - 0.5) * screenShake * 20);
 
-  drawBackground(); drawParticles(); drawPlayer(); drawObstacles();
+  drawBackground(); 
+  drawParticles(); 
+  drawPlayer(); 
+  drawObstacles();
 
-  ctx.restore(); drawPostEffects();
+  ctx.restore(); 
+  drawPostEffects();
 }
 
 function loop(timestamp) {
@@ -602,7 +596,8 @@ function loop(timestamp) {
     updateParticles(dt);
   }
 
-  render(); requestAnimationFrame(loop);
+  render(); 
+  requestAnimationFrame(loop);
 }
 
 // ===============================
@@ -622,7 +617,9 @@ window.addEventListener("blur", stopSlide);
 
 jumpButton.addEventListener("pointerdown", e => { e.preventDefault(); jump(); });
 slideButton.addEventListener("pointerdown", e => { e.preventDefault(); slide(); slideButton.setPointerCapture(e.pointerId); });
-slideButton.addEventListener("pointerup", stopSlide); slideButton.addEventListener("pointercancel", stopSlide); slideButton.addEventListener("lostpointercapture", stopSlide);
+slideButton.addEventListener("pointerup", stopSlide); 
+slideButton.addEventListener("pointercancel", stopSlide); 
+slideButton.addEventListener("lostpointercapture", stopSlide);
 
 startButton.addEventListener("click", startGame);
 requestAnimationFrame(loop);
