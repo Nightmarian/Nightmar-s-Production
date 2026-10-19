@@ -13,7 +13,8 @@ const slideButton = document.getElementById("slideButton");
 
 const W = canvas.width;
 const H = canvas.height;
-const GROUND = 370;
+// ЗАМЕТКА: Убедись, что в HTML у тебя <canvas width="800" height="450">
+const GROUND = 370; 
 
 const GRAVITY = 1550;
 const JUMP_FORCE = -620;
@@ -34,10 +35,9 @@ let best = Number(localStorage.getItem("nightmarRunnerBest")) || 0;
 bestElement.textContent = String(best).padStart(5, "0");
 
 // ===============================
-// УТИЛИТЫ И КОРРЕКТОР ЦВЕТА
+// УТИЛИТЫ ЦВЕТА И СКРУГЛЕНИЙ
 // ===============================
 
-// Безопасный парсер цвета (решает проблему черного экрана)
 function parseColor(c) {
   if (!c) return [0, 0, 0, 1];
   if (c.startsWith("rgb")) {
@@ -60,7 +60,6 @@ function mixColor(a, b, t) {
   return alpha < 0.99 ? `rgba(${r}, ${g}, ${b_col}, ${alpha.toFixed(2)})` : `rgb(${r}, ${g}, ${b_col})`;
 }
 
-// Кроссбраузерное скругление
 function drawRoundRect(context, x, y, w, h, r) {
   context.beginPath();
   if (context.roundRect) {
@@ -76,7 +75,7 @@ function drawRoundRect(context, x, y, w, h, r) {
 }
 
 // ===============================
-// ЧАСТИЦЫ И ЭФФЕКТЫ
+// ЧАСТИЦЫ
 // ===============================
 
 let particles = [];
@@ -122,7 +121,7 @@ function updateParticles(dt) {
 }
 
 // ===============================
-// БИОМЫ И ДЕНЬ/НОЧЬ
+// БИОМЫ
 // ===============================
 
 let currentBiome = "city";
@@ -194,7 +193,7 @@ function mixPalette(p1, p2, t) {
 }
 
 // ===============================
-// ИГРОК И ЛОГИКА
+// ИГРОК
 // ===============================
 
 const player = {
@@ -212,9 +211,7 @@ function startGame() {
   jumpBuffer = 0; slideHeld = false; particles = []; 
   screenShake = 0; deathFlash = 0;
   
-  biomeDist = 0;
-  currentBiome = "city";
-  nextBiome = "desert";
+  biomeDist = 0; currentBiome = "city"; nextBiome = "desert";
 
   player.y = GROUND - player.height;
   player.velocityY = 0; player.grounded = true; player.sliding = false;
@@ -237,7 +234,7 @@ function gameOver() {
 }
 
 // ===============================
-// ОБНОВЛЕНИЕ
+// ЛОГИКА И ПРЕПЯТСТВИЯ
 // ===============================
 
 function spawnObstacle() {
@@ -291,12 +288,14 @@ function update(dt) {
     }
   }
 
+  // Гравитация и физика земли
   player.velocityY += GRAVITY * dt;
   player.y += player.velocityY * dt;
 
   if (player.y >= GROUND - player.height) {
     player.y = GROUND - player.height;
-    player.velocityY = 0; player.grounded = true;
+    player.velocityY = 0; 
+    player.grounded = true;
   }
 
   player.sliding = slideHeld && player.grounded;
@@ -307,9 +306,10 @@ function update(dt) {
     spawnDistance = 350 + Math.random() * 250;
   }
 
+  // КОЛЛИЗИИ И ПАРКУР ПО РАКЕТЕ
   for (const o of obstacles) {
-    if (o.type === "missile") o.x -= (movement * 1.3);
-    else o.x -= movement;
+    const obstacleMovement = o.type === "missile" ? movement * 1.3 : movement;
+    o.x -= obstacleMovement;
 
     const px = player.x + 8; 
     const pw = player.sliding ? 40 : 16;
@@ -320,11 +320,42 @@ function update(dt) {
     const horizontalCollision = px < o.x + o.width - margin && px + pw > o.x + margin;
     const verticalCollision = py < o.y + o.height - margin && py + ph > o.y + margin;
 
-    const needsSlide = (o.type === "drone" || o.type === "missile");
-    
-    if (needsSlide) {
-      if (horizontalCollision && !player.sliding) { gameOver(); return; }
-    } else {
+    if (o.type === "missile") {
+      if (horizontalCollision) {
+        const playerFeet = player.y + player.height;
+        const missileTop = o.y;
+
+        // Если игрок падает сверху И его ноги примерно на уровне верха ракеты
+        if (player.velocityY >= 0 && playerFeet <= missileTop + 25) {
+          // Зацепиться за ракету!
+          player.y = missileTop - player.height;
+          player.velocityY = 0;
+          player.grounded = true;
+          
+          // Искры из под ног при скольжении по металлу
+          if (Math.random() < 0.2 && particles.length < 15) {
+            particles.push({
+              x: px + pw/2 + (Math.random()*10 - 5),
+              y: missileTop,
+              vx: -obstacleMovement * 60 + (Math.random()*100 - 50),
+              vy: -Math.random()*100,
+              life: 0.15, maxLife: 0.15, size: 2,
+              color: "#ffcc00", gravity: true
+            });
+          }
+        } 
+        // Иначе если мы просто врезались в нее лицом (и не в подкате)
+        else if (verticalCollision && !player.sliding) {
+          gameOver(); return;
+        }
+      }
+    } 
+    else if (o.type === "drone") {
+      // Дрон убивает, если мы не в подкате, но если прыгнуть ВЫШЕ него - выживем
+      if (horizontalCollision && verticalCollision && !player.sliding) { gameOver(); return; }
+    } 
+    else {
+      // Обычные препятствия (земные)
       if (horizontalCollision && verticalCollision) { gameOver(); return; }
     }
   }
@@ -401,7 +432,6 @@ function drawBackground() {
   skyGrad.addColorStop(1, finalColors.sky2);
   ctx.fillStyle = skyGrad; ctx.fillRect(0, 0, W, GROUND);
 
-  // Небесные тела
   const celestialAngle = dayCycle * Math.PI * 2 - Math.PI / 2;
   const sunX = W/2 + Math.cos(celestialAngle) * (W * 0.4);
   const sunY = GROUND + 50 + Math.sin(celestialAngle) * (H * 0.7);
@@ -444,6 +474,107 @@ function drawBackground() {
 
   ctx.strokeStyle = mixColor("#252d3a", "#455667", 0.5);
   ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, GROUND); ctx.lineTo(W, GROUND); ctx.stroke();
+}
+
+// ===============================
+// РЕНДЕР ПРЕПЯТСТВИЙ (С ПОДСВЕТКОЙ)
+// ===============================
+
+function drawObstacles() {
+  for (const o of obstacles) {
+    ctx.save();
+    
+    // Тень под объектами (на земле)
+    ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
+    if (o.type !== "drone" && o.type !== "missile") {
+      ctx.beginPath(); ctx.ellipse(o.x + o.width / 2, GROUND + 2, o.width * 0.4, 4, 0, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // НОВАЯ ФИШКА: Светящаяся аура для читаемости объектов в темноте
+    ctx.shadowColor = "rgba(180, 200, 255, 0.35)"; // Лунное сияние
+    ctx.shadowBlur = 12;
+
+    if (o.type === "rock") {
+      ctx.fillStyle = "#626a73"; ctx.beginPath(); ctx.moveTo(o.x, GROUND); ctx.lineTo(o.x + 10, o.y + 10); ctx.lineTo(o.x + 20, o.y); ctx.lineTo(o.x + 35, o.y + 8); ctx.lineTo(o.x + o.width, GROUND); ctx.fill();
+      ctx.shadowBlur = 0; // Отключаем тень для внутренних деталей
+      ctx.fillStyle = "#707985"; ctx.beginPath(); ctx.moveTo(o.x + 20, o.y); ctx.lineTo(o.x + 30, o.y + 15); ctx.lineTo(o.x + 12, GROUND); ctx.fill();
+      ctx.fillStyle = "#434e39"; ctx.beginPath(); ctx.moveTo(o.x, GROUND); ctx.lineTo(o.x + 12, GROUND - 6); ctx.lineTo(o.x + o.width, GROUND); ctx.fill();
+    } 
+    else if (o.type === "log") {
+      ctx.fillStyle = "#4f3c2e"; const r = o.height / 2; ctx.beginPath(); ctx.moveTo(o.x + r, o.y); ctx.lineTo(o.x + o.width - r, o.y); ctx.arc(o.x + o.width - r, o.y + r, r, -Math.PI / 2, Math.PI / 2); ctx.lineTo(o.x + r, o.y + o.height); ctx.arc(o.x + r, o.y + r, r, Math.PI / 2, -Math.PI / 2); ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = "#241810"; ctx.lineWidth = 2; for(let i=0; i<3; i++) { ctx.beginPath(); ctx.moveTo(o.x + 15, o.y + 5 + i*7); ctx.quadraticCurveTo(o.x + o.width/2, o.y + i*7, o.x + o.width - 15, o.y + 7 + i*7); ctx.stroke(); }
+      ctx.fillStyle = "#8c6b4b"; ctx.beginPath(); ctx.ellipse(o.x + o.width - r, o.y + r, 4, r - 2, 0, 0, Math.PI * 2); ctx.fill();
+    } 
+    else if (o.type === "spikes") {
+      const count = 4, w = o.width / count;
+      for (let i = 0; i < count; i++) {
+        const sx = o.x + i * w;
+        ctx.fillStyle = "#a8b1c2"; ctx.beginPath(); ctx.moveTo(sx, GROUND); ctx.lineTo(sx + w/2, o.y); ctx.lineTo(sx + w/2, GROUND); ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = "#5b6678"; ctx.beginPath(); ctx.moveTo(sx + w/2, o.y); ctx.lineTo(sx + w, GROUND); ctx.lineTo(sx + w/2, GROUND); ctx.fill();
+        ctx.fillStyle = "#ab0000"; ctx.beginPath(); ctx.moveTo(sx + w/2, o.y); ctx.lineTo(sx + w/2 - 2, o.y + 6); ctx.lineTo(sx + w/2 + 2, o.y + 8); ctx.fill();
+      }
+      ctx.fillStyle = "#222"; ctx.fillRect(o.x, GROUND - 4, o.width, 4);
+    } 
+    else if (o.type === "stump") {
+      ctx.fillStyle = "#423025"; ctx.fillRect(o.x + 5, o.y + 8, o.width - 10, o.height - 8);
+      ctx.beginPath(); ctx.moveTo(o.x + 5, GROUND - 10); ctx.lineTo(o.x - 5, GROUND); ctx.lineTo(o.x + 10, GROUND); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(o.x + o.width - 5, GROUND - 10); ctx.lineTo(o.x + o.width + 5, GROUND); ctx.lineTo(o.x + o.width - 10, GROUND); ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = "#7d593f"; ctx.beginPath(); ctx.ellipse(o.x + o.width / 2, o.y + 8, o.width / 2, 8, 0, 0, Math.PI * 2); ctx.fill();
+    }
+    else if (o.type === "drone") {
+      const x = o.x, y = o.y, hover = Math.sin(worldDistance * 0.15) * 4;
+      ctx.shadowBlur = 0; // Дрон и так светится лазером
+      ctx.globalCompositeOperation = "lighter"; const laserGrad = ctx.createLinearGradient(x + 30, y + 15 + hover, x + 30, GROUND); laserGrad.addColorStop(0, "rgba(255, 0, 0, 0.3)"); laserGrad.addColorStop(1, "rgba(255, 0, 0, 0)"); ctx.fillStyle = laserGrad; ctx.beginPath(); ctx.moveTo(x + 30, y + 15 + hover); ctx.lineTo(x - 15, GROUND); ctx.lineTo(x + 75, GROUND); ctx.fill(); ctx.globalCompositeOperation = "source-over";
+      ctx.strokeStyle = "#444"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x + 15, y + hover); ctx.lineTo(x + 15, y - 5 + hover); ctx.moveTo(x + 45, y + hover); ctx.lineTo(x + 45, y - 5 + hover); ctx.stroke();
+      const spin = Math.sin(worldDistance) * 12; ctx.strokeStyle = "rgba(150, 200, 255, 0.6)"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x + 15 - spin, y - 5 + hover); ctx.lineTo(x + 15 + spin, y - 5 + hover); ctx.moveTo(x + 45 - spin, y - 5 + hover); ctx.lineTo(x + 45 + spin, y - 5 + hover); ctx.stroke();
+      ctx.fillStyle = "#202630"; ctx.beginPath(); ctx.ellipse(x + 30, y + 10 + hover, 26, 11, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#ff0033"; ctx.shadowColor = "#ff0000"; ctx.shadowBlur = 12; ctx.beginPath(); ctx.arc(x + 30, y + 12 + hover, 4, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
+    }
+    else if (o.type === "saw") {
+      const cx = o.x + o.width / 2;
+      const cy = o.y + o.height / 2;
+      ctx.translate(cx, cy);
+      ctx.rotate(worldDistance * 0.05); 
+      ctx.fillStyle = "#9ba5b8"; ctx.beginPath(); ctx.arc(0, 0, o.width/2 - 4, 0, Math.PI*2); ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = "#b8c0d1";
+      for(let i=0; i<8; i++) { ctx.rotate(Math.PI / 4); ctx.beginPath(); ctx.moveTo(10, -5); ctx.lineTo(o.width/2 + 2, 0); ctx.lineTo(10, 5); ctx.fill(); }
+      ctx.fillStyle = "#333"; ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI*2); ctx.fill();
+    }
+    else if (o.type === "missile") {
+      const x = o.x, y = o.y;
+      const firePhase = (Math.sin(worldDistance * 0.5 + o.x) + 1) * 7.5;
+      ctx.shadowBlur = 0; 
+      ctx.fillStyle = "#ff6600"; ctx.beginPath(); ctx.moveTo(x, y + 5); ctx.lineTo(x - 20 - firePhase, y + o.height/2); ctx.lineTo(x, y + o.height - 5); ctx.fill();
+      ctx.fillStyle = "#ffcc00"; ctx.beginPath(); ctx.moveTo(x, y + 8); ctx.lineTo(x - 10 - firePhase/2, y + o.height/2); ctx.lineTo(x, y + o.height - 8); ctx.fill();
+      ctx.shadowColor = "rgba(200, 220, 255, 0.3)"; ctx.shadowBlur = 10;
+      ctx.fillStyle = "#5c6066"; drawRoundRect(ctx, x, y, o.width - 15, o.height, 10); ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = "#cc0000"; ctx.beginPath(); ctx.moveTo(x + o.width - 15, y); ctx.lineTo(x + o.width, y + o.height/2); ctx.lineTo(x + o.width - 15, y + o.height); ctx.fill();
+      ctx.fillStyle = "#222"; ctx.fillRect(x + 10, y + 4, o.width - 30, 4);
+    }
+    else if (o.type === "cactus") {
+      const x = o.x, y = o.y;
+      ctx.fillStyle = "#2e5433"; ctx.strokeStyle = "#162e19"; ctx.lineWidth = 2;
+      
+      drawRoundRect(ctx, x + 12, y, 16, o.height, 8); ctx.fill(); ctx.stroke();
+      drawRoundRect(ctx, x, y + 20, 16, 12, 6); ctx.fill(); ctx.stroke();
+      drawRoundRect(ctx, x, y + 10, 12, 16, 6); ctx.fill(); ctx.stroke();
+      drawRoundRect(ctx, x + 24, y + 30, 16, 12, 6); ctx.fill(); ctx.stroke();
+      drawRoundRect(ctx, x + 28, y + 15, 12, 20, 6); ctx.fill(); ctx.stroke();
+      
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = "#c3d9bd";
+      if (o.thorns) {
+        for(let t of o.thorns) ctx.fillRect(x + t.dx, y + t.dy, 2, 2);
+      }
+    }
+    
+    ctx.restore();
+  }
 }
 
 // ===============================
@@ -498,11 +629,14 @@ function drawPlayer() {
   ctx.fillStyle = glow;
   ctx.beginPath(); ctx.arc(cx, cyAura, 50, 0, Math.PI * 2); ctx.fill();
 
+  // Если игрок бежит по ракете, тень рисуется на ней, а не на полу
   const distFromGround = Math.max(0, GROUND - (y + player.height));
-  const shadowAlpha = Math.max(0, 0.6 - distFromGround * 0.004);
+  const shadowY = (player.grounded && y < GROUND - player.height - 10) ? y + player.height + 2 : GROUND + 2;
+  const shadowAlpha = Math.max(0, 0.6 - distFromGround * 0.002);
+  
   if (shadowAlpha > 0) {
     ctx.fillStyle = `rgba(0, 0, 0, ${shadowAlpha})`;
-    ctx.beginPath(); ctx.ellipse(cx, GROUND + 2, player.sliding ? 28 : 16, 3, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(cx, shadowY, player.sliding ? 28 : 16, 3, 0, 0, Math.PI * 2); ctx.fill();
   }
 
   const colorBody = "#262b33";
@@ -510,10 +644,10 @@ function drawPlayer() {
   ctx.lineCap = "round"; ctx.lineJoin = "round";
 
   if (player.sliding) {
-    const cy = GROUND - 15;
+    const cy = y + player.height - 15;
 
-    drawLimb(cx - 5, cy + 5, cx - 15, GROUND - 5, null, null, false); 
-    ctx.fillStyle = colorShoe; ctx.beginPath(); ctx.ellipse(cx - 15, GROUND - 3, 7, 3, 0, 0, Math.PI * 2); ctx.fill();
+    drawLimb(cx - 5, cy + 5, cx - 15, cy + 15, null, null, false); 
+    ctx.fillStyle = colorShoe; ctx.beginPath(); ctx.ellipse(cx - 15, cy + 17, 7, 3, 0, 0, Math.PI * 2); ctx.fill();
 
     ctx.fillStyle = colorBody; ctx.strokeStyle = "#556475"; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.ellipse(cx, cy, 18, 12, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
@@ -521,8 +655,8 @@ function drawPlayer() {
     ctx.fillStyle = "#eee"; ctx.font = "bold 10px 'Times New Roman', serif";
     ctx.save(); ctx.translate(cx, cy + 3); ctx.rotate(-0.2); ctx.fillText("NP", -7, 1); ctx.restore();
 
-    drawLimb(cx + 5, cy + 5, cx + 25, GROUND - 3, null, null, false); 
-    ctx.fillStyle = colorShoe; ctx.beginPath(); ctx.ellipse(cx + 28, GROUND - 3, 8, 3.5, -0.2, 0, Math.PI * 2); ctx.fill();
+    drawLimb(cx + 5, cy + 5, cx + 25, cy + 17, null, null, false); 
+    ctx.fillStyle = colorShoe; ctx.beginPath(); ctx.ellipse(cx + 28, cy + 17, 8, 3.5, -0.2, 0, Math.PI * 2); ctx.fill();
 
     ctx.fillStyle = colorBody; ctx.beginPath(); ctx.arc(cx + 20, cy - 8, 14, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     drawCreepyFace(ctx, cx + 22, cy - 6);
@@ -554,9 +688,10 @@ function drawPlayer() {
     const cy = y + 25 + bobY;
     const legSwing = Math.sin(phase) * 16;
     const armSwing = Math.cos(phase) * 12;
+    const floorY = y + player.height - 4;
 
-    drawLimb(cx, cy + 15, cx - legSwing, GROUND - 4, null, null, false); 
-    ctx.fillStyle = colorShoe; ctx.beginPath(); ctx.ellipse(cx - legSwing + 4, GROUND - 2, 8, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+    drawLimb(cx, cy + 15, cx - legSwing, floorY, null, null, false); 
+    ctx.fillStyle = colorShoe; ctx.beginPath(); ctx.ellipse(cx - legSwing + 4, floorY + 2, 8, 3.5, 0, 0, Math.PI * 2); ctx.fill();
 
     drawLimb(cx, cy - 5, cx + armSwing, cy + 10, null, null, true); 
 
@@ -566,8 +701,8 @@ function drawPlayer() {
     ctx.fillStyle = "#eee"; ctx.font = "bold 12px 'Times New Roman', serif";
     ctx.fillText("NP", cx - 8, cy + 8);
 
-    drawLimb(cx, cy + 15, cx + legSwing, GROUND - 4, null, null, false); 
-    ctx.fillStyle = colorShoe; ctx.beginPath(); ctx.ellipse(cx + legSwing + 4, GROUND - 2, 8, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+    drawLimb(cx, cy + 15, cx + legSwing, floorY, null, null, false); 
+    ctx.fillStyle = colorShoe; ctx.beginPath(); ctx.ellipse(cx + legSwing + 4, floorY + 2, 8, 3.5, 0, 0, Math.PI * 2); ctx.fill();
 
     drawLimb(cx, cy - 5, cx - armSwing, cy + 12, null, null, true); 
 
@@ -578,94 +713,7 @@ function drawPlayer() {
 }
 
 // ===============================
-// ПРЕПЯТСТВИЯ
-// ===============================
-
-function drawObstacles() {
-  for (const o of obstacles) {
-    ctx.save();
-    
-    ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
-    if (o.type !== "drone" && o.type !== "missile") {
-      ctx.beginPath(); ctx.ellipse(o.x + o.width / 2, GROUND + 2, o.width * 0.4, 4, 0, 0, Math.PI * 2); ctx.fill();
-    }
-
-    if (o.type === "rock") {
-      ctx.fillStyle = "#4a4a4a"; ctx.beginPath(); ctx.moveTo(o.x, GROUND); ctx.lineTo(o.x + 10, o.y + 10); ctx.lineTo(o.x + 20, o.y); ctx.lineTo(o.x + 35, o.y + 8); ctx.lineTo(o.x + o.width, GROUND); ctx.fill();
-      ctx.fillStyle = "#5a5a5a"; ctx.beginPath(); ctx.moveTo(o.x + 20, o.y); ctx.lineTo(o.x + 30, o.y + 15); ctx.lineTo(o.x + 12, GROUND); ctx.fill();
-      ctx.fillStyle = "#2c3325"; ctx.beginPath(); ctx.moveTo(o.x, GROUND); ctx.lineTo(o.x + 12, GROUND - 6); ctx.lineTo(o.x + o.width, GROUND); ctx.fill();
-    } 
-    else if (o.type === "log") {
-      ctx.fillStyle = "#3b2b20"; const r = o.height / 2; ctx.beginPath(); ctx.moveTo(o.x + r, o.y); ctx.lineTo(o.x + o.width - r, o.y); ctx.arc(o.x + o.width - r, o.y + r, r, -Math.PI / 2, Math.PI / 2); ctx.lineTo(o.x + r, o.y + o.height); ctx.arc(o.x + r, o.y + r, r, Math.PI / 2, -Math.PI / 2); ctx.fill();
-      ctx.strokeStyle = "#150d08"; ctx.lineWidth = 2; for(let i=0; i<3; i++) { ctx.beginPath(); ctx.moveTo(o.x + 15, o.y + 5 + i*7); ctx.quadraticCurveTo(o.x + o.width/2, o.y + i*7, o.x + o.width - 15, o.y + 7 + i*7); ctx.stroke(); }
-      ctx.fillStyle = "#7a5c40"; ctx.beginPath(); ctx.ellipse(o.x + o.width - r, o.y + r, 4, r - 2, 0, 0, Math.PI * 2); ctx.fill();
-    } 
-    else if (o.type === "spikes") {
-      const count = 4, w = o.width / count;
-      for (let i = 0; i < count; i++) {
-        const sx = o.x + i * w;
-        ctx.fillStyle = "#9ba4b5"; ctx.beginPath(); ctx.moveTo(sx, GROUND); ctx.lineTo(sx + w/2, o.y); ctx.lineTo(sx + w/2, GROUND); ctx.fill();
-        ctx.fillStyle = "#4a5363"; ctx.beginPath(); ctx.moveTo(sx + w/2, o.y); ctx.lineTo(sx + w, GROUND); ctx.lineTo(sx + w/2, GROUND); ctx.fill();
-        ctx.fillStyle = "#8b0000"; ctx.beginPath(); ctx.moveTo(sx + w/2, o.y); ctx.lineTo(sx + w/2 - 2, o.y + 6); ctx.lineTo(sx + w/2 + 2, o.y + 8); ctx.fill();
-      }
-      ctx.fillStyle = "#111"; ctx.fillRect(o.x, GROUND - 4, o.width, 4);
-    } 
-    else if (o.type === "stump") {
-      ctx.fillStyle = "#2c1e16"; ctx.fillRect(o.x + 5, o.y + 8, o.width - 10, o.height - 8);
-      ctx.beginPath(); ctx.moveTo(o.x + 5, GROUND - 10); ctx.lineTo(o.x - 5, GROUND); ctx.lineTo(o.x + 10, GROUND); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(o.x + o.width - 5, GROUND - 10); ctx.lineTo(o.x + o.width + 5, GROUND); ctx.lineTo(o.x + o.width - 10, GROUND); ctx.fill();
-      ctx.fillStyle = "#6b4931"; ctx.beginPath(); ctx.ellipse(o.x + o.width / 2, o.y + 8, o.width / 2, 8, 0, 0, Math.PI * 2); ctx.fill();
-    }
-    else if (o.type === "drone") {
-      const x = o.x, y = o.y, hover = Math.sin(worldDistance * 0.15) * 4;
-      ctx.globalCompositeOperation = "lighter"; const laserGrad = ctx.createLinearGradient(x + 30, y + 15 + hover, x + 30, GROUND); laserGrad.addColorStop(0, "rgba(255, 0, 0, 0.3)"); laserGrad.addColorStop(1, "rgba(255, 0, 0, 0)"); ctx.fillStyle = laserGrad; ctx.beginPath(); ctx.moveTo(x + 30, y + 15 + hover); ctx.lineTo(x - 15, GROUND); ctx.lineTo(x + 75, GROUND); ctx.fill(); ctx.globalCompositeOperation = "source-over";
-      ctx.strokeStyle = "#333"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x + 15, y + hover); ctx.lineTo(x + 15, y - 5 + hover); ctx.moveTo(x + 45, y + hover); ctx.lineTo(x + 45, y - 5 + hover); ctx.stroke();
-      const spin = Math.sin(worldDistance) * 12; ctx.strokeStyle = "rgba(150, 200, 255, 0.6)"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x + 15 - spin, y - 5 + hover); ctx.lineTo(x + 15 + spin, y - 5 + hover); ctx.moveTo(x + 45 - spin, y - 5 + hover); ctx.lineTo(x + 45 + spin, y - 5 + hover); ctx.stroke();
-      ctx.fillStyle = "#161b22"; ctx.beginPath(); ctx.ellipse(x + 30, y + 10 + hover, 26, 11, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "#ff0033"; ctx.shadowColor = "#ff0000"; ctx.shadowBlur = 12; ctx.beginPath(); ctx.arc(x + 30, y + 12 + hover, 4, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
-    }
-    else if (o.type === "saw") {
-      const cx = o.x + o.width / 2;
-      const cy = o.y + o.height / 2;
-      ctx.translate(cx, cy);
-      ctx.rotate(worldDistance * 0.05); 
-      ctx.fillStyle = "#8a94a5"; ctx.beginPath(); ctx.arc(0, 0, o.width/2 - 4, 0, Math.PI*2); ctx.fill();
-      ctx.fillStyle = "#aab2c0";
-      for(let i=0; i<8; i++) { ctx.rotate(Math.PI / 4); ctx.beginPath(); ctx.moveTo(10, -5); ctx.lineTo(o.width/2 + 2, 0); ctx.lineTo(10, 5); ctx.fill(); }
-      ctx.fillStyle = "#222"; ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI*2); ctx.fill();
-    }
-    else if (o.type === "missile") {
-      const x = o.x, y = o.y;
-      const firePhase = (Math.sin(worldDistance * 0.5 + o.x) + 1) * 7.5;
-      
-      ctx.fillStyle = "#ff6600"; ctx.beginPath(); ctx.moveTo(x, y + 5); ctx.lineTo(x - 20 - firePhase, y + o.height/2); ctx.lineTo(x, y + o.height - 5); ctx.fill();
-      ctx.fillStyle = "#ffcc00"; ctx.beginPath(); ctx.moveTo(x, y + 8); ctx.lineTo(x - 10 - firePhase/2, y + o.height/2); ctx.lineTo(x, y + o.height - 8); ctx.fill();
-      ctx.fillStyle = "#444"; drawRoundRect(ctx, x, y, o.width - 15, o.height, 10); ctx.fill();
-      ctx.fillStyle = "#cc0000"; ctx.beginPath(); ctx.moveTo(x + o.width - 15, y); ctx.lineTo(x + o.width, y + o.height/2); ctx.lineTo(x + o.width - 15, y + o.height); ctx.fill();
-      ctx.fillStyle = "#222"; ctx.fillRect(x + 10, y + 4, o.width - 30, 4);
-    }
-    else if (o.type === "cactus") {
-      const x = o.x, y = o.y;
-      ctx.fillStyle = "#1e3b22"; ctx.strokeStyle = "#0f1e11"; ctx.lineWidth = 2;
-      
-      drawRoundRect(ctx, x + 12, y, 16, o.height, 8); ctx.fill(); ctx.stroke();
-      drawRoundRect(ctx, x, y + 20, 16, 12, 6); ctx.fill(); ctx.stroke();
-      drawRoundRect(ctx, x, y + 10, 12, 16, 6); ctx.fill(); ctx.stroke();
-      drawRoundRect(ctx, x + 24, y + 30, 16, 12, 6); ctx.fill(); ctx.stroke();
-      drawRoundRect(ctx, x + 28, y + 15, 12, 20, 6); ctx.fill(); ctx.stroke();
-      
-      ctx.fillStyle = "#a3b89e";
-      if (o.thorns) {
-        for(let t of o.thorns) ctx.fillRect(x + t.dx, y + t.dy, 2, 2);
-      }
-    }
-    
-    ctx.restore();
-  }
-}
-
-// ===============================
-// ПОСТ-ОБРАБОТКА И РЕНДЕР
+// ПОСТ-ОБРАБОТКА
 // ===============================
 
 function drawParticles() {
