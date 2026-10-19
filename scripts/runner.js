@@ -34,6 +34,48 @@ let best = Number(localStorage.getItem("nightmarRunnerBest")) || 0;
 bestElement.textContent = String(best).padStart(5, "0");
 
 // ===============================
+// УТИЛИТЫ И КОРРЕКТОР ЦВЕТА
+// ===============================
+
+// Безопасный парсер цвета (решает проблему черного экрана)
+function parseColor(c) {
+  if (!c) return [0, 0, 0, 1];
+  if (c.startsWith("rgb")) {
+    const m = c.match(/[\d.]+/g).map(Number);
+    return [m[0] || 0, m[1] || 0, m[2] || 0, m[3] !== undefined ? m[3] : 1];
+  }
+  let hex = c.replace("#", "");
+  if (hex.length === 3) hex = hex.split("").map(x => x + x).join("");
+  const num = parseInt(hex, 16) || 0;
+  return [(num >> 16) & 255, (num >> 8) & 255, num & 255, 1];
+}
+
+function mixColor(a, b, t) {
+  const c1 = parseColor(a);
+  const c2 = parseColor(b);
+  const r = Math.round(c1[0] + (c2[0] - c1[0]) * t);
+  const g = Math.round(c1[1] + (c2[1] - c1[1]) * t);
+  const b_col = Math.round(c1[2] + (c2[2] - c1[2]) * t);
+  const alpha = c1[3] + (c2[3] - c1[3]) * t;
+  return alpha < 0.99 ? `rgba(${r}, ${g}, ${b_col}, ${alpha.toFixed(2)})` : `rgb(${r}, ${g}, ${b_col})`;
+}
+
+// Кроссбраузерное скругление
+function drawRoundRect(context, x, y, w, h, r) {
+  context.beginPath();
+  if (context.roundRect) {
+    context.roundRect(x, y, w, h, r);
+  } else {
+    context.moveTo(x + r, y);
+    context.arcTo(x + w, y, x + w, y + h, r);
+    context.arcTo(x + w, y + h, x, y + h, r);
+    context.arcTo(x, y + h, x, y, r);
+    context.arcTo(x, y, x + w, y, r);
+    context.closePath();
+  }
+}
+
+// ===============================
 // ЧАСТИЦЫ И ЭФФЕКТЫ
 // ===============================
 
@@ -80,14 +122,14 @@ function updateParticles(dt) {
 }
 
 // ===============================
-// БИОМЫ И ДЕНЬ/НОЧЬ (РАНДОМНЫЕ ЛОКАЦИИ)
+// БИОМЫ И ДЕНЬ/НОЧЬ
 // ===============================
 
 let currentBiome = "city";
 let nextBiome = "desert";
 let biomeDist = 0;
 const BIOME_LENGTH = 12000;
-const FADE_LENGTH = 4500; // Увеличенная длина для очень плавного перехода
+const FADE_LENGTH = 4500;
 
 const biomesData = {
   city: [ { speed: 0.05, data: [] }, { speed: 0.15, data: [] }, { speed: 0.45, data: [] } ],
@@ -128,7 +170,6 @@ biomesData.forest.forEach((layer, index) => {
   layer.totalW = x;
 });
 
-// Цвета для дня и ночи
 const colorPalettes = {
   city: {
     night: { sky1: "#080c16", sky2: "#1c2533", g1: "#15181e", g2: "#080a0c", b1: "#0b101a", b2: "#2b3543" },
@@ -143,17 +184,6 @@ const colorPalettes = {
     day:   { sky1: "#5a8c72", sky2: "#91ba99", g1: "#3c5e4a", g2: "#22382a", b1: "#335e40", b2: "#6a9972" }
   }
 };
-
-function getRGB(c) {
-  let hex = c.replace("#", "");
-  if (hex.length === 3) hex = hex.split("").map(x => x + x).join("");
-  return hex.match(/.{2}/g).map(x => parseInt(x, 16));
-}
-
-function mixColor(a, b, t) {
-  const c1 = getRGB(a), c2 = getRGB(b);
-  return `rgb(${c1.map((v, i) => Math.round(v + (c2[i] - v) * t)).join(",")})`;
-}
 
 function mixPalette(p1, p2, t) {
   return {
@@ -182,7 +212,6 @@ function startGame() {
   jumpBuffer = 0; slideHeld = false; particles = []; 
   screenShake = 0; deathFlash = 0;
   
-  // Сброс биомов при новой игре
   biomeDist = 0;
   currentBiome = "city";
   nextBiome = "desert";
@@ -208,14 +237,13 @@ function gameOver() {
 }
 
 // ===============================
-// ОБНОВЛЕНИЕ И РАНДОМИЗАЦИЯ
+// ОБНОВЛЕНИЕ
 // ===============================
 
 function spawnObstacle() {
   const types = ["rock", "log", "drone", "spikes", "stump", "saw", "missile", "cactus"];
   const type = types[Math.floor(Math.random() * types.length)];
   let width, height, y;
-  
   let extras = {}; 
 
   switch (type) {
@@ -245,7 +273,6 @@ function update(dt) {
   const movement = speed * dt;
   worldDistance += movement;
   
-  // Логика перехода и рандомизации Биомов
   biomeDist += movement;
   if (biomeDist >= BIOME_LENGTH) {
     biomeDist -= BIOME_LENGTH;
@@ -323,9 +350,8 @@ function drawBiomeLayer(biomeType, layerIdx, offset, color, alpha, daylight) {
     layer.data.forEach(b => {
       if (biomeType === "city") {
         ctx.fillRect(b.x, GROUND - b.h, b.w, b.h);
-        // Окна светятся только ночью (daylight близко к 0)
         if (b.hasWindows && alpha > 0.1 && daylight < 0.4) {
-          ctx.fillStyle = `rgba(255, 230, 120, ${alpha * (1 - daylight * 2)})`;
+          ctx.fillStyle = `rgba(255, 230, 120, ${(alpha * (1 - daylight * 2)).toFixed(2)})`;
           for (let wy = GROUND - b.h + 10; wy < GROUND - 10; wy += 20) {
             for (let wx = b.x + 6; wx < b.x + b.w - 10; wx += 12) {
               const windowSeed = Math.abs(Math.sin(wx * 12.98 + wy * 78.23 + b.x)) * 43758.54;
@@ -360,19 +386,14 @@ function drawBiomeLayer(biomeType, layerIdx, offset, color, alpha, daylight) {
 }
 
 function drawBackground() {
-  // Вычисляем время суток
   const dayCycle = (worldDistance / 25000) % 1;
   const daylight = (Math.cos(dayCycle * Math.PI * 2 + Math.PI) + 1) / 2; 
 
-  // Расчет перехода биома с мягким ease-in-out сглаживанием
   let rawBlend = Math.max(0, (biomeDist - (BIOME_LENGTH - FADE_LENGTH)) / FADE_LENGTH);
-  let blend = rawBlend * rawBlend * (3 - 2 * rawBlend); // Smoothstep
+  let blend = rawBlend * rawBlend * (3 - 2 * rawBlend);
 
-  // Получаем цвета палитры, смешанные по времени суток
   const c1 = mixPalette(colorPalettes[currentBiome].night, colorPalettes[currentBiome].day, daylight);
   const c2 = mixPalette(colorPalettes[nextBiome].night, colorPalettes[nextBiome].day, daylight);
-
-  // Смешиваем текущий и следующий биом
   const finalColors = mixPalette(c1, c2, blend);
 
   const skyGrad = ctx.createLinearGradient(0, 0, 0, GROUND);
@@ -380,12 +401,12 @@ function drawBackground() {
   skyGrad.addColorStop(1, finalColors.sky2);
   ctx.fillStyle = skyGrad; ctx.fillRect(0, 0, W, GROUND);
 
-  // Луна и Солнце
+  // Небесные тела
   const celestialAngle = dayCycle * Math.PI * 2 - Math.PI / 2;
   const sunX = W/2 + Math.cos(celestialAngle) * (W * 0.4);
   const sunY = GROUND + 50 + Math.sin(celestialAngle) * (H * 0.7);
   if (sunY < GROUND + 50) {
-    ctx.fillStyle = "#ffeedd"; ctx.shadowColor = "#ffcc00"; ctx.shadowBlur = 40 + Math.sin(worldDistance * 0.05) * 10;
+    ctx.fillStyle = "#ffeedd"; ctx.shadowColor = "#ffcc00"; ctx.shadowBlur = 40;
     ctx.beginPath(); ctx.arc(sunX, sunY, 25, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0;
   }
   
@@ -397,16 +418,14 @@ function drawBackground() {
     ctx.beginPath(); ctx.arc(moonX, moonY, 18, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0;
   }
 
-  // Звезды (постепенно исчезают днем)
   if (daylight < 0.6) {
     for (const s of stars) {
       const twinkle = (Math.sin(worldDistance * 0.01 * s.twinkleSpeed + s.twinkleOffset) + 1) / 2;
-      ctx.fillStyle = `rgba(255, 255, 240, ${(0.3 + twinkle * 0.5) * (1 - daylight/0.6)})`;
+      ctx.fillStyle = `rgba(255, 255, 240, ${((0.3 + twinkle * 0.5) * (1 - daylight/0.6)).toFixed(2)})`;
       ctx.beginPath(); ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2); ctx.fill();
     }
   }
 
-  const types = ["city", "desert", "forest"];
   for (let idx = 0; idx < 3; idx++) {
     const speed = biomesData.city[idx].speed;
     const offset = (worldDistance * speed) % biomesData.city[idx].totalW;
@@ -450,20 +469,17 @@ function drawCreepyFace(ctx, fx, fy) {
   ctx.lineTo(fx + 10, fy + 2); 
   ctx.lineTo(fx + 7, fy + 8); ctx.lineTo(fx + 4, fy + 5);
   ctx.lineTo(fx + 1, fy + 9); ctx.lineTo(fx - 2, fy + 5);
-  ctx.lineTo(fx - 5, y = fy + 8); ctx.lineTo(fx - 8, fy + 5);
+  ctx.lineTo(fx - 5, fy + 8); ctx.lineTo(fx - 8, fy + 5);
   ctx.closePath(); ctx.fill();
 }
 
-// ИСПРАВЛЕНИЕ: Руки и Ноги теперь имеют разные оттенки контура
 function drawLimb(x1, y1, x2, y2, x3, y3, isArm = false) {
-  // Руки светлее (#7a8a9e), Ноги темнее (#556475)
   ctx.strokeStyle = isArm ? "#7a8a9e" : "#556475"; 
   ctx.lineWidth = 6; 
-  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); if(x3) ctx.lineTo(x3, y3); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); if(x3 !== undefined && x3 !== null) ctx.lineTo(x3, y3); ctx.stroke();
   
-  // Внутренняя заливка (тонкая, чтобы оставить красивый ободок)
   ctx.strokeStyle = "#15181c"; ctx.lineWidth = 3.5; 
-  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); if(x3) ctx.lineTo(x3, y3); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); if(x3 !== undefined && x3 !== null) ctx.lineTo(x3, y3); ctx.stroke();
 }
 
 function drawPlayer() {
@@ -496,7 +512,7 @@ function drawPlayer() {
   if (player.sliding) {
     const cy = GROUND - 15;
 
-    drawLimb(cx - 5, cy + 5, cx - 15, GROUND - 5, null, null, false); // Нога
+    drawLimb(cx - 5, cy + 5, cx - 15, GROUND - 5, null, null, false); 
     ctx.fillStyle = colorShoe; ctx.beginPath(); ctx.ellipse(cx - 15, GROUND - 3, 7, 3, 0, 0, Math.PI * 2); ctx.fill();
 
     ctx.fillStyle = colorBody; ctx.strokeStyle = "#556475"; ctx.lineWidth = 1.5;
@@ -505,7 +521,7 @@ function drawPlayer() {
     ctx.fillStyle = "#eee"; ctx.font = "bold 10px 'Times New Roman', serif";
     ctx.save(); ctx.translate(cx, cy + 3); ctx.rotate(-0.2); ctx.fillText("NP", -7, 1); ctx.restore();
 
-    drawLimb(cx + 5, cy + 5, cx + 25, GROUND - 3, null, null, false); // Нога
+    drawLimb(cx + 5, cy + 5, cx + 25, GROUND - 3, null, null, false); 
     ctx.fillStyle = colorShoe; ctx.beginPath(); ctx.ellipse(cx + 28, GROUND - 3, 8, 3.5, -0.2, 0, Math.PI * 2); ctx.fill();
 
     ctx.fillStyle = colorBody; ctx.beginPath(); ctx.arc(cx + 20, cy - 8, 14, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
@@ -514,20 +530,20 @@ function drawPlayer() {
   } else if (!player.grounded) {
     const cy = y + 30;
 
-    drawLimb(cx - 2, cy + 10, cx - 12, cy + 15, cx - 8, cy + 25, false); // Нога
+    drawLimb(cx - 2, cy + 10, cx - 12, cy + 15, cx - 8, cy + 25, false); 
     ctx.fillStyle = colorShoe; ctx.beginPath(); ctx.ellipse(cx - 6, cy + 26, 7, 3.5, 0.4, 0, Math.PI * 2); ctx.fill();
 
     ctx.fillStyle = colorBody; ctx.strokeStyle = "#556475"; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.roundRect(cx - 12, y + 15, 24, 28, 8); ctx.fill(); ctx.stroke();
+    drawRoundRect(ctx, cx - 12, y + 15, 24, 28, 8); ctx.fill(); ctx.stroke();
 
     ctx.fillStyle = "#eee"; ctx.font = "bold 12px 'Times New Roman', serif";
     ctx.fillText("NP", cx - 8, cy + 10);
 
-    drawLimb(cx + 2, cy + 10, cx + 12, cy + 5, cx + 8, cy + 20, false); // Нога
+    drawLimb(cx + 2, cy + 10, cx + 12, cy + 5, cx + 8, cy + 20, false); 
     ctx.fillStyle = colorShoe; ctx.beginPath(); ctx.ellipse(cx + 10, cy + 22, 7, 3.5, -0.2, 0, Math.PI * 2); ctx.fill();
 
-    drawLimb(cx, cy - 5, cx - 15, cy - 10, null, null, true); // Рука (Светлее)
-    drawLimb(cx, cy - 5, cx + 15, cy + 5, null, null, true); // Рука (Светлее)
+    drawLimb(cx, cy - 5, cx - 15, cy - 10, null, null, true); 
+    drawLimb(cx, cy - 5, cx + 15, cy + 5, null, null, true); 
 
     ctx.fillStyle = colorBody; ctx.beginPath(); ctx.arc(cx + 5, y + 12, 16, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     drawCreepyFace(ctx, cx + 7, y + 14);
@@ -539,21 +555,21 @@ function drawPlayer() {
     const legSwing = Math.sin(phase) * 16;
     const armSwing = Math.cos(phase) * 12;
 
-    drawLimb(cx, cy + 15, cx - legSwing, GROUND - 4, null, null, false); // Нога
+    drawLimb(cx, cy + 15, cx - legSwing, GROUND - 4, null, null, false); 
     ctx.fillStyle = colorShoe; ctx.beginPath(); ctx.ellipse(cx - legSwing + 4, GROUND - 2, 8, 3.5, 0, 0, Math.PI * 2); ctx.fill();
 
-    drawLimb(cx, cy - 5, cx + armSwing, cy + 10, null, null, true); // Рука (Светлее)
+    drawLimb(cx, cy - 5, cx + armSwing, cy + 10, null, null, true); 
 
     ctx.fillStyle = colorBody; ctx.strokeStyle = "#556475"; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.roundRect(cx - 12, cy - 12, 24, 30, 8); ctx.fill(); ctx.stroke();
+    drawRoundRect(ctx, cx - 12, cy - 12, 24, 30, 8); ctx.fill(); ctx.stroke();
 
     ctx.fillStyle = "#eee"; ctx.font = "bold 12px 'Times New Roman', serif";
     ctx.fillText("NP", cx - 8, cy + 8);
 
-    drawLimb(cx, cy + 15, cx + legSwing, GROUND - 4, null, null, false); // Нога
+    drawLimb(cx, cy + 15, cx + legSwing, GROUND - 4, null, null, false); 
     ctx.fillStyle = colorShoe; ctx.beginPath(); ctx.ellipse(cx + legSwing + 4, GROUND - 2, 8, 3.5, 0, 0, Math.PI * 2); ctx.fill();
 
-    drawLimb(cx, cy - 5, cx - armSwing, cy + 12, null, null, true); // Рука (Светлее)
+    drawLimb(cx, cy - 5, cx - armSwing, cy + 12, null, null, true); 
 
     ctx.fillStyle = colorBody; ctx.beginPath(); ctx.arc(cx + 2, cy - 15, 16, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     drawCreepyFace(ctx, cx + 4, cy - 13);
@@ -624,25 +640,23 @@ function drawObstacles() {
       
       ctx.fillStyle = "#ff6600"; ctx.beginPath(); ctx.moveTo(x, y + 5); ctx.lineTo(x - 20 - firePhase, y + o.height/2); ctx.lineTo(x, y + o.height - 5); ctx.fill();
       ctx.fillStyle = "#ffcc00"; ctx.beginPath(); ctx.moveTo(x, y + 8); ctx.lineTo(x - 10 - firePhase/2, y + o.height/2); ctx.lineTo(x, y + o.height - 8); ctx.fill();
-      ctx.fillStyle = "#444"; ctx.beginPath(); ctx.roundRect(x, y, o.width - 15, o.height, 10); ctx.fill();
+      ctx.fillStyle = "#444"; drawRoundRect(ctx, x, y, o.width - 15, o.height, 10); ctx.fill();
       ctx.fillStyle = "#cc0000"; ctx.beginPath(); ctx.moveTo(x + o.width - 15, y); ctx.lineTo(x + o.width, y + o.height/2); ctx.lineTo(x + o.width - 15, y + o.height); ctx.fill();
       ctx.fillStyle = "#222"; ctx.fillRect(x + 10, y + 4, o.width - 30, 4);
     }
     else if (o.type === "cactus") {
       const x = o.x, y = o.y;
-      ctx.fillStyle = "#1e3b22"; 
-      ctx.strokeStyle = "#0f1e11";
-      ctx.lineWidth = 2;
+      ctx.fillStyle = "#1e3b22"; ctx.strokeStyle = "#0f1e11"; ctx.lineWidth = 2;
       
-      ctx.beginPath(); ctx.roundRect(x + 12, y, 16, o.height, 8); ctx.fill(); ctx.stroke();
-      ctx.beginPath(); ctx.roundRect(x, y + 20, 16, 12, 6); ctx.fill(); ctx.stroke();
-      ctx.beginPath(); ctx.roundRect(x, y + 10, 12, 16, 6); ctx.fill(); ctx.stroke();
-      ctx.beginPath(); ctx.roundRect(x + 24, y + 30, 16, 12, 6); ctx.fill(); ctx.stroke();
-      ctx.beginPath(); ctx.roundRect(x + 28, y + 15, 12, 20, 6); ctx.fill(); ctx.stroke();
+      drawRoundRect(ctx, x + 12, y, 16, o.height, 8); ctx.fill(); ctx.stroke();
+      drawRoundRect(ctx, x, y + 20, 16, 12, 6); ctx.fill(); ctx.stroke();
+      drawRoundRect(ctx, x, y + 10, 12, 16, 6); ctx.fill(); ctx.stroke();
+      drawRoundRect(ctx, x + 24, y + 30, 16, 12, 6); ctx.fill(); ctx.stroke();
+      drawRoundRect(ctx, x + 28, y + 15, 12, 20, 6); ctx.fill(); ctx.stroke();
       
       ctx.fillStyle = "#a3b89e";
-      for(let t of o.thorns) {
-        ctx.fillRect(x + t.dx, y + t.dy, 2, 2);
+      if (o.thorns) {
+        for(let t of o.thorns) ctx.fillRect(x + t.dx, y + t.dy, 2, 2);
       }
     }
     
@@ -651,7 +665,7 @@ function drawObstacles() {
 }
 
 // ===============================
-// ПОСТ-ОБРАБОТКА
+// ПОСТ-ОБРАБОТКА И РЕНДЕР
 // ===============================
 
 function drawParticles() {
@@ -673,10 +687,6 @@ function drawPostEffects() {
   ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
   for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 1);
 }
-
-// ===============================
-// ОСНОВНОЙ ЦИКЛ РЕНДЕРА
-// ===============================
 
 function render() {
   ctx.save();
