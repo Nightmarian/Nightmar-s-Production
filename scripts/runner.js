@@ -74,7 +74,6 @@ cityLayers.forEach((layer, index) => {
   layer.totalW = x;
 });
 
-// Пыль теперь темная и мелкая, чтобы не создавать белую кляксу
 function spawnDust(x, y, count) {
   for (let i = 0; i < count; i++) {
     dustParticles.push({
@@ -85,21 +84,22 @@ function spawnDust(x, y, count) {
       life: 0.2 + Math.random() * 0.3,
       maxLife: 0.2 + Math.random() * 0.3,
       size: 1 + Math.random() * 2.5,
-      color: "rgba(30, 35, 40, " // Темный цвет пыли
+      color: "rgba(30, 35, 40, " 
     });
   }
 }
 
+// ИСПРАВЛЕННЫЕ ИСКРЫ (Больше не создают желтую кляксу)
 function spawnSparks(x, y) {
   dustParticles.push({
-    x: x + Math.random() * 5 - 2,
+    x: x + Math.random() * 10 - 5, // Разброс пошире
     y: y,
-    vx: -speed * 0.5 + Math.random() * 100,
-    vy: -Math.random() * 50 - 10,
-    life: 0.15 + Math.random() * 0.2,
-    maxLife: 0.15 + Math.random() * 0.2,
-    size: 1.5 + Math.random() * 3,
-    color: "rgba(255, 200, 50, "
+    vx: -speed * 0.4 + Math.random() * 40, // Отлетают назад
+    vy: -Math.random() * 60 - 20, // Взлетают выше
+    life: 0.15 + Math.random() * 0.15,
+    maxLife: 0.15 + Math.random() * 0.15,
+    size: 1 + Math.random() * 1.5, // Размер стал сильно меньше!
+    color: "rgba(255, 220, 100, "
   });
 }
 
@@ -212,7 +212,7 @@ function update(dt) {
     if (player.grounded) {
       player.velocityY = JUMP_FORCE;
       player.grounded = false; jumpBuffer = 0;
-      spawnDust(player.x + 15, GROUND, 5); // Меньше пыли при прыжке
+      spawnDust(player.x + 15, GROUND, 5); 
     }
   }
 
@@ -228,7 +228,8 @@ function update(dt) {
   player.sliding = slideHeld && player.grounded;
   
   if (player.sliding) {
-    if (Math.random() < 0.7) spawnSparks(player.x + 50, GROUND - 2);
+    // Искры появляются чуть позади кулака, чтобы не перекрывать его
+    if (Math.random() < 0.5) spawnSparks(player.x + 30, GROUND - 2); 
   } else if (player.grounded && Math.random() < 0.2) {
     spawnDust(player.x + 10, GROUND, 1);
   }
@@ -353,21 +354,38 @@ function drawBackground() {
 }
 
 // ===============================
-// ПЕРСОНАЖ (ИСПРАВЛЕННЫЙ ПРЫЖОК И ЦВЕТА)
+// ПЕРСОНАЖ (ИДЕАЛЬНЫЙ ПРЫЖОК И ЖУТКОЕ ЛИЦО)
 // ===============================
 
+// НОВОЕ, ДЕТАЛИЗИРОВАННОЕ ЛИЦО (Как на референсе)
 function drawCreepyFace(ctx, fx, fy) {
+  // Глаза (чисто белые со слабым свечением)
   ctx.fillStyle = "#fff";
-  ctx.beginPath(); ctx.arc(fx - 4, fy - 3, 2, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(fx + 5, fy - 3, 2.5, 0, Math.PI * 2); ctx.fill();
-  
+  ctx.shadowColor = "rgba(255, 255, 255, 0.4)";
+  ctx.shadowBlur = 4;
+  ctx.beginPath(); ctx.arc(fx - 4, fy - 4, 2.2, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(fx + 5, fy - 4, 2.2, 0, Math.PI * 2); ctx.fill();
+  ctx.shadowBlur = 0; // Обязательно отключаем тень
+
+  // Огромная, зубастая, зигзагообразная улыбка (как у Чеширского кота / Венома)
   ctx.beginPath();
-  ctx.moveTo(fx - 7, fy + 3); 
-  ctx.lineTo(fx - 5, fy + 6); ctx.lineTo(fx - 3, fy + 3);
-  ctx.lineTo(fx - 1, fy + 7); ctx.lineTo(fx + 1, fy + 3);
-  ctx.lineTo(fx + 3, fy + 7); ctx.lineTo(fx + 5, fy + 3);
-  ctx.lineTo(fx + 7, fy + 6); ctx.lineTo(fx + 9, fy + 2);
-  ctx.quadraticCurveTo(fx + 1, fy + 9, fx - 7, fy + 3); 
+  ctx.moveTo(fx - 11, fy + 1); // Левый угол рта
+  
+  // Верхний ряд зубов (зигзаг)
+  ctx.lineTo(fx - 8, fy + 4); ctx.lineTo(fx - 6, fy + 2);
+  ctx.lineTo(fx - 4, fy + 6); ctx.lineTo(fx - 2, fy + 3);
+  ctx.lineTo(fx, fy + 7);     ctx.lineTo(fx + 2, fy + 3);
+  ctx.lineTo(fx + 4, fy + 6); ctx.lineTo(fx + 6, fy + 2);
+  ctx.lineTo(fx + 8, fy + 4); ctx.lineTo(fx + 11, fy + 1); // Правый угол
+  
+  // Нижний ряд зубов (зигзаг обратно)
+  ctx.lineTo(fx + 9, fy + 5); ctx.lineTo(fx + 7, fy + 8);
+  ctx.lineTo(fx + 5, fy + 5); ctx.lineTo(fx + 3, fy + 9);
+  ctx.lineTo(fx + 1, fy + 6); ctx.lineTo(fx - 1, fy + 9);
+  ctx.lineTo(fx - 3, fy + 5); ctx.lineTo(fx - 5, fy + 8);
+  ctx.lineTo(fx - 7, fy + 5); ctx.lineTo(fx - 9, fy + 4);
+  
+  ctx.closePath();
   ctx.fill();
 }
 
@@ -388,7 +406,7 @@ function drawPlayer() {
   ctx.fillStyle = glow;
   ctx.beginPath(); ctx.arc(cx, auraCenterY, 35, 0, Math.PI * 2); ctx.fill();
 
-  // ДИНАМИЧЕСКАЯ ТЕНЬ ПОД НОГАМИ (Исчезает при прыжке)
+  // ДИНАМИЧЕСКАЯ ТЕНЬ ПОД НОГАМИ
   const distFromGround = Math.max(0, GROUND - (y + player.height));
   const shadowAlpha = Math.max(0, 0.6 - distFromGround * 0.005);
   const shadowWidth = Math.max(0, (player.sliding ? 28 : 14) - distFromGround * 0.1);
@@ -404,12 +422,12 @@ function drawPlayer() {
   ctx.lineCap = "round"; 
   ctx.lineJoin = "round";
 
-  // НОВЫЕ, БОЛЕЕ СВЕТЛЫЕ ЦВЕТА ПЕРСОНАЖА
+  // СВЕТЛЫЕ ЦВЕТА ПЕРСОНАЖА
   const colorHood = "#47505e"; // Серо-синий капюшон
   const colorBody = "#3a424e"; // Светло-серый худи
   const colorFrontLimb = "#2c323b"; // Передняя рука/нога
   const colorBackLimb = "#1e2229"; // Задняя рука/нога
-  const colorFaceBg = "#0b0c0f"; // Почти черный, но не #000
+  const colorFaceBg = "#0b0c0f"; // Лицо
 
   if (player.sliding) {
     // ПОДКАТ
@@ -419,69 +437,72 @@ function drawPlayer() {
     ctx.beginPath(); ctx.moveTo(cx + 5, cy - 8); ctx.lineTo(cx - 15, cy - 18); ctx.stroke();
 
     ctx.strokeStyle = colorBackLimb; ctx.lineWidth = 7;
-    ctx.beginPath(); ctx.moveTo(cx - 5, cy + 2); ctx.lineTo(cx - 20, GROUND - 4); ctx.lineTo(cx - 8, GROUND - 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx - 5, cy + 2); ctx.lineTo(cx - 15, GROUND - 4); ctx.lineTo(cx - 5, GROUND - 2); ctx.stroke();
 
     ctx.strokeStyle = colorBody; ctx.lineWidth = 15;
-    ctx.beginPath(); ctx.moveTo(cx - 5, cy + 2); ctx.lineTo(cx + 12, cy - 6); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx - 5, cy + 2); ctx.lineTo(cx + 15, cy - 2); ctx.stroke();
     
     ctx.fillStyle = "#fff"; ctx.font = "bold 10px 'Courier New', monospace";
-    ctx.save(); ctx.translate(cx + 2, cy - 2); ctx.rotate(-0.3); ctx.fillText("NP", -6, 4); ctx.restore();
+    ctx.save(); ctx.translate(cx + 5, cy + 2); ctx.rotate(-0.1); ctx.fillText("NP", -6, 4); ctx.restore();
 
     ctx.strokeStyle = colorFrontLimb; ctx.lineWidth = 7;
     ctx.beginPath(); ctx.moveTo(cx - 5, cy + 2); ctx.lineTo(cx + 25, GROUND - 4); ctx.stroke();
     ctx.fillStyle = "#111"; ctx.beginPath(); ctx.ellipse(cx + 28, GROUND - 3, 7, 3.5, 0, 0, Math.PI * 2); ctx.fill(); 
 
+    // Рука в подкате (Чистый серый цвет, искры больше не закрашивают её)
     ctx.strokeStyle = colorFrontLimb; ctx.lineWidth = 5;
-    ctx.beginPath(); ctx.moveTo(cx + 12, cy - 6); ctx.lineTo(cx + 30, GROUND - 1); ctx.stroke();
-    ctx.fillStyle = "#dcdcdc"; ctx.beginPath(); ctx.arc(cx + 30, GROUND - 1, 3.5, 0, Math.PI * 2); ctx.fill(); 
+    ctx.beginPath(); ctx.moveTo(cx + 15, cy - 2); ctx.lineTo(cx + 25, GROUND - 1); ctx.stroke();
+    ctx.fillStyle = "#dcdcdc"; ctx.beginPath(); ctx.arc(cx + 25, GROUND - 1, 3.5, 0, Math.PI * 2); ctx.fill(); 
 
-    ctx.fillStyle = colorHood; ctx.beginPath(); ctx.arc(cx + 20, cy - 12, 13, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = colorFaceBg; ctx.beginPath(); ctx.arc(cx + 22, cy - 11, 10, 0, Math.PI * 2); ctx.fill(); 
-    drawCreepyFace(ctx, cx + 23, cy - 11);
+    ctx.fillStyle = colorHood; ctx.beginPath(); ctx.arc(cx + 22, cy - 10, 13, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = colorFaceBg; ctx.beginPath(); ctx.arc(cx + 24, cy - 9, 10, 0, Math.PI * 2); ctx.fill(); 
+    drawCreepyFace(ctx, cx + 25, cy - 9);
 
   } else if (!player.grounded) {
-    // НОВАЯ АНИМАЦИЯ ПРЫЖКА (Ноги поджаты, а не тянутся к земле)
-    const shoulderX = cx + 2;
-    const shoulderY = y + 20;
-    const hipX = cx - 3;
-    const hipY = y + 42;
+    // НОВЫЙ ДИНАМИЧНЫЙ ПРЫЖОК ПАРКУРИСТА
+    const shoulderX = cx + 5; // Сильный наклон вперед
+    const shoulderY = y + 18;
+    const hipX = cx - 2;
+    const hipY = y + 38;
 
-    // Задняя рука (отведена назад)
+    // Задняя рука (отведена назад и вверх)
     ctx.strokeStyle = colorBackLimb; ctx.lineWidth = 5;
     ctx.beginPath(); ctx.moveTo(shoulderX, shoulderY); 
-    ctx.lineTo(shoulderX - 10, shoulderY - 5); ctx.stroke();
-    ctx.fillStyle = "#a9a9a9"; ctx.beginPath(); ctx.arc(shoulderX - 10, shoulderY - 5, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.lineTo(shoulderX - 12, shoulderY - 8); 
+    ctx.lineTo(shoulderX - 8, shoulderY - 18); ctx.stroke(); 
+    ctx.fillStyle = "#a9a9a9"; ctx.beginPath(); ctx.arc(shoulderX - 8, shoulderY - 18, 3, 0, Math.PI * 2); ctx.fill();
 
-    // Задняя нога (сильно подогнута в колене)
+    // Задняя нога (вытянута назад, как хвост)
     ctx.strokeStyle = colorBackLimb; ctx.lineWidth = 7;
     ctx.beginPath(); ctx.moveTo(hipX, hipY); 
-    ctx.lineTo(hipX - 12, hipY - 5); 
-    ctx.lineTo(hipX - 15, hipY + 8); ctx.stroke();
-    ctx.fillStyle = "#111"; ctx.beginPath(); ctx.ellipse(hipX - 15, hipY + 8, 6, 3, Math.PI/4, 0, Math.PI * 2); ctx.fill();
+    ctx.lineTo(hipX - 10, hipY + 12); 
+    ctx.lineTo(hipX - 20, hipY + 15); ctx.stroke(); 
+    ctx.fillStyle = "#111"; ctx.beginPath(); ctx.ellipse(hipX - 22, hipY + 14, 6, 3, -Math.PI/6, 0, Math.PI * 2); ctx.fill();
 
-    // Тело (в прыжке)
+    // Тело (Наклонено)
     ctx.strokeStyle = colorBody; ctx.lineWidth = 17;
     ctx.beginPath(); ctx.moveTo(hipX, hipY); ctx.lineTo(shoulderX, shoulderY); ctx.stroke();
     ctx.fillStyle = "#fff"; ctx.font = "bold 12px 'Courier New', monospace";
-    ctx.save(); ctx.translate(cx, y + 33); ctx.rotate(0.15); ctx.fillText("NP", -8, 4); ctx.restore();
+    ctx.save(); ctx.translate(cx + 2, y + 30); ctx.rotate(0.2); ctx.fillText("NP", -8, 4); ctx.restore();
 
-    // Передняя нога (вытянута вниз и чуть вперед)
+    // Передняя нога (Колено высоко поднято к груди)
     ctx.strokeStyle = colorFrontLimb; ctx.lineWidth = 7;
     ctx.beginPath(); ctx.moveTo(hipX, hipY); 
-    ctx.lineTo(hipX + 8, hipY + 10); 
-    ctx.lineTo(hipX + 5, hipY + 22); ctx.stroke(); // Длина ноги фиксирована (до hipY + 22)
-    ctx.fillStyle = "#111"; ctx.beginPath(); ctx.ellipse(hipX + 5, hipY + 22, 6, 3, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.lineTo(hipX + 14, hipY - 2); // Бедро вверх
+    ctx.lineTo(hipX + 8, hipY + 14); ctx.stroke(); // Голень вниз
+    ctx.fillStyle = "#111"; ctx.beginPath(); ctx.ellipse(hipX + 9, hipY + 15, 6, 3, 0, 0, Math.PI * 2); ctx.fill();
 
-    // Передняя рука (взмах вверх)
+    // Передняя рука (Взмах вперед для баланса)
     ctx.strokeStyle = colorFrontLimb; ctx.lineWidth = 5;
     ctx.beginPath(); ctx.moveTo(shoulderX, shoulderY); 
-    ctx.lineTo(shoulderX + 10, shoulderY - 10); ctx.stroke();
-    ctx.fillStyle = "#dcdcdc"; ctx.beginPath(); ctx.arc(shoulderX + 10, shoulderY - 10, 3.5, 0, Math.PI * 2); ctx.fill();
+    ctx.lineTo(shoulderX + 12, shoulderY + 5); 
+    ctx.lineTo(shoulderX + 6, shoulderY - 5); ctx.stroke();
+    ctx.fillStyle = "#dcdcdc"; ctx.beginPath(); ctx.arc(shoulderX + 6, shoulderY - 5, 3.5, 0, Math.PI * 2); ctx.fill();
 
     // Голова
-    ctx.fillStyle = colorHood; ctx.beginPath(); ctx.arc(shoulderX + 5, shoulderY - 12, 14, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = colorFaceBg; ctx.beginPath(); ctx.arc(shoulderX + 6, shoulderY - 11, 11, 0, Math.PI * 2); ctx.fill(); 
-    drawCreepyFace(ctx, shoulderX + 7, shoulderY - 11);
+    ctx.fillStyle = colorHood; ctx.beginPath(); ctx.arc(shoulderX + 6, shoulderY - 10, 14, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = colorFaceBg; ctx.beginPath(); ctx.arc(shoulderX + 8, shoulderY - 9, 11, 0, Math.PI * 2); ctx.fill(); 
+    drawCreepyFace(ctx, shoulderX + 9, shoulderY - 9);
 
   } else {
     // БЕГ
