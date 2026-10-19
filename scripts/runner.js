@@ -8,19 +8,28 @@ const overlayTitle = document.getElementById("overlayTitle");
 const overlayText = document.getElementById("overlayText");
 const startButton = document.getElementById("startButton");
 
+const jumpButton = document.getElementById("jumpButton");
+const slideButton = document.getElementById("slideButton");
+
 const W = canvas.width;
 const H = canvas.height;
 const GROUND = 290;
 
+const GRAVITY = 1550;
+const JUMP_FORCE = -620;
+
 let running = false;
 let score = 0;
-let speed = 260;
+let speed = 250;
 let obstacles = [];
-let spawnDistance = 420;
+let spawnDistance = 450;
 let worldDistance = 0;
 let lastTime = 0;
-let best = Number(localStorage.getItem("nightmarRunnerBest")) || 0;
 
+let jumpBuffer = 0;
+let slideHeld = false;
+
+let best = Number(localStorage.getItem("nightmarRunnerBest")) || 0;
 bestElement.textContent = String(best).padStart(5, "0");
 
 const player = {
@@ -30,148 +39,55 @@ const player = {
   height: 62,
   velocityY: 0,
   grounded: true,
-  sliding: false,
-  slideTimer: 0
+  sliding: false
 };
 
+// ===============================
+// УПРАВЛЕНИЕ
+// ===============================
+
+function jump() {
+  if (!running) return;
+  jumpBuffer = 0.15;
+}
+
+function slide() {
+  if (!running) return;
+  slideHeld = true;
+}
+
+function stopSlide() {
+  slideHeld = false;
+  player.sliding = false;
+}
+
+// ===============================
+// ИГРОВОЙ ПРОЦЕСС
+// ===============================
+
 function startGame() {
-  jumpBuffer = 0;
+  running = true;
   score = 0;
-  speed = 260;
+  speed = 250;
   obstacles = [];
-  spawnDistance = 420;
+  spawnDistance = 450;
   worldDistance = 0;
+
+  jumpBuffer = 0;
+  slideHeld = false;
 
   player.y = GROUND - player.height;
   player.velocityY = 0;
   player.grounded = true;
   player.sliding = false;
-  player.slideTimer = 0;
 
-  running = true;
+  scoreElement.textContent = "00000";
   overlay.classList.add("hidden");
-}
-
-let jumpBuffer = 0;
-
-function jump() {
-  if (!running) return;
-
-  jumpBuffer = 0.15;
-}
-
-function slide() {
-  if (!running || !player.grounded) return;
-  player.sliding = true;
-  player.slideTimer = 0.65;
-}
-
-function spawnObstacle() {
-  const types = ["rock", "log", "barrier"];
-  const type = types[Math.floor(Math.random() * types.length)];
-
-  let width = 40;
-  let height = 35;
-
-  if (type === "log") {
-    width = 75;
-    height = 25;
-  }
-
-  if (type === "barrier") {
-    width = 65;
-    height = 16;
-  }
-
-  obstacles.push({
-    x: W + 30,
-    y: type === "barrier" ? GROUND - 62 : GROUND - height,
-    width,
-    height,
-    type
-  });
-}
-
-function update(dt) {
-  speed = Math.min(430, 260 + score * 0.55);
-  const movement = speed * dt;
-
-  worldDistance += movement;
-  score += dt * 12;
-
-  scoreElement.textContent = String(Math.floor(score)).padStart(5, "0");
-
-// Буфер прыжка
-if (jumpBuffer > 0) {
-  jumpBuffer -= dt;
-
-  if (player.grounded) {
-    player.sliding = false;
-    player.slideTimer = 0;
-
-    player.velocityY = -620;
-    player.grounded = false;
-
-    jumpBuffer = 0;
-  }
-}
-  
-
-  // Физика прыжка
-  player.velocityY += 1550 * dt;
-  player.y += player.velocityY * dt;
-
-  if (player.y >= GROUND - player.height) {
-    player.y = GROUND - player.height;
-    player.velocityY = 0;
-    player.grounded = true;
-  }
-
-  // Подкат
-  if (player.sliding) {
-    player.slideTimer -= dt;
-    if (player.slideTimer <= 0) {
-      player.sliding = false;
-    }
-  }
-
-  // Генерация препятствий
-  spawnDistance -= movement;
-
-  if (spawnDistance <= 0) {
-    spawnObstacle();
-    spawnDistance = 350 + Math.random() * 220;
-  }
-
-  for (const o of obstacles) {
-    o.x -= movement;
-
-    let px = player.x;
-    let py = player.y;
-    let pw = player.width;
-    let ph = player.height;
-
-    if (player.sliding) {
-      py += 32;
-      ph -= 32;
-    }
-
-    if (
-      px + 6 < o.x + o.width &&
-      px + pw - 6 > o.x &&
-      py + 5 < o.y + o.height &&
-      py + ph - 5 > o.y
-    ) {
-      gameOver();
-      return;
-    }
-  }
-
-  obstacles = obstacles.filter(o => o.x + o.width > 0);
 }
 
 function gameOver() {
   running = false;
+
   const result = Math.floor(score);
 
   if (result > best) {
@@ -183,53 +99,169 @@ function gameOver() {
   overlayTitle.textContent = "SIGNAL LOST";
   overlayText.textContent = `SCORE: ${result}`;
   startButton.textContent = "RECONNECT";
+
   overlay.classList.remove("hidden");
 }
 
+function spawnObstacle() {
+  const types = ["rock", "log", "drone"];
+  const type = types[Math.floor(Math.random() * types.length)];
+
+  let width, height, y;
+
+  if (type === "rock") {
+    width = 42;
+    height = 36;
+    y = GROUND - height;
+  }
+
+  if (type === "log") {
+    width = 72;
+    height = 27;
+    y = GROUND - height;
+  }
+
+  if (type === "drone") {
+    width = 74;
+    height = 22;
+    y = GROUND - 55;
+  }
+
+  obstacles.push({
+    x: W + 30,
+    y,
+    width,
+    height,
+    type
+  });
+}
+
+function update(dt) {
+  score += dt * 12;
+  speed = Math.min(420, 250 + score * 0.45);
+
+  const movement = speed * dt;
+  worldDistance += movement;
+
+  scoreElement.textContent = String(Math.floor(score)).padStart(5, "0");
+
+  // Прыжок с буфером
+  if (jumpBuffer > 0) {
+    jumpBuffer -= dt;
+
+    if (player.grounded) {
+      player.velocityY = JUMP_FORCE;
+      player.grounded = false;
+      jumpBuffer = 0;
+    }
+  }
+
+  // Физика
+  player.velocityY += GRAVITY * dt;
+  player.y += player.velocityY * dt;
+
+  if (player.y >= GROUND - player.height) {
+    player.y = GROUND - player.height;
+    player.velocityY = 0;
+    player.grounded = true;
+  }
+
+  // Подкат
+  player.sliding = slideHeld && player.grounded;
+
+  // Препятствия
+  spawnDistance -= movement;
+
+  if (spawnDistance <= 0) {
+    spawnObstacle();
+    spawnDistance = 390 + Math.random() * 200;
+  }
+
+  for (const o of obstacles) {
+    o.x -= movement;
+
+    // Хитбокс игрока
+    const px = player.x + 6;
+    const pw = player.sliding ? 48 : 24;
+    const py = player.sliding ? GROUND - 24 : player.y + 5;
+    const ph = player.sliding ? 20 : player.height - 10;
+
+    // Уменьшенный хитбокс препятствий
+    const margin = 5;
+
+    if (
+      px < o.x + o.width - margin &&
+      px + pw > o.x + margin &&
+      py < o.y + o.height - margin &&
+      py + ph > o.y + margin
+    ) {
+      gameOver();
+      return;
+    }
+  }
+
+  obstacles = obstacles.filter(o => o.x + o.width > 0);
+}
+
+// ===============================
+// ПЛАВНАЯ СМЕНА ДНЯ И НОЧИ
+// ===============================
+
+function mixColor(a, b, t) {
+  const c1 = a.match(/\w\w/g).map(x => parseInt(x, 16));
+  const c2 = b.match(/\w\w/g).map(x => parseInt(x, 16));
+
+  const c = c1.map((v, i) =>
+    Math.round(v + (c2[i] - v) * t)
+  );
+
+  return `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
+}
+
 function drawBackground() {
-  // Полный цикл день/ночь
-  const cycle = (worldDistance / 9000) % 1;
+  const cycle = (worldDistance / 12000) % 1;
   const daylight = (Math.cos(cycle * Math.PI * 2) + 1) / 2;
 
-  const r = Math.floor(12 + daylight * 125);
-  const g = Math.floor(18 + daylight * 165);
-  const b = Math.floor(35 + daylight * 185);
-
-  ctx.fillStyle = `rgb(${r},${g},${b})`;
+  // Небо
+  ctx.fillStyle = mixColor("#101b35", "#8bbfe8", daylight);
   ctx.fillRect(0, 0, W, H);
 
   // Солнце / луна
   const orbX = 90 + cycle * 720;
-  const orbY = 100 - Math.sin(cycle * Math.PI) * 65;
+  const orbY = 95 - Math.sin(cycle * Math.PI) * 50;
 
+  ctx.fillStyle = mixColor("#e0e7ff", "#ffe29a", daylight);
   ctx.beginPath();
-  ctx.arc(orbX, orbY, 25, 0, Math.PI * 2);
-  ctx.fillStyle = daylight > 0.5 ? "#ffe08a" : "#e2e9ff";
+  ctx.arc(orbX, orbY, 24, 0, Math.PI * 2);
   ctx.fill();
 
-  // Горы
-  ctx.fillStyle = daylight > 0.5 ? "#697f85" : "#293344";
+  // Дальние горы
+  ctx.fillStyle = mixColor("#293344", "#748f9c", daylight);
   ctx.beginPath();
   ctx.moveTo(0, GROUND);
-  ctx.lineTo(140, 180);
+  ctx.lineTo(140, 185);
   ctx.lineTo(300, GROUND);
-  ctx.lineTo(460, 195);
+  ctx.lineTo(470, 195);
   ctx.lineTo(650, GROUND);
-  ctx.lineTo(790, 200);
+  ctx.lineTo(800, 205);
   ctx.lineTo(W, GROUND);
   ctx.fill();
 
   // Земля
-  ctx.fillStyle = daylight > 0.5 ? "#465e43" : "#202b29";
+  ctx.fillStyle = mixColor("#202b29", "#53734d", daylight);
   ctx.fillRect(0, GROUND, W, H - GROUND);
 
-  ctx.strokeStyle = daylight > 0.5 ? "#253b28" : "#7e2020";
+  ctx.strokeStyle = mixColor("#8b3030", "#304e30", daylight);
   ctx.lineWidth = 3;
   ctx.beginPath();
   ctx.moveTo(0, GROUND);
   ctx.lineTo(W, GROUND);
   ctx.stroke();
 }
+
+// ===============================
+// ПЕРСОНАЖ
+// ===============================
 
 function drawPlayer() {
   const x = player.x;
@@ -238,21 +270,44 @@ function drawPlayer() {
   ctx.save();
 
   if (player.sliding) {
-    ctx.translate(x, GROUND - 30);
-    ctx.rotate(-0.15);
+    // Подкат с пригнутой фигурой
+    const sy = GROUND - 26;
 
-    ctx.fillStyle = "#151515";
-    ctx.fillRect(0, 0, 55, 25);
+    // Ноги
+    ctx.strokeStyle = "#111";
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+    ctx.moveTo(x + 20, sy + 15);
+    ctx.lineTo(x + 55, sy + 21);
+    ctx.stroke();
 
-    ctx.fillStyle = "#222";
-    ctx.fillRect(35, -15, 22, 23);
+    // Корпус
+    ctx.fillStyle = "#191919";
+    ctx.beginPath();
+    ctx.ellipse(x + 22, sy + 11, 24, 12, -0.15, 0, Math.PI * 2);
+    ctx.fill();
 
-    ctx.fillStyle = "#ddd";
-    ctx.font = "bold 12px monospace";
-    ctx.fillText("NP", 12, 17);
+    // Голова в капюшоне
+    ctx.fillStyle = "#252525";
+    ctx.beginPath();
+    ctx.arc(x + 10, sy + 5, 12, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Лицо
+    ctx.fillStyle = "#070707";
+    ctx.fillRect(x + 2, sy + 2, 14, 8);
+
+    // Глаз
+    ctx.fillStyle = "#e02020";
+    ctx.fillRect(x + 12, sy + 5, 3, 2);
+
+    // Логотип
+    ctx.fillStyle = "#eee";
+    ctx.font = "bold 10px monospace";
+    ctx.fillText("NP", x + 20, sy + 15);
   } else {
     const legSwing = player.grounded
-      ? Math.sin(worldDistance / 18) * 12
+      ? Math.sin(worldDistance / 16) * 11
       : 0;
 
     // Ноги
@@ -296,7 +351,7 @@ function drawPlayer() {
     ctx.fillRect(x + 14, y + 17, 4, 3);
     ctx.fillRect(x + 23, y + 17, 4, 3);
 
-    // Логотип
+    // NP
     ctx.fillStyle = "#eee";
     ctx.font = "bold 12px monospace";
     ctx.fillText("NP", x + 10, y + 38);
@@ -304,6 +359,10 @@ function drawPlayer() {
 
   ctx.restore();
 }
+
+// ===============================
+// ПРЕПЯТСТВИЯ
+// ===============================
 
 function drawObstacles() {
   for (const o of obstacles) {
@@ -320,18 +379,50 @@ function drawObstacles() {
     if (o.type === "log") {
       ctx.fillStyle = "#69452c";
       ctx.fillRect(o.x, o.y, o.width, o.height);
-
       ctx.strokeStyle = "#382313";
       ctx.strokeRect(o.x, o.y, o.width, o.height);
     }
 
-    if (o.type === "barrier") {
-      ctx.fillStyle = "#8b0000";
-      ctx.fillRect(o.x, o.y, o.width, o.height);
+    if (o.type === "drone") {
+      const x = o.x;
+      const y = o.y;
 
-      ctx.fillStyle = "#fff";
-      ctx.font = "bold 10px monospace";
-      ctx.fillText("DANGER", o.x + 7, o.y + 12);
+      // Пропеллеры
+      ctx.strokeStyle = "#444";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(x + 10, y + 4);
+      ctx.lineTo(x + 10, y - 5);
+      ctx.moveTo(x + 64, y + 4);
+      ctx.lineTo(x + 64, y - 5);
+      ctx.stroke();
+
+      const spin = Math.sin(worldDistance / 8) * 8;
+
+      ctx.strokeStyle = "#b8c0c8";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x + 10 - spin, y - 5);
+      ctx.lineTo(x + 10 + spin, y - 5);
+      ctx.moveTo(x + 64 - spin, y - 5);
+      ctx.lineTo(x + 64 + spin, y - 5);
+      ctx.stroke();
+
+      // Корпус
+      ctx.fillStyle = "#303640";
+      ctx.beginPath();
+      ctx.ellipse(x + 37, y + 12, 28, 12, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = "#66717e";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Красный сенсор
+      ctx.fillStyle = "#ff3030";
+      ctx.beginPath();
+      ctx.arc(x + 37, y + 13, 5, 0, Math.PI * 2);
+      ctx.fill();
     }
   }
 }
@@ -352,27 +443,39 @@ function loop(timestamp) {
   requestAnimationFrame(loop);
 }
 
-startButton.addEventListener("click", startGame);
+// ===============================
+// КЛАВИАТУРА
+// ===============================
 
 document.addEventListener("keydown", e => {
-  if (["Space", "ArrowUp", "ArrowDown"].includes(e.code)) {
-    e.preventDefault();
+  if (!["Space", "ArrowUp", "ArrowDown"].includes(e.code)) return;
 
-    if (!running) {
-      startGame();
-      return;
-    }
+  e.preventDefault();
 
-    if (e.code === "ArrowDown") slide();
-    else jump();
+  if (!running) {
+    startGame();
+    return;
+  }
+
+  if (e.code === "ArrowDown") {
+    slide();
+  } else if (!e.repeat) {
+    jump();
   }
 });
 
+document.addEventListener("keyup", e => {
+  if (e.code === "ArrowDown") {
+    e.preventDefault();
+    stopSlide();
+  }
+});
 
-requestAnimationFrame(loop);
+window.addEventListener("blur", stopSlide);
 
-const jumpButton = document.getElementById("jumpButton");
-const slideButton = document.getElementById("slideButton");
+// ===============================
+// МОБИЛЬНОЕ УПРАВЛЕНИЕ
+// ===============================
 
 jumpButton.addEventListener("pointerdown", e => {
   e.preventDefault();
@@ -382,4 +485,17 @@ jumpButton.addEventListener("pointerdown", e => {
 slideButton.addEventListener("pointerdown", e => {
   e.preventDefault();
   slide();
+  slideButton.setPointerCapture(e.pointerId);
 });
+
+slideButton.addEventListener("pointerup", stopSlide);
+slideButton.addEventListener("pointercancel", stopSlide);
+slideButton.addEventListener("lostpointercapture", stopSlide);
+
+// ===============================
+// ЗАПУСК
+// ===============================
+
+startButton.addEventListener("click", startGame);
+
+requestAnimationFrame(loop);
