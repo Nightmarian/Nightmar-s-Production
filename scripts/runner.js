@@ -19,6 +19,7 @@ const GRAVITY = 1550;
 const JUMP_FORCE = -620;
 
 let running = false;
+let isDead = false; // Флаг смерти, чтобы скрывать игрока
 let score = 0;
 let speed = 250;
 let obstacles = [];
@@ -33,7 +34,7 @@ let best = Number(localStorage.getItem("nightmarRunnerBest")) || 0;
 bestElement.textContent = String(best).padStart(5, "0");
 
 // ===============================
-// СИСТЕМЫ ЧАСТИЦ И ЭФФЕКТОВ
+// СИСТЕМЫ ЧАСТИЦ
 // ===============================
 
 let particles = [];
@@ -43,7 +44,6 @@ let screenShake = 0;
 let deathFlash = 0;
 let trailPositions = [];
 
-// Генерация звёзд
 for (let i = 0; i < 80; i++) {
   stars.push({
     x: Math.random() * W,
@@ -54,10 +54,6 @@ for (let i = 0; i < 80; i++) {
     brightness: Math.random() * 0.5 + 0.5
   });
 }
-
-// ===============================
-// ГЕНЕРАЦИЯ ГОРОДА
-// ===============================
 
 const cityLayers = [
   { speed: 0.05, colors: ["#506070", "#0c111c"], data: [], totalW: 0 },
@@ -94,40 +90,33 @@ function spawnDust(x, y, count) {
   }
 }
 
-// Искры для руки при подкате
 function spawnSparks(x, y) {
   dustParticles.push({
     x: x + Math.random() * 5,
     y: y,
-    vx: -speed * 0.5 + Math.random() * 50,
+    vx: -speed * 0.5 + Math.random() * 80,
     vy: -Math.random() * 40 - 10,
     life: 0.15 + Math.random() * 0.15,
     maxLife: 0.15 + Math.random() * 0.15,
-    size: 1.5 + Math.random() * 2,
-    color: "rgba(255, 200, 100, " // Желтые искры
+    size: 1.5 + Math.random() * 2.5,
+    color: "rgba(255, 180, 50, "
   });
 }
 
 function spawnDeathParticles(x, y) {
-  for (let i = 0; i < 40; i++) {
+  for (let i = 0; i < 60; i++) {
     const angle = Math.random() * Math.PI * 2;
-    const force = 50 + Math.random() * 250;
+    const force = 50 + Math.random() * 350;
     particles.push({
-      x: x, y: y,
+      x: x, y: y - 20,
       vx: Math.cos(angle) * force,
       vy: Math.sin(angle) * force - 100,
-      life: 0.6 + Math.random() * 0.8,
-      maxLife: 0.6 + Math.random() * 0.8,
-      size: 3 + Math.random() * 6,
-      color: ["#ffffff", "#aaaaaa", "#333333", "#000000", "#111111"][Math.floor(Math.random() * 5)],
+      life: 0.6 + Math.random() * 1,
+      maxLife: 0.6 + Math.random() * 1,
+      size: 2 + Math.random() * 7,
+      color: ["#ffffff", "#bbbbbb", "#555555", "#000000", "#111111", "#ff0000"][Math.floor(Math.random() * 6)],
       gravity: true
     });
-  }
-}
-
-function spawnJumpParticles(x, y) {
-  for (let i = 0; i < 8; i++) {
-    spawnDust(x + Math.random() * 20, y, 1);
   }
 }
 
@@ -150,7 +139,7 @@ function updateParticles(dt) {
 }
 
 // ===============================
-// ИГРОК
+// ИГРОК И ЛОГИКА
 // ===============================
 
 const player = {
@@ -164,12 +153,12 @@ const player = {
 };
 
 function jump() {
-  if (!running) return;
+  if (!running || isDead) return;
   jumpBuffer = 0.15;
 }
 
 function slide() {
-  if (!running) return;
+  if (!running || isDead) return;
   slideHeld = true;
 }
 
@@ -178,12 +167,9 @@ function stopSlide() {
   player.sliding = false;
 }
 
-// ===============================
-// ИГРОВОЙ ПРОЦЕСС
-// ===============================
-
 function startGame() {
   running = true;
+  isDead = false;
   score = 0;
   speed = 250;
   obstacles = [];
@@ -208,8 +194,9 @@ function startGame() {
 
 function gameOver() {
   running = false;
-  screenShake = 0.4;
-  deathFlash = 0.3;
+  isDead = true; // Скрываем игрока
+  screenShake = 0.5;
+  deathFlash = 0.4;
   spawnDeathParticles(player.x + 18, player.y + 30);
 
   const result = Math.floor(score);
@@ -219,11 +206,11 @@ function gameOver() {
     bestElement.textContent = String(best).padStart(5, "0");
   }
 
-  overlayTitle.textContent = "SIGNAL LOST";
+  overlayTitle.textContent = "SYSTEM FAILURE";
   overlayText.textContent = `SCORE: ${result}`;
-  startButton.textContent = "RECONNECT";
+  startButton.textContent = "REBOOT";
 
-  setTimeout(() => overlay.classList.remove("hidden"), 600);
+  setTimeout(() => overlay.classList.remove("hidden"), 800);
 }
 
 // ===============================
@@ -231,24 +218,25 @@ function gameOver() {
 // ===============================
 
 function spawnObstacle() {
-  const types = ["rock", "log", "drone", "cactus", "spikes", "stump"];
+  const types = ["rock", "log", "drone", "spikes", "stump"]; // Убрал кактус для атмосферы города
   const type = types[Math.floor(Math.random() * types.length)];
   let width, height, y;
 
   switch (type) {
-    case "rock": width = 42; height = 36; y = GROUND - height; break;
-    case "log": width = 72; height = 27; y = GROUND - height; break;
-    case "drone": width = 74; height = 38; y = GROUND - 60; break;
-    case "cactus": width = 32; height = 55; y = GROUND - height; break;
-    case "spikes": width = 85; height = 25; y = GROUND - height; break;
-    case "stump": width = 45; height = 42; y = GROUND - height; break;
+    case "rock": width = 45; height = 35; y = GROUND - height; break;
+    case "log": width = 75; height = 25; y = GROUND - height; break;
+    case "drone": width = 60; height = 30; y = GROUND - 65; break;
+    case "spikes": width = 80; height = 28; y = GROUND - height; break;
+    case "stump": width = 45; height = 40; y = GROUND - height; break;
   }
   obstacles.push({ x: W + 30, y, width, height, type });
 }
 
 function update(dt) {
+  if (isDead) return; // Если мертв, физика игрока не обновляется
+
   score += dt * 12;
-  speed = Math.min(450, 250 + score * 0.45);
+  speed = Math.min(480, 250 + score * 0.45);
   const movement = speed * dt;
   worldDistance += movement;
   scoreElement.textContent = String(Math.floor(score)).padStart(5, "0");
@@ -259,7 +247,7 @@ function update(dt) {
       player.velocityY = JUMP_FORCE;
       player.grounded = false;
       jumpBuffer = 0;
-      spawnJumpParticles(player.x, GROUND);
+      spawnDust(player.x + 18, GROUND, 8);
     }
   }
 
@@ -276,13 +264,11 @@ function update(dt) {
   player.sliding = slideHeld && player.grounded;
   
   if (player.sliding) {
-    // Искры от руки при скольжении
-    if (Math.random() < 0.6) spawnSparks(player.x + 35, GROUND - 2);
+    if (Math.random() < 0.7) spawnSparks(player.x + 40, GROUND - 2);
   } else if (player.grounded && Math.random() < 0.3) {
     spawnDust(player.x + 10, GROUND, 1);
   }
 
-  // Мрачный след за персонажем
   trailPositions.unshift({ x: player.x, y: player.y, sliding: player.sliding, time: 0.1 });
   if (trailPositions.length > 5) trailPositions.pop();
   for (let i = trailPositions.length - 1; i >= 0; i--) {
@@ -293,20 +279,21 @@ function update(dt) {
   spawnDistance -= movement;
   if (spawnDistance <= 0) {
     spawnObstacle();
-    spawnDistance = 390 + Math.random() * 200;
+    spawnDistance = 350 + Math.random() * 250;
   }
 
   for (const o of obstacles) {
     o.x -= movement;
     const px = player.x + 6;
-    const pw = player.sliding ? 48 : 24;
-    const py = player.sliding ? GROUND - 24 : player.y + 5;
-    const ph = player.sliding ? 20 : player.height - 10;
-    const margin = 5;
+    const pw = player.sliding ? 45 : 24;
+    const py = player.sliding ? GROUND - 22 : player.y + 5;
+    const ph = player.sliding ? 18 : player.height - 10;
+    const margin = 6;
 
     const horizontalCollision = px < o.x + o.width - margin && px + pw > o.x + margin;
 
     if (o.type === "drone") {
+      // Под дроном можно ТОЛЬКО проскользить
       if (horizontalCollision && !player.sliding) { gameOver(); return; }
     } else {
       const verticalCollision = py < o.y + o.height - margin && py + ph > o.y + margin;
@@ -315,14 +302,10 @@ function update(dt) {
   }
 
   obstacles = obstacles.filter(o => o.x + o.width > 0);
-  if (screenShake > 0) screenShake -= dt;
-  if (deathFlash > 0) deathFlash -= dt;
-
-  updateParticles(dt);
 }
 
 // ===============================
-// РЕНДЕР ФОНА (ГОРОД)
+// РЕНДЕР ФОНА
 // ===============================
 
 function mixColor(a, b, t) {
@@ -342,8 +325,8 @@ function drawBackground() {
   const daylight = getDaylight();
 
   const skyGrad = ctx.createLinearGradient(0, 0, 0, GROUND);
-  skyGrad.addColorStop(0, mixColor("#0a0f1c", "#5a7a92", daylight));
-  skyGrad.addColorStop(1, mixColor("#1c2536", "#a0b8c8", daylight));
+  skyGrad.addColorStop(0, mixColor("#050811", "#4a6a82", daylight));
+  skyGrad.addColorStop(1, mixColor("#141b26", "#80a8b8", daylight));
   ctx.fillStyle = skyGrad;
   ctx.fillRect(0, 0, W, GROUND);
 
@@ -352,23 +335,16 @@ function drawBackground() {
     for (const s of stars) {
       const twinkle = (Math.sin(worldDistance * 0.01 * s.twinkleSpeed + s.twinkleOffset) + 1) / 2;
       ctx.fillStyle = `rgba(255, 255, 240, ${starAlpha * s.brightness * (0.4 + twinkle * 0.6)})`;
-      ctx.beginPath();
-      ctx.arc(s.x, s.y, s.size * (0.7 + twinkle * 0.3), 0, Math.PI * 2);
-      ctx.fill();
+      ctx.beginPath(); ctx.arc(s.x, s.y, s.size * (0.7 + twinkle * 0.3), 0, Math.PI * 2); ctx.fill();
     }
   }
 
   const orbX = 90 + cycle * 720;
   const orbY = 95 - Math.sin(cycle * Math.PI) * 50;
-  const orbGrad = ctx.createRadialGradient(orbX - 5, orbY - 5, 2, orbX, orbY, 24);
-  orbGrad.addColorStop(0, mixColor("#f0f4ff", "#fff8c0", daylight));
-  orbGrad.addColorStop(1, mixColor("#c0c8e8", "#ffcc40", daylight));
-  ctx.shadowColor = mixColor("#a0b0ff", "#ffcc40", daylight);
-  ctx.shadowBlur = 30;
-  ctx.fillStyle = orbGrad;
-  ctx.beginPath();
-  ctx.arc(orbX, orbY, 24, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.fillStyle = mixColor("#e6ebff", "#ffdd66", daylight);
+  ctx.shadowColor = mixColor("#90a0ff", "#ffcc40", daylight);
+  ctx.shadowBlur = 40;
+  ctx.beginPath(); ctx.arc(orbX, orbY, 22, 0, Math.PI * 2); ctx.fill();
   ctx.shadowBlur = 0;
 
   cityLayers.forEach(layer => {
@@ -385,7 +361,7 @@ function drawBackground() {
           if (b.windowSeed > 0.5) ctx.fillRect(b.x + b.w * 0.8, GROUND - b.h - 8, 1, 8);
         }
         if (b.hasWindows && daylight < 0.4) {
-          ctx.fillStyle = `rgba(255, 230, 120, ${1 - daylight / 0.4})`;
+          ctx.fillStyle = `rgba(255, 240, 150, ${1 - daylight / 0.4})`;
           for (let wy = GROUND - b.h + 15; wy < GROUND - 15; wy += 18) {
             for (let wx = b.x + 8; wx < b.x + b.w - 12; wx += 14) {
               if ((wx + wy * b.windowSeed) % 3 > 1.2) ctx.fillRect(wx, wy, 6, 8);
@@ -399,340 +375,302 @@ function drawBackground() {
   });
 
   const groundGrad = ctx.createLinearGradient(0, GROUND, 0, H);
-  groundGrad.addColorStop(0, mixColor("#1a1e24", "#30353c", daylight));
-  groundGrad.addColorStop(1, mixColor("#0a0c10", "#181b20", daylight));
+  groundGrad.addColorStop(0, mixColor("#12151a", "#2b3036", daylight));
+  groundGrad.addColorStop(1, mixColor("#06080a", "#121418", daylight));
   ctx.fillStyle = groundGrad;
   ctx.fillRect(0, GROUND, W, H - GROUND);
 
-  ctx.strokeStyle = mixColor("#303a45", "#556677", daylight);
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.moveTo(0, GROUND);
-  ctx.lineTo(W, GROUND);
-  ctx.stroke();
+  ctx.strokeStyle = mixColor("#202835", "#455667", daylight);
+  ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, GROUND); ctx.lineTo(W, GROUND); ctx.stroke();
 
   const roadTex = -(worldDistance * 1.2) % 60;
-  ctx.fillStyle = mixColor("rgba(255,255,255,0.05)", "rgba(255,255,255,0.15)", daylight);
+  ctx.fillStyle = mixColor("rgba(255,255,255,0.03)", "rgba(255,255,255,0.1)", daylight);
   for (let i = -1; i < W / 60 + 2; i++) ctx.fillRect(roadTex + i * 60, GROUND + 15, 30, 4);
 }
 
 // ===============================
-// ПЕРСОНАЖ (CREEPY HOODIE + GLOW)
+// ПЕРСОНАЖ (ОРГАНИЧЕСКИЙ РЕНДЕР)
 // ===============================
 
 function drawPlayerTrail() {
   for (let i = 0; i < trailPositions.length; i++) {
     const t = trailPositions[i];
-    const alpha = (t.time / 0.1) * 0.12;
+    const alpha = (t.time / 0.1) * 0.15;
     if (alpha <= 0) continue;
-    ctx.fillStyle = `rgba(180, 220, 255, ${alpha})`;
+    ctx.fillStyle = `rgba(100, 150, 255, ${alpha})`;
     if (t.sliding) ctx.fillRect(t.x, GROUND - 25, 50, 25);
-    else ctx.fillRect(t.x, t.y, 35, 60);
+    else ctx.fillRect(t.x, t.y, 36, 62);
   }
 }
 
 function drawPlayer() {
-  if (!running && deathFlash > 0) return;
+  if (isDead) return; // УБРАН БАГ: скрываем модельку полностью после смерти
 
   const x = player.x;
   const y = player.y;
-
   ctx.save();
 
   // Тень
-  const shadowScale = player.grounded ? 1 : 0.6;
-  ctx.fillStyle = `rgba(0, 0, 0, ${player.grounded ? 0.5 : 0.2})`;
-  ctx.beginPath();
-  ctx.ellipse(x + 18, GROUND + 2, 22 * shadowScale, 4 * shadowScale, 0, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.fillStyle = `rgba(0, 0, 0, ${player.grounded ? 0.6 : 0.2})`;
+  ctx.beginPath(); ctx.ellipse(x + 18, GROUND + 2, player.sliding ? 28 : 16, 4, 0, 0, Math.PI * 2); ctx.fill();
 
   drawPlayerTrail();
 
-  // --- СВЕЧЕНИЕ (АУРА) ДЛЯ КОНТРАСТА ---
-  ctx.shadowColor = "rgba(180, 220, 255, 0.7)"; // Ледяное неоновое свечение
-  ctx.shadowBlur = 18;
+  // Неоновое свечение (аура)
+  ctx.shadowColor = "rgba(150, 200, 255, 0.6)";
+  ctx.shadowBlur = 15;
 
   if (player.sliding) {
-    // ДИНАМИЧНЫЙ ПОДКАТ (Откинувшись назад)
-    const sx = x + 15;
-    const sy = GROUND - 12;
+    // --- ПРАВИЛЬНЫЙ ПОДКАТ ---
+    // Тело рисуется горизонтально, рука опирается о пол
+    
+    // Задняя нога (подогнута под себя)
+    ctx.strokeStyle = "#080808"; ctx.lineWidth = 8; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(x + 15, GROUND - 12); ctx.lineTo(x, GROUND - 5); ctx.stroke();
 
-    // Задняя рука (опирается о землю или откинута назад)
-    ctx.strokeStyle = "#080808";
-    ctx.lineWidth = 6;
-    ctx.lineCap = "round";
-    ctx.beginPath();
-    ctx.moveTo(sx - 2, sy - 15);
-    ctx.lineTo(sx - 15, sy - 5);
-    ctx.stroke();
+    // Задняя рука (отведена назад для баланса)
+    ctx.strokeStyle = "#0d0d0d"; ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.moveTo(x + 12, GROUND - 20); ctx.lineTo(x - 5, GROUND - 25); ctx.stroke();
 
-    // Задняя нога (согнута под собой)
-    ctx.strokeStyle = "#0d0d0d";
-    ctx.lineWidth = 8;
-    ctx.beginPath();
-    ctx.moveTo(sx + 5, sy);
-    ctx.lineTo(sx - 8, sy + 10);
-    ctx.stroke();
-
-    // Тело (Худи, наклонено назад)
-    ctx.translate(sx, sy);
-    ctx.rotate(Math.PI / 4.5); // Наклон назад
+    // Органичное тело (Худи) - изогнуто в подкате
     ctx.fillStyle = "#111";
     ctx.beginPath();
-    ctx.roundRect(-10, -25, 24, 30, 6);
+    ctx.moveTo(x + 8, GROUND - 5); // низ спины
+    ctx.quadraticCurveTo(x + 15, GROUND - 25, x + 35, GROUND - 22); // дуга спины к шее
+    ctx.lineTo(x + 30, GROUND - 8); // грудь
+    ctx.quadraticCurveTo(x + 20, GROUND - 2, x + 8, GROUND - 5); // живот
     ctx.fill();
 
-    // Лого на груди
-    ctx.fillStyle = "#fff";
-    ctx.font = "bold 12px 'Courier New', monospace";
-    ctx.fillText("NP", -5, -5);
+    // Складки на худи
+    ctx.strokeStyle = "#1a1a1a"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x + 15, GROUND - 10); ctx.quadraticCurveTo(x + 20, GROUND - 18, x + 28, GROUND - 15); ctx.stroke();
 
-    // Капюшон
-    ctx.beginPath();
-    ctx.arc(2, -26, 14, 0, Math.PI * 2);
-    ctx.fill();
+    // Лого NP (под углом)
+    ctx.save();
+    ctx.translate(x + 22, GROUND - 12); ctx.rotate(0.3);
+    ctx.fillStyle = "#fff"; ctx.font = "bold 11px 'Courier New', monospace"; ctx.fillText("NP", -8, 4);
+    ctx.restore();
 
-    // Лицо во мраке
+    // Капюшон и голова смотрят ВПЕРЕД
+    ctx.fillStyle = "#161616";
+    ctx.beginPath(); ctx.arc(x + 38, GROUND - 18, 12, 0, Math.PI * 2); ctx.fill(); // Капюшон
     ctx.fillStyle = "#000";
-    ctx.beginPath();
-    ctx.arc(5, -28, 11, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.beginPath(); ctx.arc(x + 40, GROUND - 17, 9, 0, Math.PI * 2); ctx.fill(); // Тьма внутри
 
-    // Глаза
+    // Жуткое лицо в подкате
+    ctx.shadowBlur = 0; // Отключаем общее свечение для четкости лица
     ctx.fillStyle = "#fff";
-    ctx.shadowColor = "#fff";
-    ctx.shadowBlur = 8;
-    ctx.beginPath();
-    ctx.arc(2, -31, 2.5, 0, Math.PI * 2);
-    ctx.arc(9, -29, 2.5, 0, Math.PI * 2);
+    ctx.beginPath(); ctx.arc(x + 38, GROUND - 20, 2, 0, Math.PI * 2); // Глаз 1
+    ctx.arc(x + 44, GROUND - 19, 2, 0, Math.PI * 2); // Глаз 2
     ctx.fill();
-    ctx.shadowBlur = 0; // Отключаем свечение для зубов, чтобы были четкими
-
-    // Зубы
-    ctx.fillStyle = "#fff";
-    ctx.beginPath();
-    ctx.moveTo(-1, -22); ctx.lineTo(1, -19); ctx.lineTo(3, -23);
-    ctx.lineTo(5, -20);  ctx.lineTo(7, -24); ctx.lineTo(9, -21);
-    ctx.lineTo(11, -25);
-    ctx.quadraticCurveTo(5, -16, -1, -22);
-    ctx.fill();
-
-    // Возвращаем трансформацию
-    ctx.rotate(-Math.PI / 4.5);
-    ctx.translate(-sx, -sy);
-
-    // Снова включаем внешнее свечение для передних конечностей
-    ctx.shadowColor = "rgba(180, 220, 255, 0.7)";
-    ctx.shadowBlur = 18;
-
-    // Передняя нога (вытянута вперед)
-    ctx.strokeStyle = "#151515"; // Чуть светлее штанина
-    ctx.lineWidth = 8;
-    ctx.beginPath();
-    ctx.moveTo(sx + 5, sy);
-    ctx.lineTo(sx + 30, sy + 8); // Вытянута вдоль земли
-    ctx.stroke();
     
-    // Ботинок
-    ctx.fillStyle = "#050505";
+    // Оскал
     ctx.beginPath();
-    ctx.ellipse(sx + 33, sy + 8, 6, 3.5, -0.2, 0, Math.PI * 2);
+    ctx.moveTo(x + 35, GROUND - 14); ctx.lineTo(x + 37, GROUND - 12); ctx.lineTo(x + 39, GROUND - 14);
+    ctx.lineTo(x + 41, GROUND - 12); ctx.lineTo(x + 43, GROUND - 14); ctx.lineTo(x + 45, GROUND - 12);
+    ctx.lineTo(x + 47, GROUND - 14); ctx.quadraticCurveTo(x + 41, GROUND - 8, x + 35, GROUND - 14);
     ctx.fill();
 
-    // Передняя рука (касается земли)
-    ctx.strokeStyle = "#1a1a1a";
-    ctx.lineWidth = 6;
-    ctx.beginPath();
-    ctx.moveTo(sx, sy - 15);
-    ctx.lineTo(sx + 20, sy + 8);
-    ctx.stroke();
+    ctx.shadowBlur = 15; // Возвращаем ауру
 
-    // Кулак (касается асфальта, генерирует искры)
-    ctx.fillStyle = "#dcdcdc"; // Бледная кожа
-    ctx.beginPath();
-    ctx.arc(sx + 20, sy + 9, 3.5, 0, Math.PI * 2);
-    ctx.fill();
+    // Передняя нога (вытянута вперед для удара/скольжения)
+    ctx.strokeStyle = "#151515"; ctx.lineWidth = 8;
+    ctx.beginPath(); ctx.moveTo(x + 25, GROUND - 10); ctx.lineTo(x + 48, GROUND - 5); ctx.stroke();
+    ctx.fillStyle = "#050505"; // Ботинок
+    ctx.beginPath(); ctx.ellipse(x + 50, GROUND - 4, 6, 3, -0.2, 0, Math.PI * 2); ctx.fill();
+
+    // Передняя рука (ОПИРАЕТСЯ НА ЗЕМЛЮ, ИСКРЫ) - Растет ПРЯМО ОТ ПЛЕЧА
+    const shoulderX = x + 28;
+    const shoulderY = GROUND - 18;
+    const handX = x + 38;
+    const handY = GROUND - 2;
+
+    ctx.strokeStyle = "#1a1a1a"; ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.moveTo(shoulderX, shoulderY); ctx.lineTo(handX, handY); ctx.stroke();
+    ctx.fillStyle = "#dcdcdc"; // Бледная рука
+    ctx.beginPath(); ctx.arc(handX, handY, 3, 0, Math.PI * 2); ctx.fill();
 
   } else {
-    // БЕГ (ДИНАМИЧНЫЙ)
+    // --- ОРГАНИЧНЫЙ БЕГ ---
     const runCycle = worldDistance / 16;
     const legSwing = player.grounded ? Math.sin(runCycle) * 14 : 0;
-    const armSwing = player.grounded ? Math.cos(runCycle) * 12 : 5; // Руки двигаются в противовес
+    const armSwing = player.grounded ? Math.cos(runCycle) * 12 : 6;
     const bobY = player.grounded ? Math.abs(Math.sin(runCycle * 2)) * 3 : 0;
 
-    // Задняя рука (тёмная)
-    ctx.strokeStyle = "#0a0a0a";
-    ctx.lineWidth = 6;
-    ctx.lineCap = "round";
-    ctx.beginPath();
-    ctx.moveTo(x + 18, y + 22 + bobY); // Плечо
-    ctx.lineTo(x + 18 + armSwing, y + 34 + bobY); // Локоть
-    ctx.lineTo(x + 18 + armSwing + 8, y + 26 + bobY); // Предплечье
+    const shoulderX = x + 18;
+    const shoulderY = y + 22 + bobY;
+    const hipX = x + 18;
+    const hipY = y + 43 + bobY;
+
+    // Задняя рука (Сгибается в локте)
+    ctx.strokeStyle = "#080808"; ctx.lineWidth = 6; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(shoulderX, shoulderY); 
+    ctx.lineTo(shoulderX + armSwing, shoulderY + 12); // Локоть
+    ctx.lineTo(shoulderX + armSwing + 8, shoulderY + 4); // Кулак вверх
     ctx.stroke();
+    ctx.fillStyle = "#a9a9a9"; ctx.beginPath(); ctx.arc(shoulderX + armSwing + 8, shoulderY + 4, 3, 0, Math.PI * 2); ctx.fill();
 
-    // Задняя кисть
-    ctx.fillStyle = "#a9a9a9";
-    ctx.beginPath();
-    ctx.arc(x + 18 + armSwing + 8, y + 26 + bobY, 3, 0, Math.PI * 2);
-    ctx.fill();
+    // Задняя нога
+    ctx.strokeStyle = "#080808"; ctx.lineWidth = 8;
+    ctx.beginPath(); ctx.moveTo(hipX, hipY); ctx.lineTo(hipX - legSwing, y + 62); ctx.stroke();
+    ctx.fillStyle = "#000"; ctx.beginPath(); ctx.ellipse(hipX - legSwing + 2, y + 63, 6, 3, 0, 0, Math.PI * 2); ctx.fill();
 
-    // Задняя нога (тёмная)
-    ctx.strokeStyle = "#080808";
-    ctx.lineWidth = 8;
-    ctx.beginPath();
-    ctx.moveTo(x + 18, y + 43 + bobY);
-    ctx.lineTo(x + 18 - legSwing, y + 62);
-    ctx.stroke();
-    ctx.fillStyle = "#000";
-    ctx.beginPath();
-    ctx.ellipse(x + 19 - legSwing, y + 63, 7, 3.5, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Тело (Худи)
+    // Органичное тело (Худи из кривых)
     ctx.fillStyle = "#111";
     ctx.beginPath();
-    ctx.roundRect(x + 4, y + 18 + bobY, 28, 28, 6);
+    ctx.moveTo(x + 10, y + 16 + bobY); // Шея
+    ctx.quadraticCurveTo(x + 4, y + 30 + bobY, x + 8, y + 46 + bobY); // Спина
+    ctx.lineTo(x + 26, y + 46 + bobY); // Низ
+    ctx.quadraticCurveTo(x + 32, y + 30 + bobY, x + 24, y + 16 + bobY); // Грудь
     ctx.fill();
 
-    // Лого "NP"
-    ctx.fillStyle = "#fff";
-    ctx.font = "bold 15px 'Courier New', monospace";
-    ctx.fillText("NP", x + 9, y + 38 + bobY);
+    // Складки
+    ctx.strokeStyle = "#1a1a1a"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x + 12, y + 25 + bobY); ctx.quadraticCurveTo(x + 20, y + 30 + bobY, x + 25, y + 28 + bobY); ctx.stroke();
 
-    // Передняя нога (светлее)
-    ctx.strokeStyle = "#151515";
-    ctx.lineWidth = 8;
-    ctx.beginPath();
-    ctx.moveTo(x + 18, y + 43 + bobY);
-    ctx.lineTo(x + 18 + legSwing, y + 62);
-    ctx.stroke();
-    ctx.fillStyle = "#050505";
-    ctx.beginPath();
-    ctx.ellipse(x + 19 + legSwing, y + 63, 7, 3.5, 0, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.fillStyle = "#fff"; ctx.font = "bold 13px 'Courier New', monospace"; ctx.fillText("NP", x + 10, y + 36 + bobY);
+
+    // Передняя нога
+    ctx.strokeStyle = "#151515"; ctx.lineWidth = 8;
+    ctx.beginPath(); ctx.moveTo(hipX, hipY); ctx.lineTo(hipX + legSwing, y + 62); ctx.stroke();
+    ctx.fillStyle = "#050505"; ctx.beginPath(); ctx.ellipse(hipX + legSwing + 2, y + 63, 6, 3, 0, 0, Math.PI * 2); ctx.fill();
 
     // Капюшон
-    ctx.fillStyle = "#161616";
-    ctx.beginPath();
-    ctx.arc(x + 18, y + 14 + bobY, 15, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.fillStyle = "#161616"; ctx.beginPath(); ctx.arc(x + 18, y + 14 + bobY, 14, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(x + 19, y + 15 + bobY, 11, 0, Math.PI * 2); ctx.fill();
 
     // Лицо
-    ctx.fillStyle = "#000";
-    ctx.beginPath();
-    ctx.arc(x + 18, y + 16 + bobY, 12, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Светящиеся глаза
-    ctx.fillStyle = "#fff";
-    ctx.shadowColor = "#fff";
-    ctx.shadowBlur = 8;
-    ctx.beginPath();
-    ctx.arc(x + 14, y + 13 + bobY, 3, 0, Math.PI * 2);
-    ctx.arc(x + 24, y + 13 + bobY, 3, 0, Math.PI * 2);
-    ctx.fill();
     ctx.shadowBlur = 0;
-
-    // Зубы
     ctx.fillStyle = "#fff";
+    ctx.beginPath(); ctx.arc(x + 15, y + 12 + bobY, 2.5, 0, Math.PI * 2); ctx.arc(x + 23, y + 12 + bobY, 2.5, 0, Math.PI * 2); ctx.fill();
     ctx.beginPath();
-    ctx.moveTo(x + 10, y + 19 + bobY);
-    ctx.lineTo(x + 12, y + 24 + bobY); ctx.lineTo(x + 14, y + 20 + bobY);
-    ctx.lineTo(x + 17, y + 25 + bobY); ctx.lineTo(x + 19, y + 20 + bobY);
-    ctx.lineTo(x + 22, y + 25 + bobY); ctx.lineTo(x + 24, y + 20 + bobY);
-    ctx.lineTo(x + 26, y + 24 + bobY); ctx.lineTo(x + 27, y + 19 + bobY);
-    ctx.quadraticCurveTo(x + 18, y + 30 + bobY, x + 10, y + 19 + bobY);
-    ctx.fill();
+    ctx.moveTo(x + 11, y + 18 + bobY); ctx.lineTo(x + 13, y + 22 + bobY); ctx.lineTo(x + 15, y + 19 + bobY);
+    ctx.lineTo(x + 17, y + 23 + bobY); ctx.lineTo(x + 19, y + 19 + bobY); ctx.lineTo(x + 21, y + 23 + bobY);
+    ctx.lineTo(x + 23, y + 19 + bobY); ctx.lineTo(x + 25, y + 22 + bobY); ctx.lineTo(x + 27, y + 18 + bobY);
+    ctx.quadraticCurveTo(x + 19, y + 28 + bobY, x + 11, y + 18 + bobY); ctx.fill();
+    ctx.shadowBlur = 15;
 
-    // Возвращаем ауру для передней руки
-    ctx.shadowColor = "rgba(180, 220, 255, 0.7)";
-    ctx.shadowBlur = 18;
-
-    // Передняя рука (светлее, согнута)
-    ctx.strokeStyle = "#1a1a1a";
-    ctx.lineWidth = 6;
-    ctx.beginPath();
-    ctx.moveTo(x + 18, y + 22 + bobY); // Плечо
-    ctx.lineTo(x + 18 - armSwing, y + 34 + bobY); // Локоть
-    ctx.lineTo(x + 18 - armSwing + 10, y + 24 + bobY); // Предплечье
+    // Передняя рука
+    ctx.strokeStyle = "#1a1a1a"; ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.moveTo(shoulderX, shoulderY); 
+    ctx.lineTo(shoulderX - armSwing, shoulderY + 12); // Локоть
+    ctx.lineTo(shoulderX - armSwing + 10, shoulderY + 4); // Кулак
     ctx.stroke();
-    ctx.lineCap = "butt";
-
-    // Передняя кисть (кулак)
-    ctx.fillStyle = "#dcdcdc"; // Бледная кожа
-    ctx.beginPath();
-    ctx.arc(x + 18 - armSwing + 10, y + 24 + bobY, 3.5, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.fillStyle = "#dcdcdc"; ctx.beginPath(); ctx.arc(shoulderX - armSwing + 10, shoulderY + 4, 3.5, 0, Math.PI * 2); ctx.fill();
   }
 
   ctx.restore();
 }
 
 // ===============================
-// ПРЕПЯТСТВИЯ
+// ПРЕПЯТСТВИЯ (ДЕТАЛИЗИРОВАННЫЕ)
 // ===============================
 
 function drawObstacles() {
   for (const o of obstacles) {
     ctx.save();
-    ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
+    
+    // Тень
+    ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
     if (o.type !== "drone") {
-      ctx.beginPath();
-      ctx.ellipse(o.x + o.width / 2, GROUND + 2, o.width * 0.4, 3, 0, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.beginPath(); ctx.ellipse(o.x + o.width / 2, GROUND + 2, o.width * 0.4, 4, 0, 0, Math.PI * 2); ctx.fill();
     }
 
     if (o.type === "rock") {
-      const rockGrad = ctx.createLinearGradient(o.x, o.y, o.x + o.width, GROUND);
-      rockGrad.addColorStop(0, "#777"); rockGrad.addColorStop(1, "#3a3a3a");
-      ctx.fillStyle = rockGrad;
+      // Полигональный камень
+      ctx.fillStyle = "#4a4a4a";
       ctx.beginPath();
-      ctx.moveTo(o.x, GROUND); ctx.lineTo(o.x + 5, o.y + 15); ctx.lineTo(o.x + 8, o.y + 8);
-      ctx.lineTo(o.x + 20, o.y); ctx.lineTo(o.x + 28, o.y + 3); ctx.lineTo(o.x + 38, o.y + 10);
-      ctx.lineTo(o.x + o.width, GROUND); ctx.fill();
+      ctx.moveTo(o.x, GROUND); 
+      ctx.lineTo(o.x + 8, o.y + 15); ctx.lineTo(o.x + 15, o.y + 5); 
+      ctx.lineTo(o.x + 25, o.y); ctx.lineTo(o.x + 35, o.y + 8); 
+      ctx.lineTo(o.x + o.width, GROUND);
+      ctx.fill();
+
+      // Освещенная грань
+      ctx.fillStyle = "#666";
+      ctx.beginPath();
+      ctx.moveTo(o.x + 15, o.y + 5); ctx.lineTo(o.x + 25, o.y); ctx.lineTo(o.x + 28, o.y + 15); ctx.lineTo(o.x + 12, GROUND); ctx.fill();
+
+      // Мох/грязь внизу
+      ctx.fillStyle = "#2a3325";
+      ctx.beginPath(); ctx.moveTo(o.x, GROUND); ctx.lineTo(o.x + 10, GROUND - 8); ctx.lineTo(o.x + o.width, GROUND); ctx.fill();
+
     } else if (o.type === "log") {
-      const logGrad = ctx.createLinearGradient(o.x, o.y, o.x, o.y + o.height);
-      logGrad.addColorStop(0, "#5a4536"); logGrad.addColorStop(1, "#2a1f1a");
-      ctx.fillStyle = logGrad;
+      // Бревно с текстурой коры
+      ctx.fillStyle = "#3b2b20";
       const r = o.height / 2;
       ctx.beginPath();
       ctx.moveTo(o.x + r, o.y); ctx.lineTo(o.x + o.width - r, o.y);
       ctx.arc(o.x + o.width - r, o.y + r, r, -Math.PI / 2, Math.PI / 2);
       ctx.lineTo(o.x + r, o.y + o.height); ctx.arc(o.x + r, o.y + r, r, Math.PI / 2, -Math.PI / 2);
       ctx.fill();
-      ctx.strokeStyle = "#1a0f0a"; ctx.beginPath(); ctx.ellipse(o.x + o.width - r, o.y + r, 5, r - 3, 0, 0, Math.PI * 2); ctx.stroke();
-    } else if (o.type === "drone") {
-      const x = o.x, y = o.y, hover = Math.sin(worldDistance * 0.15) * 3;
-      ctx.fillStyle = "rgba(0, 0, 0, 0.2)"; ctx.beginPath(); ctx.ellipse(x + 37, GROUND + 2, 20, 3, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = "#444"; ctx.lineWidth = 3; ctx.beginPath();
-      ctx.moveTo(x + 10, y + 4 + hover); ctx.lineTo(x + 10, y - 5 + hover);
-      ctx.moveTo(x + 64, y + 4 + hover); ctx.lineTo(x + 64, y - 5 + hover); ctx.stroke();
-      const spin = Math.sin(worldDistance / 3) * 14;
-      ctx.strokeStyle = `rgba(180, 200, 220, 0.4)`; ctx.beginPath();
-      ctx.moveTo(x + 10 - spin, y - 5 + hover); ctx.lineTo(x + 10 + spin, y - 5 + hover);
-      ctx.moveTo(x + 64 - spin, y - 5 + hover); ctx.lineTo(x + 64 + spin, y - 5 + hover); ctx.stroke();
-      ctx.fillStyle = "#252b33"; ctx.beginPath(); ctx.ellipse(x + 37, y + 12 + hover, 28, 12, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = "#555"; ctx.stroke();
-      ctx.fillStyle = "#ff2222"; ctx.shadowColor = "#ff0000"; ctx.shadowBlur = 10;
-      ctx.beginPath(); ctx.arc(x + 37, y + 13 + hover, 4, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
-    } else if (o.type === "cactus") {
-      ctx.strokeStyle = "#2e5528"; ctx.lineWidth = 11; ctx.lineCap = "round"; ctx.beginPath();
-      ctx.moveTo(o.x + 16, GROUND); ctx.lineTo(o.x + 16, o.y + 5); ctx.stroke(); ctx.lineWidth = 9; ctx.beginPath();
-      ctx.moveTo(o.x + 16, o.y + 30); ctx.lineTo(o.x + 5, o.y + 30); ctx.lineTo(o.x + 5, o.y + 17); ctx.stroke(); ctx.beginPath();
-      ctx.moveTo(o.x + 16, o.y + 40); ctx.lineTo(o.x + 28, o.y + 40); ctx.lineTo(o.x + 28, o.y + 25); ctx.stroke(); ctx.lineCap = "butt";
-    } else if (o.type === "spikes") {
-      const count = 5, spikeWidth = o.width / count;
-      for (let i = 0; i < count; i++) {
-        const sx = o.x + i * spikeWidth, spikeGrad = ctx.createLinearGradient(sx, o.y, sx, GROUND);
-        spikeGrad.addColorStop(0, "#999"); spikeGrad.addColorStop(1, "#333");
-        ctx.fillStyle = spikeGrad; ctx.beginPath(); ctx.moveTo(sx + 1, GROUND);
-        ctx.lineTo(sx + spikeWidth / 2, o.y); ctx.lineTo(sx + spikeWidth - 1, GROUND); ctx.fill();
+
+      // Извилистая кора
+      ctx.strokeStyle = "#1a120c"; ctx.lineWidth = 1.5;
+      for(let i=0; i<3; i++) {
+        ctx.beginPath(); ctx.moveTo(o.x + 15, o.y + 6 + i*6); 
+        ctx.quadraticCurveTo(o.x + o.width/2, o.y + 2 + i*6, o.x + o.width - 15, o.y + 8 + i*6); ctx.stroke();
       }
-      ctx.fillStyle = "#222"; ctx.fillRect(o.x, GROUND - 4, o.width, 4);
+
+      // Спил (светлый круг)
+      ctx.fillStyle = "#7a5c40"; ctx.beginPath(); ctx.ellipse(o.x + o.width - r, o.y + r, 4, r - 2, 0, 0, Math.PI * 2); ctx.fill();
+
+    } else if (o.type === "drone") {
+      // Sci-fi дрон
+      const x = o.x, y = o.y, hover = Math.sin(worldDistance * 0.15) * 4;
+      
+      // Сканирующий лазер (красный конус)
+      ctx.globalCompositeOperation = "lighter";
+      const laserGrad = ctx.createLinearGradient(x + 30, y + 15 + hover, x + 30, GROUND);
+      laserGrad.addColorStop(0, "rgba(255, 0, 0, 0.4)");
+      laserGrad.addColorStop(1, "rgba(255, 0, 0, 0)");
+      ctx.fillStyle = laserGrad;
+      ctx.beginPath(); ctx.moveTo(x + 30, y + 15 + hover); ctx.lineTo(x - 20, GROUND); ctx.lineTo(x + 80, GROUND); ctx.fill();
+      ctx.globalCompositeOperation = "source-over";
+
+      // Шасси
+      ctx.strokeStyle = "#333"; ctx.lineWidth = 3; ctx.beginPath();
+      ctx.moveTo(x + 10, y + hover); ctx.lineTo(x + 10, y - 5 + hover);
+      ctx.moveTo(x + 50, y + hover); ctx.lineTo(x + 50, y - 5 + hover); ctx.stroke();
+
+      // Роторы (размытие)
+      const spin = Math.sin(worldDistance) * 12;
+      ctx.strokeStyle = "rgba(150, 200, 255, 0.5)"; ctx.lineWidth = 2; ctx.beginPath();
+      ctx.moveTo(x + 10 - spin, y - 5 + hover); ctx.lineTo(x + 10 + spin, y - 5 + hover);
+      ctx.moveTo(x + 50 - spin, y - 5 + hover); ctx.lineTo(x + 50 + spin, y - 5 + hover); ctx.stroke();
+
+      // Корпус
+      ctx.fillStyle = "#1a202c"; ctx.beginPath(); ctx.ellipse(x + 30, y + 10 + hover, 24, 10, 0, 0, Math.PI * 2); ctx.fill();
+      
+      // Неоновый "глаз" дрона
+      ctx.fillStyle = "#ff0033"; ctx.shadowColor = "#ff0000"; ctx.shadowBlur = 15;
+      ctx.beginPath(); ctx.arc(x + 30, y + 12 + hover, 4, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowBlur = 0;
+
+    } else if (o.type === "spikes") {
+      // 3D Металлические шипы
+      const count = 4, w = o.width / count;
+      for (let i = 0; i < count; i++) {
+        const sx = o.x + i * w;
+        // Левая светлая грань
+        ctx.fillStyle = "#9ba4b5"; ctx.beginPath(); ctx.moveTo(sx, GROUND); ctx.lineTo(sx + w/2, o.y); ctx.lineTo(sx + w/2, GROUND); ctx.fill();
+        // Правая темная грань
+        ctx.fillStyle = "#4a5363"; ctx.beginPath(); ctx.moveTo(sx + w/2, o.y); ctx.lineTo(sx + w, GROUND); ctx.lineTo(sx + w/2, GROUND); ctx.fill();
+        // Кровь/Ржавчина на кончике
+        ctx.fillStyle = "#8b0000"; ctx.beginPath(); ctx.moveTo(sx + w/2, o.y); ctx.lineTo(sx + w/2 - 2, o.y + 6); ctx.lineTo(sx + w/2 + 2, o.y + 8); ctx.fill();
+      }
+      ctx.fillStyle = "#111"; ctx.fillRect(o.x, GROUND - 4, o.width, 4); // База
+
     } else if (o.type === "stump") {
-      ctx.fillStyle = "#4a2a18"; ctx.fillRect(o.x + 5, o.y + 8, o.width - 10, o.height - 8);
-      ctx.fillStyle = "#8a6038"; ctx.beginPath(); ctx.ellipse(o.x + o.width / 2, o.y + 8, o.width / 2, 9, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = "#362014"; ctx.stroke();
+      // Пень с корнями
+      ctx.fillStyle = "#2c1e16"; ctx.fillRect(o.x + 5, o.y + 8, o.width - 10, o.height - 8);
+      // Корни
+      ctx.beginPath(); ctx.moveTo(o.x + 5, GROUND - 10); ctx.lineTo(o.x - 5, GROUND); ctx.lineTo(o.x + 10, GROUND); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(o.x + o.width - 5, GROUND - 10); ctx.lineTo(o.x + o.width + 5, GROUND); ctx.lineTo(o.x + o.width - 10, GROUND); ctx.fill();
+      // Спил
+      ctx.fillStyle = "#6b4931"; ctx.beginPath(); ctx.ellipse(o.x + o.width / 2, o.y + 8, o.width / 2, 8, 0, 0, Math.PI * 2); ctx.fill();
+      // Трещина
+      ctx.strokeStyle = "#1a0f08"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(o.x + o.width/2, o.y + 8); ctx.lineTo(o.x + o.width/2 + 10, o.y + 12); ctx.stroke();
     }
     ctx.restore();
   }
@@ -745,31 +683,28 @@ function drawObstacles() {
 function drawParticles() {
   for (const p of dustParticles) {
     ctx.fillStyle = p.color + (p.life / p.maxLife) * 0.8 + ")";
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, p.size * (p.life / p.maxLife), 0, Math.PI * 2);
-    ctx.fill();
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.size * (p.life / p.maxLife), 0, Math.PI * 2); ctx.fill();
   }
   for (const p of particles) {
     ctx.globalAlpha = p.life / p.maxLife;
     ctx.fillStyle = p.color;
+    // Осколки вращаются (случайный квадрат)
     ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
   }
   ctx.globalAlpha = 1;
 }
 
 function drawPostEffects() {
-  const vigGrad = ctx.createRadialGradient(W / 2, H / 2, W * 0.4, W / 2, H / 2, W * 0.8);
+  const vigGrad = ctx.createRadialGradient(W / 2, H / 2, W * 0.3, W / 2, H / 2, W * 0.85);
   vigGrad.addColorStop(0, "rgba(0,0,0,0)");
-  vigGrad.addColorStop(1, "rgba(0,0,0,0.6)");
-  ctx.fillStyle = vigGrad;
-  ctx.fillRect(0, 0, W, H);
+  vigGrad.addColorStop(1, "rgba(0,0,0,0.7)");
+  ctx.fillStyle = vigGrad; ctx.fillRect(0, 0, W, H);
 
   if (deathFlash > 0) {
-    ctx.fillStyle = `rgba(200, 0, 0, ${deathFlash * 1.5})`;
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = `rgba(255, 0, 0, ${deathFlash * 1.5})`; ctx.fillRect(0, 0, W, H);
   }
 
-  ctx.fillStyle = "rgba(0, 0, 0, 0.04)";
+  ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
   for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 1);
 }
 
@@ -808,13 +743,13 @@ function loop(timestamp) {
 }
 
 // ===============================
-// КЛАВИАТУРА И ТАЧ
+// УПРАВЛЕНИЕ
 // ===============================
 
 document.addEventListener("keydown", e => {
   if (!["Space", "ArrowUp", "ArrowDown"].includes(e.code)) return;
   e.preventDefault();
-  if (!running) { startGame(); return; }
+  if (!running && !isDead) { startGame(); return; } // Можно запустить, только если анимация смерти закончилась или игра не начата
   if (e.code === "ArrowDown") slide();
   else if (!e.repeat) jump();
 });
