@@ -13,7 +13,7 @@ const slideButton = document.getElementById("slideButton");
 
 const W = canvas.width;
 const H = canvas.height;
-const GROUND = 290;
+const GROUND = 370;
 
 const GRAVITY = 1550;
 const JUMP_FORCE = -620;
