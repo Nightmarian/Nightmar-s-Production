@@ -130,3 +130,16 @@ canvas {
     font-size: 10px;
   }
 }
+
+.game-wrapper {
+  border: 2px solid #444;
+  border-radius: 6px;
+}
+
+canvas {
+  touch-action: none;
+}
+
+.game-info strong {
+  color: #ff4444;
+}
