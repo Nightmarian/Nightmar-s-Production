@@ -1,5 +1,7 @@
 /* NIGHTMAR CHAT */
 
+@import url("fonts.css");
+
 .chat-page {
   width: 100%;
   max-width: 900px;
@@ -165,7 +167,17 @@
   50%, 100% { opacity: 0.3; }
 }
 
+/* Единый моноширинный шрифт чата */
 
+.chat-header,
+.chat-message-header,
+.chat-username,
+.system-message,
+.chat-warning,
+.chat-form label,
+.message-row button {
+  font-family: "NP Courier", "Courier New", monospace;
+}
 
 
 
