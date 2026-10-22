@@ -2,6 +2,8 @@
    NIGHTMAR'S PRODUCTION — НАВИГАЦИЯ
 ===================================== */
 
+@import url("fonts.css");
+
 .np-header {
   width: 100%;
   min-height: 70px;
@@ -18,7 +20,7 @@
   position: relative;
   z-index: 1000;
 
-  font-family: "Courier New", monospace;
+  font-family: "NP Courier", "Courier New", monospace;
 }
 
 .np-brand {
