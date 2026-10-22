@@ -227,8 +227,8 @@ function gameOver() {
     bestElement.textContent = String(best).padStart(5, "0");
   }
   overlayTitle.textContent = "SYSTEM FAILURE";
-  overlayText.textContent = `SCORE: ${result}`;
-  startButton.textContent = "REBOOT";
+  overlayText.textContent = `Ваш результат: ${result}`;
+  startButton.textContent = "Попробовать снова";
   setTimeout(() => overlay.classList.remove("hidden"), 800);
 }
 
