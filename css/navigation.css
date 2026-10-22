@@ -127,3 +127,13 @@
     color: #fff;
   }
 }
+
+/* Единый шрифт навигации на ПК и телефоне */
+
+.np-header,
+.np-brand,
+.np-navigation,
+.np-navigation a,
+.np-menu-toggle {
+  font-family: "NP Courier", "Courier New", monospace;
+}
