@@ -19,7 +19,7 @@ document.addEventListener("DOMContentLoaded", () => {
     },
     {
       title: "ОБЕЗОПАСИТЬ И СОХРАНИТЬ",
-      url: "development.html"
+      url: "decode.html"
     },
     {
       title: "РАЗВЛЕЧЬСЯ",
