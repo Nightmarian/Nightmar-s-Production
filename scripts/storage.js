@@ -3,42 +3,89 @@
 
   // ======================================
   // NIGHTMAR STORAGE
-  // FRONTEND ALPHA 2.2
+  // FRONTEND ALPHA 3.0
+  // SUPABASE DYNAMIC ENDPOINT
   // ======================================
 
   const config = window.NP_STORAGE_CONFIG || {};
 
-  const API = (config.apiUrl || "").replace(/\/+$/, "");
+  const SUPABASE_URL = (
+    config.supabaseUrl || ""
+  ).replace(/\/+$/, "");
 
-  const STATUS_INTERVAL = config.statusInterval || 15000;
+  const SUPABASE_KEY =
+    config.supabaseKey || "";
 
-  const REQUEST_TIMEOUT = config.requestTimeout || 5000;
+  const ENDPOINT_TABLE =
+    config.endpointTable || "storage_endpoint";
 
-  const JOB_INTERVAL = config.jobInterval || 3000;
+  const STATUS_INTERVAL =
+    config.statusInterval || 15000;
 
-  const STORAGE_KEY = "np_storage_active_job_v1";
+  const ENDPOINT_INTERVAL =
+    config.endpointInterval || 15000;
+
+  const REQUEST_TIMEOUT =
+    config.requestTimeout || 5000;
+
+  const JOB_INTERVAL =
+    config.jobInterval || 3000;
+
+  const STORAGE_KEY =
+    "np_storage_active_job_v1";
+
+
+  // ======================================
+  // ELEMENTS
+  // ======================================
 
   const elements = {
-    status: document.getElementById("storage-status"),
-    statusText: document.getElementById("storage-status-text"),
-    message: document.getElementById("storage-server-message"),
 
-    active: document.getElementById("storage-active"),
-    queue: document.getElementById("storage-queue"),
-    lastCheck: document.getElementById("storage-last-check"),
+    status:
+      document.getElementById("storage-status"),
 
-    files: document.getElementById("storage-files"),
-    count: document.getElementById("storage-count"),
+    statusText:
+      document.getElementById("storage-status-text"),
 
-    task: document.getElementById("storage-task"),
-    taskState: document.getElementById("storage-task-state"),
-    taskFilename: document.getElementById("storage-task-filename"),
+    message:
+      document.getElementById("storage-server-message"),
 
-    progressBar: document.getElementById("storage-progress-bar"),
-    progressText: document.getElementById("storage-progress-text"),
-    progressPercent: document.getElementById("storage-progress-percent"),
+    active:
+      document.getElementById("storage-active"),
 
-    taskActions: document.getElementById("storage-task-actions")
+    queue:
+      document.getElementById("storage-queue"),
+
+    lastCheck:
+      document.getElementById("storage-last-check"),
+
+    files:
+      document.getElementById("storage-files"),
+
+    count:
+      document.getElementById("storage-count"),
+
+    task:
+      document.getElementById("storage-task"),
+
+    taskState:
+      document.getElementById("storage-task-state"),
+
+    taskFilename:
+      document.getElementById("storage-task-filename"),
+
+    progressBar:
+      document.getElementById("storage-progress-bar"),
+
+    progressText:
+      document.getElementById("storage-progress-text"),
+
+    progressPercent:
+      document.getElementById("storage-progress-percent"),
+
+    taskActions:
+      document.getElementById("storage-task-actions")
+
   };
 
 
@@ -46,17 +93,146 @@
   // STATE
   // ======================================
 
+  let API = "";
+
   let serverOnline = false;
 
   let currentJob = null;
 
   let statusChecking = false;
 
+  let endpointChecking = false;
+
   let jobChecking = false;
 
   let filesLoaded = false;
 
   let connectionErrors = 0;
+
+  let sessionRestored = false;
+
+
+  // ======================================
+  // ENDPOINT VALIDATION
+  // ======================================
+
+  function validateEndpoint(value) {
+
+    if (
+      !value ||
+      typeof value !== "string"
+    ) {
+      return "";
+    }
+
+    try {
+
+      const url = new URL(value);
+
+      if (
+        url.protocol !== "https:" ||
+        !url.hostname.endsWith(
+          ".trycloudflare.com"
+        ) ||
+        url.pathname !== "/" ||
+        url.search ||
+        url.hash ||
+        url.username ||
+        url.password
+      ) {
+
+        return "";
+
+      }
+
+      return url.origin;
+
+    } catch {
+
+      return "";
+
+    }
+
+  }
+
+
+  // ======================================
+  // SUPABASE ENDPOINT
+  // ======================================
+
+  async function fetchEndpoint() {
+
+    if (
+      !SUPABASE_URL ||
+      !SUPABASE_KEY
+    ) {
+
+      throw new Error(
+        "SUPABASE_NOT_CONFIGURED"
+      );
+
+    }
+
+    const url =
+      SUPABASE_URL +
+      "/rest/v1/" +
+      ENDPOINT_TABLE +
+      "?id=eq.1&select=api_url,updated_at";
+
+    const controller =
+      new AbortController();
+
+    const timeout = setTimeout(
+      () => controller.abort(),
+      REQUEST_TIMEOUT
+    );
+
+    try {
+
+      const response = await fetch(
+        url,
+        {
+          headers: {
+            apikey: SUPABASE_KEY
+          },
+
+          signal: controller.signal,
+
+          cache: "no-store"
+        }
+      );
+
+      if (!response.ok) {
+
+        throw new Error(
+          `SUPABASE_HTTP_${response.status}`
+        );
+
+      }
+
+      const rows =
+        await response.json();
+
+      if (
+        !Array.isArray(rows) ||
+        rows.length === 0
+      ) {
+
+        return "";
+
+      }
+
+      return validateEndpoint(
+        rows[0].api_url
+      );
+
+    } finally {
+
+      clearTimeout(timeout);
+
+    }
+
+  }
 
 
   // ======================================
@@ -78,7 +254,7 @@
     } catch (error) {
 
       console.warn(
-        "[STORAGE] Cannot save job:",
+        "[STORAGE] Save failed:",
         error
       );
 
@@ -91,9 +267,10 @@
 
     try {
 
-      const raw = localStorage.getItem(
-        STORAGE_KEY
-      );
+      const raw =
+        localStorage.getItem(
+          STORAGE_KEY
+        );
 
       if (!raw) {
         return null;
@@ -105,19 +282,21 @@
         !job ||
         typeof job.id !== "string" ||
         !/^[a-f0-9]{32}$/.test(job.id) ||
-        job.apiUrl !== API
+        typeof job.apiUrl !== "string"
       ) {
 
         clearSavedJob();
+
         return null;
 
       }
 
       return job;
 
-    } catch (error) {
+    } catch {
 
       clearSavedJob();
+
       return null;
 
     }
@@ -136,7 +315,7 @@
     } catch (error) {
 
       console.warn(
-        "[STORAGE] Cannot clear job:",
+        "[STORAGE] Clear failed:",
         error
       );
 
@@ -146,72 +325,7 @@
 
 
   // ======================================
-  // HTTP
-  // ======================================
-
-  async function apiRequest(path, options = {}) {
-
-    if (!API) {
-      throw new Error("API_NOT_CONFIGURED");
-    }
-
-    const controller = new AbortController();
-
-    const timeout = setTimeout(
-      () => controller.abort(),
-      REQUEST_TIMEOUT
-    );
-
-    try {
-
-      const response = await fetch(
-        API + path,
-        {
-          ...options,
-          signal: controller.signal,
-          cache: "no-store"
-        }
-      );
-
-      let data;
-
-      try {
-
-        data = await response.json();
-
-      } catch {
-
-        throw new Error(
-          "Некорректный ответ сервера"
-        );
-
-      }
-
-      if (!response.ok) {
-
-        const error = new Error(
-          data.error || `HTTP ${response.status}`
-        );
-
-        error.status = response.status;
-
-        throw error;
-
-      }
-
-      return data;
-
-    } finally {
-
-      clearTimeout(timeout);
-
-    }
-
-  }
-
-
-  // ======================================
-  // SERVER STATUS
+  // STATUS DISPLAY
   // ======================================
 
   function setStatus(state, message) {
@@ -243,15 +357,14 @@
   }
 
 
-  function setOffline() {
+  function setOffline(message) {
 
     serverOnline = false;
 
     setStatus(
       "offline",
-      API
-        ? "Сервер недоступен. Возможно, ноутбук выключен или соединение прервано."
-        : "Публичное подключение ещё не настроено. Хранилище временно недоступно."
+      message ||
+      "Сервер недоступен. Возможно, ноутбук выключен."
     );
 
     elements.active.textContent =
@@ -265,10 +378,201 @@
   }
 
 
+  // ======================================
+  // API REQUEST
+  // ======================================
+
+  async function apiRequest(
+    path,
+    options = {}
+  ) {
+
+    if (!API) {
+
+      throw new Error(
+        "API_NOT_CONFIGURED"
+      );
+
+    }
+
+    const requestAPI = API;
+
+    const controller =
+      new AbortController();
+
+    const timeout = setTimeout(
+      () => controller.abort(),
+      REQUEST_TIMEOUT
+    );
+
+    try {
+
+      const response = await fetch(
+        requestAPI + path,
+        {
+          ...options,
+
+          signal: controller.signal,
+
+          cache: "no-store"
+        }
+      );
+
+      let data;
+
+      try {
+
+        data = await response.json();
+
+      } catch {
+
+        throw new Error(
+          "Некорректный ответ сервера"
+        );
+
+      }
+
+      if (!response.ok) {
+
+        const error = new Error(
+          data.error ||
+          `HTTP ${response.status}`
+        );
+
+        error.status =
+          response.status;
+
+        throw error;
+
+      }
+
+      return data;
+
+    } finally {
+
+      clearTimeout(timeout);
+
+    }
+
+  }
+
+
+  // ======================================
+  // ENDPOINT REFRESH
+  // ======================================
+
+  async function refreshEndpoint() {
+
+    if (endpointChecking) {
+      return;
+    }
+
+    endpointChecking = true;
+
+    try {
+
+      const newAPI =
+        await fetchEndpoint();
+
+      if (newAPI === API) {
+
+        return;
+
+      }
+
+      console.log(
+        "[STORAGE] Endpoint changed:",
+        newAPI || "OFFLINE"
+      );
+
+      API = newAPI;
+
+      serverOnline = false;
+
+      filesLoaded = false;
+
+      connectionErrors = 0;
+
+      setOffline(
+        API
+          ? "Подключаемся к серверу..."
+          : "Сервер выключен. Nightmar Storage временно недоступен."
+      );
+
+      if (!API) {
+
+        return;
+
+      }
+
+      // Старый сервер после перезапуска
+      // не хранит прежние задания.
+
+      if (
+        currentJob &&
+        currentJob.apiUrl &&
+        currentJob.apiUrl !== API
+      ) {
+
+        currentJob = null;
+
+        clearSavedJob();
+
+        elements.task.hidden = true;
+
+      }
+
+      await checkStatus();
+
+      if (!sessionRestored) {
+
+        sessionRestored = true;
+
+        await restoreSession();
+
+      }
+
+    } catch (error) {
+
+      console.warn(
+        "[STORAGE] Supabase unavailable:",
+        error
+      );
+
+      // При временном сбое Supabase
+      // не удаляем рабочий адрес API.
+      // Текущую задачу тоже сохраняем.
+
+      if (!API) {
+
+        setOffline(
+          "Не удалось получить адрес сервера из Supabase."
+        );
+
+      }
+
+    } finally {
+
+      endpointChecking = false;
+
+    }
+
+  }
+
+
+  // ======================================
+  // SERVER STATUS
+  // ======================================
+
   async function checkStatus() {
 
-    if (statusChecking) {
+    if (
+      statusChecking ||
+      !API
+    ) {
+
       return;
+
     }
 
     statusChecking = true;
@@ -303,18 +607,21 @@
       elements.queue.textContent =
         `QUEUE: ${queued}`;
 
-      if (active > 0 || queued > 0) {
+      if (
+        active > 0 ||
+        queued > 0
+      ) {
 
         setStatus(
           "busy",
-          "Сервер работает. Сейчас выполняется восстановление файла."
+          "Сервер работает. Выполняется восстановление файла."
         );
 
       } else {
 
         setStatus(
           "online",
-          "Сервер доступен. Можно запросить восстановление файла."
+          "Сервер доступен. Можно восстанавливать файлы."
         );
 
       }
@@ -323,20 +630,9 @@
 
       if (!filesLoaded) {
 
-        try {
+        await loadFiles();
 
-          await loadFiles();
-
-          filesLoaded = true;
-
-        } catch (error) {
-
-          console.warn(
-            "[STORAGE] Catalog unavailable:",
-            error
-          );
-
-        }
+        filesLoaded = true;
 
       }
 
@@ -350,7 +646,9 @@
 
       elements.lastCheck.textContent =
         "LAST CHECK: " +
-        new Date().toLocaleTimeString("ru-RU");
+        new Date().toLocaleTimeString(
+          "ru-RU"
+        );
 
       statusChecking = false;
 
@@ -379,9 +677,8 @@
       data.files.length === 0
     ) {
 
-      const empty = document.createElement(
-        "div"
-      );
+      const empty =
+        document.createElement("div");
 
       empty.className =
         "storage-placeholder";
@@ -389,7 +686,9 @@
       empty.textContent =
         "В каталоге пока нет файлов.";
 
-      elements.files.appendChild(empty);
+      elements.files.appendChild(
+        empty
+      );
 
       return;
 
@@ -410,42 +709,38 @@
 
   function createFileCard(file) {
 
-    const card = document.createElement(
-      "div"
-    );
+    const card =
+      document.createElement("div");
 
-    card.className = "storage-file";
+    card.className =
+      "storage-file";
 
+    const info =
+      document.createElement("div");
 
-    const info = document.createElement(
-      "div"
-    );
+    info.className =
+      "storage-file-info";
 
-    info.className = "storage-file-info";
+    const name =
+      document.createElement("div");
 
+    name.className =
+      "storage-file-name";
 
-    const name = document.createElement(
-      "div"
-    );
+    name.textContent =
+      file.name;
 
-    name.className = "storage-file-name";
+    const meta =
+      document.createElement("div");
 
-    name.textContent = file.name;
-
-
-    const meta = document.createElement(
-      "div"
-    );
-
-    meta.className = "storage-file-meta";
+    meta.className =
+      "storage-file-meta";
 
     meta.textContent =
       `${file.type} / ${file.size}`;
 
-
-    const description = document.createElement(
-      "div"
-    );
+    const description =
+      document.createElement("div");
 
     description.className =
       "storage-file-description";
@@ -453,12 +748,11 @@
     description.textContent =
       file.description || "";
 
+    const button =
+      document.createElement("button");
 
-    const button = document.createElement(
-      "button"
-    );
-
-    button.className = "storage-button";
+    button.className =
+      "storage-button";
 
     button.textContent =
       "ВОССТАНОВИТЬ И СКАЧАТЬ";
@@ -467,7 +761,6 @@
       "click",
       () => startRestore(file)
     );
-
 
     info.append(
       name,
@@ -494,7 +787,8 @@
     elements.task.hidden = false;
 
     elements.taskFilename.textContent =
-      filename || "Восстановление файла";
+      filename ||
+      "Восстановление файла";
 
     elements.taskActions.replaceChildren();
 
@@ -516,7 +810,7 @@
     );
 
     elements.taskState.textContent =
-      status.toUpperCase();
+      String(status).toUpperCase();
 
     elements.progressBar.style.width =
       `${percent}%`;
@@ -536,7 +830,11 @@
 
   async function startRestore(file) {
 
-    if (!serverOnline || currentJob) {
+    if (
+      !serverOnline ||
+      currentJob ||
+      !API
+    ) {
       return;
     }
 
@@ -558,7 +856,9 @@
     try {
 
       const data = await apiRequest(
-        `/api/restore/${encodeURIComponent(file.id)}`,
+        `/api/restore/${encodeURIComponent(
+          file.id
+        )}`,
         {
           method: "POST"
         }
@@ -574,7 +874,8 @@
 
       currentJob = {
         id: data.job_id,
-        filename: file.name
+        filename: file.name,
+        apiUrl: API
       };
 
       saveJob(currentJob);
@@ -582,10 +883,6 @@
       await pollJob();
 
     } catch (error) {
-
-      // Если запрос потерялся, сервер всё ещё
-      // мог принять задачу. Поэтому не обещаем,
-      // что восстановление не началось.
 
       showTaskError(
         error.message,
@@ -606,26 +903,31 @@
     if (
       !currentJob ||
       !currentJob.id ||
-      jobChecking
+      jobChecking ||
+      !API
     ) {
-
       return;
-
     }
 
     jobChecking = true;
 
-    const jobId = currentJob.id;
+    const jobId =
+      currentJob.id;
 
     try {
 
       const data = await apiRequest(
-        `/api/job/${encodeURIComponent(jobId)}`
+        `/api/job/${encodeURIComponent(
+          jobId
+        )}`
       );
 
       connectionErrors = 0;
 
-      if (!currentJob || currentJob.id !== jobId) {
+      if (
+        !currentJob ||
+        currentJob.id !== jobId
+      ) {
         return;
       }
 
@@ -635,7 +937,9 @@
         data.message
       );
 
-      if (data.status === "completed") {
+      if (
+        data.status === "completed"
+      ) {
 
         showDownload(data);
 
@@ -643,10 +947,13 @@
 
       }
 
-      if (data.status === "failed") {
+      if (
+        data.status === "failed"
+      ) {
 
         showTaskError(
-          data.message || "Ошибка восстановления",
+          data.message ||
+          "Ошибка восстановления",
           false
         );
 
@@ -656,7 +963,9 @@
 
     } catch (error) {
 
-      if (error.status === 404) {
+      if (
+        error.status === 404
+      ) {
 
         showTaskError(
           "Задача больше не существует на сервере. Возможно, сервер был перезапущен.",
@@ -673,12 +982,11 @@
         "RECONNECTING";
 
       elements.progressText.textContent =
-        "Соединение потеряно. Пытаемся подключиться снова...";
+        "Соединение потеряно. Повторное подключение...";
 
-      // Не удаляем job_id.
-      // Сервер может продолжать восстановление.
-
-      if (connectionErrors >= 2) {
+      if (
+        connectionErrors >= 2
+      ) {
 
         setOffline();
 
@@ -703,11 +1011,6 @@
       return;
     }
 
-    // Сохраняем завершённую задачу.
-    // После обновления страницы кнопка
-    // скачивания появится снова, если файл
-    // ещё хранится на сервере.
-
     currentJob.completed = true;
 
     saveJob(currentJob);
@@ -718,9 +1021,8 @@
       "Файл успешно восстановлен"
     );
 
-    const link = document.createElement(
-      "a"
-    );
+    const link =
+      document.createElement("a");
 
     link.className =
       "storage-download";
@@ -769,18 +1071,30 @@
 
 
   // ======================================
-  // RESTORE SAVED SESSION
+  // RESTORE SESSION
   // ======================================
 
   async function restoreSession() {
 
-    const savedJob = loadSavedJob();
+    const savedJob =
+      loadSavedJob();
 
     if (!savedJob) {
       return;
     }
 
-    currentJob = savedJob;
+    if (
+      savedJob.apiUrl !== API
+    ) {
+
+      clearSavedJob();
+
+      return;
+
+    }
+
+    currentJob =
+      savedJob;
 
     showTask(
       savedJob.filename
@@ -805,29 +1119,11 @@
 
   async function initialize() {
 
-    if (!API) {
+    setOffline(
+      "Поиск сервера Nightmar Storage..."
+    );
 
-      elements.files.replaceChildren();
-
-      const placeholder = document.createElement(
-        "div"
-      );
-
-      placeholder.className =
-        "storage-placeholder";
-
-      placeholder.textContent =
-        "Каталог недоступен: сервер не подключён.";
-
-      elements.files.appendChild(
-        placeholder
-      );
-
-    }
-
-    await restoreSession();
-
-    await checkStatus();
+    await refreshEndpoint();
 
   }
 
@@ -840,10 +1136,14 @@
   // ======================================
 
   setInterval(
+    refreshEndpoint,
+    ENDPOINT_INTERVAL
+  );
+
+  setInterval(
     checkStatus,
     STATUS_INTERVAL
   );
-
 
   setInterval(
     pollJob,
@@ -859,6 +1159,8 @@
     "online",
     () => {
 
+      refreshEndpoint();
+
       checkStatus();
 
       pollJob();
@@ -872,6 +1174,8 @@
     () => {
 
       if (!document.hidden) {
+
+        refreshEndpoint();
 
         checkStatus();
 
