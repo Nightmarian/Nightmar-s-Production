@@ -363,3 +363,103 @@ body {
     font-size: 11px;
   }
 }
+
+/* ======================================
+   STORAGE TEXT READABILITY
+   ====================================== */
+
+.storage-system {
+  font-size: 13px;
+}
+
+.storage-subtitle {
+  font-size: 16px;
+}
+
+.storage-label {
+  font-size: 13px;
+}
+
+.storage-server-info {
+  font-size: 13px;
+}
+
+.storage-server-message {
+  font-size: 15px;
+}
+
+.storage-last-check {
+  font-size: 12px;
+}
+
+.storage-section-title {
+  font-size: 15px;
+}
+
+.storage-file-name {
+  font-size: 18px;
+}
+
+.storage-file-meta,
+.storage-file-description {
+  font-size: 14px;
+}
+
+.storage-button,
+.storage-download {
+  font-size: 14px;
+}
+
+.storage-placeholder {
+  font-size: 15px;
+}
+
+.storage-progress-info {
+  font-size: 14px;
+}
+
+.storage-warning {
+  font-size: 14px;
+}
+
+.storage-back {
+  font-size: 14px;
+}
+
+.storage-footer {
+  font-size: 13px;
+}
+
+/* Телефоны */
+
+@media (max-width: 650px) {
+
+  .storage-system {
+    font-size: 11px;
+  }
+
+  .storage-subtitle {
+    font-size: 14px;
+  }
+
+  .storage-section-title {
+    font-size: 13px;
+  }
+
+  .storage-server-info {
+    font-size: 12px;
+  }
+
+  .storage-server-message {
+    font-size: 14px;
+  }
+
+  .storage-file-name {
+    font-size: 16px;
+  }
+
+  .storage-warning {
+    font-size: 13px;
+  }
+
+}
