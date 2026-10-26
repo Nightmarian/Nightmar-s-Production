@@ -463,3 +463,52 @@ body {
   }
 
 }
+
+/* ======================================
+   NIGHTMAR STORAGE SMART CACHE
+   ALPHA 3.2
+====================================== */
+
+.storage-cache-status {
+    margin-top: 14px;
+    font-size: 15px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+.storage-cache-status.completed {
+    color: #43d17c;
+}
+
+.storage-cache-status.processing {
+    color: #f1c75b;
+}
+
+.storage-cache-status.queued {
+    color: #e99548;
+}
+
+.storage-cache-status.available {
+    color: #999;
+}
+
+.storage-cache-message {
+    margin-top: 7px;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #aaa;
+}
+
+.storage-file {
+    align-items: center;
+}
+
+@media (max-width: 700px) {
+    .storage-cache-status {
+        font-size: 14px;
+    }
+
+    .storage-cache-message {
+        font-size: 13px;
+    }
+}
