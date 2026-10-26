@@ -1,5 +1,5 @@
 window.NP_STORAGE_CONFIG = {
-  apiUrl: "",
+  apiUrl: "https://oxide-algorithms-moreover-dive.trycloudflare.com",
 
   statusInterval: 15000,
 
