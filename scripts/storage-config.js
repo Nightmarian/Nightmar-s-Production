@@ -1,9 +1,21 @@
+// NIGHTMAR STORAGE
+// Dynamic API configuration via Supabase
+
 window.NP_STORAGE_CONFIG = {
-  apiUrl: "https://oxide-algorithms-moreover-dive.trycloudflare.com",
 
-  statusInterval: 15000,
+    // Supabase
+    supabaseUrl: "https://ipyqydrqctziltcuboop.supabase.co",
 
-  requestTimeout: 5000,
+    // Public browser key (NOT a secret)
+    supabaseKey: "sb_publishable_0PNw-wO6K1oMyb8XhLhgpA_GoXJivQV",
 
-  jobInterval: 3000
+    // Supabase table
+    endpointTable: "storage_endpoint",
+
+    // Intervals (milliseconds)
+    statusInterval: 15000,
+    endpointInterval: 15000,
+    requestTimeout: 5000,
+    jobInterval: 3000
+
 };
