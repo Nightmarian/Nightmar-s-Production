@@ -4,156 +4,142 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
-<link rel="stylesheet" href="css/navigation.css">
-<script src="scripts/navigation.js" defer></script>
-  
-  <title>В разработке | Nightmar's Production</title>
 
-  <style>
-    * {
-      box-sizing: border-box;
-    }
+  <title>Nightmar Storage | Nightmar's Production</title>
 
-  body {
-  margin: 0;
-  min-height: 100vh;
+  <link rel="stylesheet" href="css/fonts.css">
+  <link rel="stylesheet" href="css/navigation.css">
+  <link rel="stylesheet" href="css/storage.css">
 
-  background: #080808;
-  color: #ddd;
-  font-family: "Courier New", monospace;
-
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-
-  padding: 0;
-}
-
-   .development {
-  width: min(650px, calc(100% - 40px));
-  margin: auto 0;
-
-  padding: 45px 30px;
-  text-align: center;
-
-  border: 1px solid #333;
-  background: #101010;
-
-  box-shadow: 0 0 50px rgba(150, 0, 0, 0.1);
-}
-
-    .status {
-      color: #b30000;
-      font-size: 12px;
-      letter-spacing: 3px;
-      margin-bottom: 25px;
-    }
-
-    h1 {
-      color: #eee;
-      font-size: clamp(25px, 6vw, 42px);
-      letter-spacing: 3px;
-      margin-bottom: 25px;
-    }
-
-    p {
-      color: #999;
-      font-size: 15px;
-      line-height: 1.9;
-    }
-
-    .progress {
-      height: 4px;
-      background: #222;
-      margin: 35px 0;
-      overflow: hidden;
-    }
-
-    .progress-bar {
-      width: 30%;
-      height: 100%;
-      background: #b30000;
-      animation: loading 2s ease-in-out infinite alternate;
-    }
-
-    @keyframes loading {
-      from {
-        transform: translateX(-100%);
-      }
-
-      to {
-        transform: translateX(330%);
-      }
-    }
-
-    .back {
-      display: inline-block;
-      margin-top: 20px;
-      padding: 12px 25px;
-
-      color: #ddd;
-      text-decoration: none;
-
-      border: 1px solid #444;
-      background: #151515;
-
-      font-size: 13px;
-      letter-spacing: 1px;
-    }
-
-    .back:hover {
-      border-color: #b30000;
-      color: white;
-    }
-
-    @media (max-width: 600px) {
-      .development {
-        padding: 35px 20px;
-      }
-
-      p {
-        font-size: 13px;
-      }
-    }
-
-.np-header {
-  flex-shrink: 0;
-}
-    
-  </style>
+  <script src="scripts/navigation.js" defer></script>
+  <script src="scripts/storage-config.js" defer></script>
+  <script src="scripts/storage.js" defer></script>
 </head>
 
 <body>
 
-  <main class="development">
+  <main class="storage">
 
-    <div class="status">
-      [ SYSTEM STATUS: DECODE ]
+    <div class="storage-heading">
+      <div class="storage-system">
+        [ NIGHTMAR'S PRODUCTION / STORAGE SYSTEM ]
+      </div>
+
+      <h1>NIGHTMAR STORAGE</h1>
+
+      <p class="storage-subtitle">
+        Экспериментальное файловое хранилище.
+        Данные восстанавливаются по запросу.
+      </p>
     </div>
 
-    <h1>В РАЗРАБОТКЕ</h1>
+    <section class="storage-server">
 
-    <p>
-      Раздел «Обезопасить и сохранить» временно недоступен.
-      <br><br>
-      Мы работаем над созданием системы хранения файлов. 
-      В будущем здесь появится возможность скачивать наши файлы.
-      Но пока нет сервака, я не могу это реализовать...
-    </p>
+      <div class="storage-server-top">
 
-    <div class="progress">
-      <div class="progress-bar"></div>
+        <div>
+          <div class="storage-label">
+            SERVER CONNECTION
+          </div>
+
+          <div class="storage-status checking"
+               id="storage-status">
+            <span class="storage-dot"></span>
+            <span id="storage-status-text">
+              CHECKING...
+            </span>
+          </div>
+        </div>
+
+        <div class="storage-server-info">
+          <div id="storage-active">
+            ACTIVE TASKS: —
+          </div>
+
+          <div id="storage-queue">
+            QUEUE: —
+          </div>
+        </div>
+
+      </div>
+
+      <p class="storage-server-message"
+         id="storage-server-message">
+        Проверяем соединение с сервером...
+      </p>
+
+      <div class="storage-last-check"
+           id="storage-last-check">
+        LAST CHECK: —
+      </div>
+
+    </section>
+
+    <section class="storage-catalog">
+
+      <div class="storage-section-title">
+        <span>ДОСТУПНЫЕ ФАЙЛЫ</span>
+        <span id="storage-count">FILES: —</span>
+      </div>
+
+      <div id="storage-files" class="storage-files">
+
+        <div class="storage-placeholder">
+          Подключение к каталогу...
+        </div>
+
+      </div>
+
+    </section>
+
+    <section class="storage-task"
+             id="storage-task"
+             hidden>
+
+      <div class="storage-section-title">
+        <span>ВОССТАНОВЛЕНИЕ</span>
+        <span id="storage-task-state">WAITING</span>
+      </div>
+
+      <div class="storage-task-filename"
+           id="storage-task-filename"></div>
+
+      <div class="storage-progress">
+        <div class="storage-progress-bar"
+             id="storage-progress-bar"></div>
+      </div>
+
+      <div class="storage-progress-info">
+        <span id="storage-progress-text">
+          Подготовка...
+        </span>
+
+        <span id="storage-progress-percent">
+          0%
+        </span>
+      </div>
+
+      <div class="storage-task-actions"
+           id="storage-task-actions"></div>
+
+    </section>
+
+    <div class="storage-warning">
+      [ ALPHA NOTICE ]<br><br>
+
+      Хранилище работает в экспериментальном режиме.
+      Сервер может быть отключён в любое время.
+      Восстановление больших файлов занимает несколько минут.
     </div>
 
-    <p>
-      NIGHTMAR'S PRODUCTION<br>
-      COMING SOON...
-    </p>
-
-    <a href="index.html" class="back">
+    <a href="index.html" class="storage-back">
       ← НА ГЛАВНУЮ
     </a>
+
+    <div class="storage-footer">
+      NIGHTMAR'S PRODUCTION<br>
+      STORAGE PROTOCOL // ALPHA
+    </div>
 
   </main>
 
