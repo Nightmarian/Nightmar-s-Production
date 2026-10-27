@@ -11,8 +11,11 @@
 
   <title>Nightmar's Production</title>
 
-
-  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link
+    rel="icon"
+    type="image/png"
+    href="assets/favicon.png"
+  >
 
   <!-- Шрифты -->
   <link
@@ -31,46 +34,61 @@
     rel="stylesheet"
   >
 
-  <!-- Основные стили -->
-  <link rel="stylesheet" href="css/style.css?v=5">
+  <!-- Стили -->
+  <link
+    rel="stylesheet"
+    href="css/style.css?v=6"
+  >
 
-  <link rel="stylesheet" href="css/navigation.css">
-<script src="scripts/navigation.js" defer></script>
+  <link
+    rel="stylesheet"
+    href="css/navigation.css"
+  >
+
+  <!-- Навигация -->
+  <script
+    src="scripts/navigation.js"
+    defer
+  ></script>
+
+  <!-- Настройки Supabase -->
+  <script
+    src="scripts/storage-config.js"
+    defer
+  ></script>
+
+  <!-- Состояние хранилища -->
+  <script
+    src="scripts/home-status.js"
+    defer
+  ></script>
 
 </head>
 
 <body>
 
-  <!-- =================================
-       VHS EFFECT
-       ================================= -->
+  <!-- VHS EFFECT -->
 
-  <div class="vhs-overlay" aria-hidden="true">
-
+  <div
+    class="vhs-overlay"
+    aria-hidden="true"
+  >
     <div class="vhs-scanlines"></div>
-
     <div class="vhs-noise"></div>
-
     <div class="vhs-tracking"></div>
-
   </div>
 
-  <!-- =================================
-       REC INDICATOR
-       ================================= -->
+  <!-- REC INDICATOR -->
 
-  <div class="vhs-rec" aria-hidden="true">
-
+  <div
+    class="vhs-rec"
+    aria-hidden="true"
+  >
     <span class="rec-dot"></span>
-
     <span class="rec-text">REC</span>
-
   </div>
 
-
-  <!-- =================================
-       MAIN CONTENT
-       ================================= -->
+  <!-- MAIN CONTENT -->
 
   <main class="hero">
 
@@ -92,14 +110,21 @@
     <div class="status-box">
 
       <div class="status-title">
-        Состояние системы
+        СОСТОЯНИЕ СИСТЕМЫ
       </div>
 
       <div class="status-line">
 
-        <span class="dot offline"></span>
+        <span
+          id="home-server-dot"
+          class="dot offline"
+        ></span>
 
-        Сервер обработки — <b>не подключён</b>
+        Nightmar Storage —
+
+        <b id="home-server-status">
+          проверка...
+        </b>
 
       </div>
 
@@ -107,21 +132,39 @@
 
         <span class="dot online"></span>
 
-        Интерфейс — <b>готов</b>
+        Интерфейс —
+
+        <b>готов</b>
+
+      </div>
+
+      <div class="status-line">
+
+        <span
+          id="home-files-dot"
+          class="dot offline"
+        ></span>
+
+        Файлов в хранилище —
+
+        <b id="home-files-count">
+          —
+        </b>
 
       </div>
 
     </div>
 
-    <a href="decode.html" class="button">
-      Обезопасить и сохранить
+    <a
+      href="decode.html"
+      class="button"
+    >
+      ОБЕЗОПАСИТЬ И СОХРАНИТЬ
     </a>
 
   </main>
 
-  <!-- =================================
-       FOOTER
-       ================================= -->
+  <!-- FOOTER -->
 
   <footer class="site-footer">
 
