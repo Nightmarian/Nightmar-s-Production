@@ -1,48 +1,35 @@
 (() => {
   "use strict";
 
-  // ======================================
-  // NIGHTMAR STORAGE
-  // FRONTEND ALPHA 3.3
-  // SMART CACHE + CLEAN INTERFACE
-  // ======================================
+  // ==========================================
+  // NIGHTMAR STORAGE FRONTEND ALPHA 3.5
+  //
+  // SMART CACHE
+  // INDEPENDENT DOWNLOADS
+  // PUBLIC FILE SEARCH
+  // STABLE CONNECTION
+  // ==========================================
 
   const config = window.NP_STORAGE_CONFIG || {};
+  const connection = window.NP_STORAGE_CONNECTION;
 
-const connection =
-  window.NP_STORAGE_CONNECTION;
-  
+  const JOB_INTERVAL = config.jobInterval || 3000;
+  const FILES_INTERVAL = config.filesInterval || 10000;
+  const STATUS_INTERVAL = config.statusInterval || 15000;
+  const REQUEST_TIMEOUT = config.requestTimeout || 10000;
 
-  const SUPABASE_URL = (
-    config.supabaseUrl || ""
-  ).replace(/\/+$/, "");
+  const STORAGE_KEY = "np_storage_active_job_v1";
 
-  const SUPABASE_KEY = config.supabaseKey || "";
+  if (!connection) {
+    console.error(
+      "[STORAGE] Stable Connection не загружен."
+    );
+    return;
+  }
 
-  const ENDPOINT_TABLE =
-    config.endpointTable || "storage_endpoint";
-
-  const STATUS_INTERVAL =
-    config.statusInterval || 15000;
-
-  const ENDPOINT_INTERVAL =
-    config.endpointInterval || 15000;
-
-  const REQUEST_TIMEOUT =
-    config.requestTimeout || 5000;
-
-  const JOB_INTERVAL =
-    config.jobInterval || 3000;
-
-  const FILES_INTERVAL = 5000;
-
-  const STORAGE_KEY =
-    "np_storage_active_job_v1";
-
-
-  // ======================================
+  // ==========================================
   // ELEMENTS
-  // ======================================
+  // ==========================================
 
   const elements = {
     status: document.getElementById("storage-status"),
@@ -67,110 +54,146 @@ const connection =
     taskActions: document.getElementById("storage-task-actions")
   };
 
+  if (!elements.files || !elements.task) {
+    console.error(
+      "[STORAGE] Не найдены элементы интерфейса."
+    );
+    return;
+  }
 
-  // ======================================
+  // ==========================================
   // STATE
-  // ======================================
+  // ==========================================
 
   let API = "";
   let serverOnline = false;
 
   let currentJob = null;
 
-  let endpointChecking = false;
-  let statusChecking = false;
-  let jobChecking = false;
   let filesChecking = false;
+  let jobChecking = false;
+  let restoreStarting = false;
 
   let connectionErrors = 0;
 
+  let searchQuery = "";
+
   const fileCards = new Map();
 
+  // ==========================================
+  // SEARCH
+  // ==========================================
 
-  // ======================================
-  // ENDPOINT VALIDATION
-  // ======================================
+  function createSearch() {
+    const wrapper = document.createElement("div");
 
-  function validateEndpoint(value) {
-    if (!value || typeof value !== "string") {
-      return "";
-    }
+    wrapper.className = "storage-search-wrapper";
 
-    try {
-      const url = new URL(value);
+    wrapper.style.cssText = [
+      "margin:20px 0",
+      "display:flex",
+      "flex-direction:column",
+      "gap:10px"
+    ].join(";");
 
-      if (
-        url.protocol !== "https:" ||
-        !url.hostname.endsWith(".trycloudflare.com") ||
-        url.pathname !== "/" ||
-        url.search ||
-        url.hash ||
-        url.username ||
-        url.password
-      ) {
-        return "";
-      }
+    const label = document.createElement("label");
 
-      return url.origin;
-    } catch {
-      return "";
-    }
-  }
+    label.textContent = "ПОИСК ПО ХРАНИЛИЩУ";
 
+    label.style.cssText = [
+      "color:#c32626",
+      "font-size:13px",
+      "letter-spacing:2px",
+      "font-weight:bold"
+    ].join(";");
 
-  // ======================================
-  // SUPABASE
-  // ======================================
+    const input = document.createElement("input");
 
-  async function fetchEndpoint() {
-    if (!SUPABASE_URL || !SUPABASE_KEY) {
-      throw new Error("SUPABASE_NOT_CONFIGURED");
-    }
+    input.type = "search";
+    input.placeholder =
+      "Название, описание, ID или тип файла...";
 
-    const url =
-      SUPABASE_URL +
-      "/rest/v1/" +
-      ENDPOINT_TABLE +
-      "?id=eq.1&select=api_url,updated_at";
+    input.autocomplete = "off";
 
-    const controller = new AbortController();
-
-    const timeout = setTimeout(
-      () => controller.abort(),
-      REQUEST_TIMEOUT
+    input.setAttribute(
+      "aria-label",
+      "Поиск файлов Nightmar Storage"
     );
 
-    try {
-      const response = await fetch(url, {
-        headers: {
-          apikey: SUPABASE_KEY
-        },
-        signal: controller.signal,
-        cache: "no-store"
-      });
+    input.style.cssText = [
+      "width:100%",
+      "box-sizing:border-box",
+      "padding:15px",
+      "background:#151515",
+      "color:#eeeeee",
+      "border:1px solid #751b1b",
+      "outline:none",
+      "font:inherit",
+      "border-radius:4px"
+    ].join(";");
 
-      if (!response.ok) {
-        throw new Error(
-          `SUPABASE_HTTP_${response.status}`
-        );
+    input.addEventListener("focus", () => {
+      input.style.borderColor = "#c32626";
+    });
+
+    input.addEventListener("blur", () => {
+      input.style.borderColor = "#751b1b";
+    });
+
+    const result = document.createElement("div");
+
+    result.style.cssText = [
+      "color:#999999",
+      "font-size:12px"
+    ].join(";");
+
+    input.addEventListener("input", () => {
+      searchQuery = input.value.trim().toLocaleLowerCase();
+
+      applySearch();
+    });
+
+    wrapper.append(label, input, result);
+
+    elements.files.parentNode.insertBefore(
+      wrapper,
+      elements.files
+    );
+
+    return result;
+  }
+
+  const searchResult = createSearch();
+
+  function applySearch() {
+    let visible = 0;
+
+    for (const card of fileCards.values()) {
+      const matches =
+        !searchQuery ||
+        card.searchText.includes(searchQuery);
+
+      card.root.hidden = !matches;
+
+      if (matches) {
+        visible++;
       }
+    }
 
-      const rows = await response.json();
+    const total = fileCards.size;
 
-      if (!Array.isArray(rows) || rows.length === 0) {
-        return "";
-      }
-
-      return validateEndpoint(rows[0].api_url);
-    } finally {
-      clearTimeout(timeout);
+    if (searchQuery) {
+      searchResult.textContent =
+        `НАЙДЕНО: ${visible} ИЗ ${total}`;
+    } else {
+      searchResult.textContent =
+        `ФАЙЛОВ В КАТАЛОГЕ: ${total}`;
     }
   }
 
-
-  // ======================================
-  // LOCAL STORAGE
-  // ======================================
+  // ==========================================
+  // SESSION
+  // ==========================================
 
   function saveJob(job) {
     try {
@@ -183,6 +206,14 @@ const connection =
       );
     } catch (error) {
       console.warn("[STORAGE] Save failed:", error);
+    }
+  }
+
+  function clearSavedJob() {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (error) {
+      console.warn("[STORAGE] Clear failed:", error);
     }
   }
 
@@ -213,34 +244,26 @@ const connection =
     }
   }
 
-  function clearSavedJob() {
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-    } catch (error) {
-      console.warn("[STORAGE] Clear failed:", error);
-    }
-  }
-
-
-  // ======================================
+  // ==========================================
   // DISPLAY
-  // ======================================
+  // ==========================================
 
   function setStatus(state, message) {
     elements.status.className =
       "storage-status " + state;
 
-    const statusNames = {
-  online: "В СЕТИ",
-  busy: "ЗАНЯТ",
-  offline: "НЕ В СЕТИ",
-  connecting: "ПОДКЛЮЧЕНИЕ"
-};
+    const names = {
+      online: "В СЕТИ",
+      busy: "ЗАНЯТ",
+      offline: "НЕ В СЕТИ",
+      connecting: "ПОДКЛЮЧЕНИЕ"
+    };
 
-elements.statusText.textContent =
-  statusNames[state] || "НЕИЗВЕСТНО";
+    elements.statusText.textContent =
+      names[state] || "НЕИЗВЕСТНО";
 
-    elements.message.textContent = message;
+    elements.message.textContent =
+      message || "";
   }
 
   function setOffline(message) {
@@ -249,23 +272,16 @@ elements.statusText.textContent =
     setStatus(
       "offline",
       message ||
-      "Сервер недоступен. Возможно, ноутбук выключен."
+        "Сервер недоступен. Восстановление временно отключено."
     );
 
     elements.active.textContent =
-      "Активных процессов: —";
+      "АКТИВНЫХ ЗАДАЧ: —";
 
     elements.queue.textContent =
       "В ОЧЕРЕДИ: —";
 
     updateButtons();
-  }
-
-  function updateButtons() {
-    for (const card of fileCards.values()) {
-      card.button.disabled =
-        !serverOnline || Boolean(currentJob);
-    }
   }
 
   function formatRemaining(seconds) {
@@ -283,17 +299,17 @@ elements.statusText.textContent =
     );
   }
 
-
-  // ======================================
-  // API REQUEST
-  // ======================================
+  // ==========================================
+  // API
+  // ==========================================
 
   async function apiRequest(path, options = {}) {
     if (!API) {
-      throw new Error("API_NOT_CONFIGURED");
+      throw new Error("Сервер не подключён");
     }
 
     const requestAPI = API;
+
     const controller = new AbortController();
 
     const timeout = setTimeout(
@@ -327,6 +343,7 @@ elements.statusText.textContent =
         );
 
         error.status = response.status;
+
         throw error;
       }
 
@@ -336,179 +353,9 @@ elements.statusText.textContent =
     }
   }
 
-
-  // ======================================
-  // ENDPOINT REFRESH
-  // ======================================
-
-  async function refreshEndpoint() {
-    if (endpointChecking) {
-      return;
-    }
-
-    endpointChecking = true;
-
-    try {
-      const newAPI = await fetchEndpoint();
-
-      if (newAPI === API) {
-        return;
-      }
-
-      API = newAPI;
-      serverOnline = false;
-      connectionErrors = 0;
-
-      fileCards.clear();
-      elements.files.replaceChildren();
-
-      setOffline(
-        API
-          ? "Подключаемся к серверу..."
-          : "Сервер выключен. Хранилище временно недоступно."
-      );
-
-      const savedJob = loadSavedJob();
-
-      if (savedJob && savedJob.apiUrl !== API) {
-        clearSavedJob();
-        currentJob = null;
-        elements.task.hidden = true;
-      }
-
-      if (!API) {
-        return;
-      }
-
-      await checkStatus();
-      await restoreSession();
-
-    } catch (error) {
-      console.warn(
-        "[STORAGE] Supabase unavailable:",
-        error
-      );
-
-      if (!API) {
-        setOffline(
-          "Не удалось получить адрес сервера из Supabase."
-        );
-      }
-    } finally {
-      endpointChecking = false;
-    }
-  }
-
-
-  // ======================================
-  // SERVER STATUS
-  // ======================================
-
-  async function checkStatus() {
-    if (statusChecking || !API) {
-      return;
-    }
-
-    statusChecking = true;
-
-    try {
-      const data = await apiRequest("/api/status");
-
-      if (data.status !== "online") {
-        throw new Error("SERVER_UNAVAILABLE");
-      }
-
-      serverOnline = true;
-
-      const active = Number(data.active_jobs || 0);
-      const queued = Number(data.queued_jobs || 0);
-
-      elements.active.textContent =
-        `ACTIVE TASKS: ${active}`;
-
-      elements.queue.textContent =
-        `QUEUE: ${queued}`;
-
-      if (active > 0 || queued > 0) {
-        setStatus(
-          "busy",
-          "Сервер работает. Выполняется восстановление файла."
-        );
-      } else {
-        setStatus(
-          "online",
-          "Сервер доступен. Можно восстанавливать файлы."
-        );
-      }
-
-      connectionErrors = 0;
-
-      await loadFiles();
-
-    } catch (error) {
-      setOffline();
-    } finally {
-      elements.lastCheck.textContent =
-        "Последняя Проверка: " +
-        new Date().toLocaleTimeString("ru-RU");
-
-      statusChecking = false;
-    }
-  }
-
-
-  // ======================================
-  // SMART CACHE CATALOG
-  // ======================================
-
-  async function loadFiles() {
-    if (filesChecking || !API || !serverOnline) {
-      return;
-    }
-
-    filesChecking = true;
-
-    try {
-      const data = await apiRequest("/api/files");
-
-      elements.count.textContent =
-        `FILES: ${data.count || 0}`;
-
-      const received = new Set();
-
-      for (const file of data.files || []) {
-        received.add(file.id);
-
-        let card = fileCards.get(file.id);
-
-        if (!card) {
-          card = createFileCard();
-          fileCards.set(file.id, card);
-          elements.files.appendChild(card.root);
-        }
-
-        updateFileCard(file, card);
-      }
-
-      for (const [id, card] of fileCards) {
-        if (!received.has(id)) {
-          card.root.remove();
-          fileCards.delete(id);
-        }
-      }
-
-      updateButtons();
-
-    } catch (error) {
-      console.warn(
-        "[STORAGE] Catalog unavailable:",
-        error
-      );
-    } finally {
-      filesChecking = false;
-    }
-  }
-
+  // ==========================================
+  // FILE CARDS
+  // ==========================================
 
   function createFileCard() {
     const root = document.createElement("div");
@@ -536,6 +383,8 @@ elements.statusText.textContent =
     const button = document.createElement("button");
     button.className = "storage-button";
 
+    button.type = "button";
+
     info.append(
       name,
       meta,
@@ -553,23 +402,43 @@ elements.statusText.textContent =
       description,
       cacheStatus,
       cacheMessage,
-      button
+      button,
+
+      cacheStatusValue: "available",
+      expiresAt: 0,
+      searchText: "",
+      fileId: ""
     };
   }
 
-
   function updateFileCard(file, card) {
+    card.fileId = file.id;
+
     card.name.textContent = file.name;
 
     card.meta.textContent =
-      `${file.type} / ${file.size}`;
+      `${file.type || ""} / ${file.size || ""}`;
 
     card.description.textContent =
       file.description || "";
 
+    card.searchText = [
+      file.id,
+      file.name,
+      file.description,
+      file.type
+    ]
+      .map(value => String(value || ""))
+      .join(" ")
+      .toLocaleLowerCase();
+
     const cache = file.cache || {
       status: "available"
     };
+
+    card.cacheStatusValue = cache.status;
+
+    card.expiresAt = Number(cache.expires_at || 0);
 
     card.button.onclick = null;
 
@@ -642,24 +511,54 @@ elements.statusText.textContent =
         startRestore(file);
       };
     }
+
+    updateCardButton(card);
   }
 
+  // ==========================================
+  // INDEPENDENT BUTTONS
+  // ==========================================
 
-  // ======================================
-  // DIRECT DOWNLOAD
-  // ======================================
-
-  function downloadFile(jobId) {
-    if (
-      !serverOnline ||
-      !API ||
-      !jobId
-    ) {
+  function updateCardButton(card) {
+    if (!serverOnline) {
+      card.button.disabled = true;
       return;
     }
 
-    // Используем обычную загрузку браузера.
-    // Файл скачивается напрямую с API.
+    // Готовый файл не зависит от currentJob.
+    if (card.cacheStatusValue === "completed") {
+      card.button.disabled = false;
+      return;
+    }
+
+    // К другой общей задаче можно подключиться.
+    if (
+      card.cacheStatusValue === "processing" ||
+      card.cacheStatusValue === "queued"
+    ) {
+      card.button.disabled = false;
+      return;
+    }
+
+    // Новые восстановления можно отправлять
+    // в очередь, даже когда одно уже выполняется.
+    card.button.disabled = restoreStarting;
+  }
+
+  function updateButtons() {
+    for (const card of fileCards.values()) {
+      updateCardButton(card);
+    }
+  }
+
+  // ==========================================
+  // DIRECT DOWNLOAD
+  // ==========================================
+
+  function downloadFile(jobId) {
+    if (!serverOnline || !API || !jobId) {
+      return;
+    }
 
     const link = document.createElement("a");
 
@@ -676,41 +575,74 @@ elements.statusText.textContent =
     link.remove();
   }
 
+  // ==========================================
+  // CATALOG
+  // ==========================================
 
-  // ======================================
-  // CONNECT TO EXISTING JOB
-  // ======================================
-
-  async function connectToJob(file, jobId) {
-    if (!serverOnline || currentJob || !jobId) {
+  async function loadFiles() {
+    if (filesChecking || !API || !serverOnline) {
       return;
     }
 
-    currentJob = {
-      id: jobId,
-      filename: file.name,
-      apiUrl: API
-    };
+    filesChecking = true;
 
-    saveJob(currentJob);
+    const requestedAPI = API;
 
-    showTask(file.name);
+    try {
+      const data = await apiRequest("/api/files");
 
-    updateProgress(
-      "connecting",
-      0,
-      "Подключаемся к существующей задаче..."
-    );
+      if (requestedAPI !== API) {
+        return;
+      }
 
-    updateButtons();
+      elements.count.textContent =
+        `ФАЙЛОВ: ${Number(data.count || 0)}`;
 
-    await pollJob();
+      const received = new Set();
+
+      for (const file of data.files || []) {
+        if (!file || !file.id) {
+          continue;
+        }
+
+        received.add(file.id);
+
+        let card = fileCards.get(file.id);
+
+        if (!card) {
+          card = createFileCard();
+
+          fileCards.set(file.id, card);
+
+          elements.files.appendChild(card.root);
+        }
+
+        updateFileCard(file, card);
+      }
+
+      for (const [id, card] of fileCards) {
+        if (!received.has(id)) {
+          card.root.remove();
+          fileCards.delete(id);
+        }
+      }
+
+      applySearch();
+      updateButtons();
+
+    } catch (error) {
+      console.warn(
+        "[STORAGE] Ошибка загрузки каталога:",
+        error
+      );
+    } finally {
+      filesChecking = false;
+    }
   }
 
-
-  // ======================================
+  // ==========================================
   // TASK DISPLAY
-  // ======================================
+  // ==========================================
 
   function showTask(filename) {
     elements.task.hidden = false;
@@ -721,12 +653,10 @@ elements.statusText.textContent =
     elements.taskActions.replaceChildren();
   }
 
-
   function hideTask() {
     elements.task.hidden = true;
     elements.taskActions.replaceChildren();
   }
-
 
   function updateProgress(status, progress, message) {
     const percent = Math.max(
@@ -734,18 +664,19 @@ elements.statusText.textContent =
       Math.min(100, Number(progress) || 0)
     );
 
-   const taskStatusNames = {
-  queued: "В ОЧЕРЕДИ",
-  processing: "ВОССТАНОВЛЕНИЕ",
-  connecting: "ПОДКЛЮЧЕНИЕ",
-  reconnecting: "ПЕРЕПОДКЛЮЧЕНИЕ",
-  completed: "ЗАВЕРШЕНО",
-  failed: "ОШИБКА",
-  error: "ОШИБКА"
-};
+    const names = {
+      queued: "В ОЧЕРЕДИ",
+      processing: "ВОССТАНОВЛЕНИЕ",
+      connecting: "ПОДКЛЮЧЕНИЕ",
+      reconnecting: "ПЕРЕПОДКЛЮЧЕНИЕ",
+      completed: "ЗАВЕРШЕНО",
+      failed: "ОШИБКА",
+      cancelled: "ОТМЕНЕНО",
+      error: "ОШИБКА"
+    };
 
-elements.taskState.textContent =
-  taskStatusNames[status] || "ОБРАБОТКА";
+    elements.taskState.textContent =
+      names[status] || "ОБРАБОТКА";
 
     elements.progressBar.style.width =
       `${percent}%`;
@@ -757,21 +688,28 @@ elements.taskState.textContent =
       message || "Обработка...";
   }
 
-
-  // ======================================
+  // ==========================================
   // START RESTORE
-  // ======================================
+  // ==========================================
 
   async function startRestore(file) {
-    if (!serverOnline || currentJob) {
+    if (!serverOnline || restoreStarting) {
       return;
     }
 
-    currentJob = {
-      pending: true,
-      filename: file.name
-    };
+    if (currentJob) {
+      const confirmed = window.confirm(
+        "Вы уже наблюдаете за другой задачей.\n\n" +
+        "Отправить новый запрос и переключиться на него?\n\n" +
+        "Предыдущая задача продолжит выполняться на сервере."
+      );
 
+      if (!confirmed) {
+        return;
+      }
+    }
+
+    restoreStarting = true;
     updateButtons();
 
     showTask(file.name);
@@ -808,20 +746,67 @@ elements.taskState.textContent =
 
     } catch (error) {
       showTaskError(error.message);
+    } finally {
+      restoreStarting = false;
+      updateButtons();
     }
   }
 
+  // ==========================================
+  // CONNECT EXISTING JOB
+  // ==========================================
 
-  // ======================================
+  async function connectToJob(file, jobId) {
+    if (!serverOnline || !jobId) {
+      return;
+    }
+
+    if (currentJob && currentJob.id === jobId) {
+      showTask(file.name);
+      return;
+    }
+
+    if (currentJob) {
+      const confirmed = window.confirm(
+        "Переключиться на другую задачу?\n\n" +
+        "Предыдущая задача продолжит работу на сервере."
+      );
+
+      if (!confirmed) {
+        return;
+      }
+    }
+
+    currentJob = {
+      id: jobId,
+      filename: file.name,
+      apiUrl: API
+    };
+
+    saveJob(currentJob);
+
+    showTask(file.name);
+
+    updateProgress(
+      "connecting",
+      0,
+      "Подключаемся к существующей задаче..."
+    );
+
+    await pollJob();
+  }
+
+  // ==========================================
   // JOB POLLING
-  // ======================================
+  // ==========================================
 
   async function pollJob() {
     if (
       !currentJob ||
       !currentJob.id ||
       jobChecking ||
-      !API
+      !API ||
+      !serverOnline
     ) {
       return;
     }
@@ -829,6 +814,7 @@ elements.taskState.textContent =
     jobChecking = true;
 
     const jobId = currentJob.id;
+    const jobAPI = API;
 
     try {
       const data = await apiRequest(
@@ -837,7 +823,8 @@ elements.taskState.textContent =
 
       if (
         !currentJob ||
-        currentJob.id !== jobId
+        currentJob.id !== jobId ||
+        API !== jobAPI
       ) {
         return;
       }
@@ -852,6 +839,13 @@ elements.taskState.textContent =
       if (data.status === "failed") {
         showTaskError(
           data.message || "Ошибка восстановления"
+        );
+        return;
+      }
+
+      if (data.status === "cancelled") {
+        showTaskError(
+          data.message || "Восстановление отменено"
         );
         return;
       }
@@ -878,8 +872,8 @@ elements.taskState.textContent =
       elements.progressText.textContent =
         "Соединение потеряно. Повторное подключение...";
 
-      if (connectionErrors >= 2) {
-        setOffline();
+      if (connectionErrors >= 3) {
+        connection.check();
       }
 
     } finally {
@@ -887,10 +881,9 @@ elements.taskState.textContent =
     }
   }
 
-
-  // ======================================
-  // JOB COMPLETED
-  // ======================================
+  // ==========================================
+  // TASK COMPLETED
+  // ==========================================
 
   function finishJob() {
     clearSavedJob();
@@ -902,14 +895,11 @@ elements.taskState.textContent =
     updateButtons();
 
     loadFiles();
-
-    checkStatus();
   }
 
-
-  // ======================================
-  // ERRORS
-  // ======================================
+  // ==========================================
+  // TASK ERROR
+  // ==========================================
 
   function showTaskError(message) {
     updateProgress(
@@ -923,12 +913,13 @@ elements.taskState.textContent =
     currentJob = null;
 
     updateButtons();
+
+    loadFiles();
   }
 
-
-  // ======================================
+  // ==========================================
   // RESTORE SESSION
-  // ======================================
+  // ==========================================
 
   async function restoreSession() {
     if (currentJob) {
@@ -956,108 +947,117 @@ elements.taskState.textContent =
       "Восстанавливаем соединение с задачей..."
     );
 
-    updateButtons();
-
     await pollJob();
   }
 
-  connection.subscribe(async state => {
-  const newAPI = state.apiUrl || "";
+  // ==========================================
+  // CONNECTION
+  // ==========================================
 
-  if (newAPI !== API) {
-    API = newAPI;
+  async function handleConnection(state) {
+    const newAPI = state.apiUrl || "";
 
-    fileCards.clear();
-    elements.files.replaceChildren();
+    if (newAPI !== API) {
+      API = newAPI;
 
-    const savedJob = loadSavedJob();
+      fileCards.clear();
+      elements.files.replaceChildren();
+
+      applySearch();
+
+      const savedJob = loadSavedJob();
+
+      if (savedJob && savedJob.apiUrl !== API) {
+        clearSavedJob();
+        currentJob = null;
+        hideTask();
+      }
+    }
 
     if (
-      savedJob &&
-      savedJob.apiUrl !== API
+      state.status === "online" ||
+      state.status === "busy"
     ) {
-      clearSavedJob();
-      currentJob = null;
-      hideTask();
+      serverOnline = true;
+
+      const active = Number(state.activeJobs || 0);
+      const queued = Number(state.queuedJobs || 0);
+
+      setStatus(
+        active > 0 || queued > 0 ? "busy" : "online",
+        active > 0 || queued > 0
+          ? "Сервер выполняет восстановление. Готовые файлы доступны для скачивания."
+          : "Сервер доступен. Можно восстанавливать файлы."
+      );
+
+      elements.active.textContent =
+        `АКТИВНЫХ ЗАДАЧ: ${active}`;
+
+      elements.queue.textContent =
+        `В ОЧЕРЕДИ: ${queued}`;
+
+      elements.lastCheck.textContent =
+        "ПОСЛЕДНЯЯ ПРОВЕРКА: " +
+        new Date().toLocaleTimeString("ru-RU");
+
+      updateButtons();
+
+      await loadFiles();
+      await restoreSession();
+
+    } else if (state.status === "offline") {
+      setOffline();
+
+    } else {
+      if (!serverOnline) {
+        setStatus(
+          "connecting",
+          "Подключение к Nightmar Storage..."
+        );
+      }
     }
   }
 
-  if (
-    state.status === "online" ||
-    state.status === "busy"
-  ) {
-    serverOnline = true;
+  connection.subscribe(handleConnection);
 
-    setStatus(
-      state.status,
-      state.status === "busy"
-        ? "Сервер занят восстановлением файла."
-        : "Сервер доступен."
-    );
-
-    elements.active.textContent =
-      `Активных процессов: ${state.activeJobs}`;
-
-    elements.queue.textContent =
-      `В ОЧЕРЕДИ: ${state.queuedJobs}`;
-
-    updateButtons();
-
-    await loadFiles();
-    await restoreSession();
-
-  } else if (state.status === "offline") {
-    setOffline();
-  }
-});
-
-  // ======================================
+  // ==========================================
   // INITIALIZATION
-  // ======================================
+  // ==========================================
 
- async function initialize() {
-  hideTask();
+  async function initialize() {
+    hideTask();
 
-  const savedState = connection.getState();
-
-  if (
-    savedState.apiUrl &&
-    (
-      savedState.status === "online" ||
-      savedState.status === "busy"
-    )
-  ) {
-    API = savedState.apiUrl;
-    serverOnline = true;
-
-    setStatus(
-      savedState.status,
-      "Восстановлено последнее подключение. Проверяем доступность..."
-    );
-
-    await loadFiles();
-    await restoreSession();
-  } else {
     setStatus(
       "connecting",
       "Подключение к Nightmar Storage..."
     );
-  }
 
-  await connection.check();
-}
+    const savedState = connection.getState();
+
+    if (
+      savedState &&
+      savedState.apiUrl &&
+      (
+        savedState.status === "online" ||
+        savedState.status === "busy"
+      )
+    ) {
+      await handleConnection(savedState);
+    }
+
+    await connection.check();
+  }
 
   initialize();
 
-
-  // ======================================
+  // ==========================================
   // TIMERS
-  // ======================================
+  // ==========================================
 
- setInterval(
-  () => connection.check(),
-  STATUS_INTERVAL
-);
+  setInterval(
+    () => connection.check(),
+    STATUS_INTERVAL
+  );
 
   setInterval(
     pollJob,
@@ -1069,25 +1069,19 @@ elements.taskState.textContent =
     FILES_INTERVAL
   );
 
-
-  // ======================================
+  // ==========================================
   // EVENTS
-  // ======================================
+  // ==========================================
 
-  window.addEventListener(
-    "online",
-    () => {
-      
-      connection.check();
-      pollJob();
-    }
-  );
+  window.addEventListener("online", () => {
+    connection.check();
+    pollJob();
+  });
 
   document.addEventListener(
     "visibilitychange",
     () => {
       if (!document.hidden) {
-
         connection.check();
         pollJob();
         loadFiles();
