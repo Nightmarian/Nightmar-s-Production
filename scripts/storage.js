@@ -230,8 +230,15 @@ const connection =
     elements.status.className =
       "storage-status " + state;
 
-    elements.statusText.textContent =
-      state.toUpperCase();
+    const statusNames = {
+  online: "В СЕТИ",
+  busy: "ЗАНЯТ",
+  offline: "НЕ В СЕТИ",
+  connecting: "ПОДКЛЮЧЕНИЕ"
+};
+
+elements.statusText.textContent =
+  statusNames[state] || "НЕИЗВЕСТНО";
 
     elements.message.textContent = message;
   }
@@ -246,10 +253,10 @@ const connection =
     );
 
     elements.active.textContent =
-      "ACTIVE TASKS: —";
+      "Активных процессов: —";
 
     elements.queue.textContent =
-      "QUEUE: —";
+      "В ОЧЕРЕДИ: —";
 
     updateButtons();
   }
@@ -442,7 +449,7 @@ const connection =
       setOffline();
     } finally {
       elements.lastCheck.textContent =
-        "LAST CHECK: " +
+        "Последняя Проверка: " +
         new Date().toLocaleTimeString("ru-RU");
 
       statusChecking = false;
@@ -727,8 +734,18 @@ const connection =
       Math.min(100, Number(progress) || 0)
     );
 
-    elements.taskState.textContent =
-      String(status).toUpperCase();
+   const taskStatusNames = {
+  queued: "В ОЧЕРЕДИ",
+  processing: "ВОССТАНОВЛЕНИЕ",
+  connecting: "ПОДКЛЮЧЕНИЕ",
+  reconnecting: "ПЕРЕПОДКЛЮЧЕНИЕ",
+  completed: "ЗАВЕРШЕНО",
+  failed: "ОШИБКА",
+  error: "ОШИБКА"
+};
+
+elements.taskState.textContent =
+  taskStatusNames[status] || "ОБРАБОТКА";
 
     elements.progressBar.style.width =
       `${percent}%`;
@@ -856,7 +873,7 @@ const connection =
       connectionErrors++;
 
       elements.taskState.textContent =
-        "RECONNECTING";
+        "ПЕРЕПОДКЛЮЧЕНИЕ";
 
       elements.progressText.textContent =
         "Соединение потеряно. Повторное подключение...";
@@ -979,10 +996,10 @@ const connection =
     );
 
     elements.active.textContent =
-      `ACTIVE TASKS: ${state.activeJobs}`;
+      `Активных процессов: ${state.activeJobs}`;
 
     elements.queue.textContent =
-      `QUEUE: ${state.queuedJobs}`;
+      `В ОЧЕРЕДИ: ${state.queuedJobs}`;
 
     updateButtons();
 
