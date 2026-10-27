@@ -1,21 +1,40 @@
+// ======================================
 // NIGHTMAR STORAGE
-// Dynamic API configuration via Supabase
+// CONNECTION CONFIGURATION
+// ALPHA 3.4
+// ======================================
 
 window.NP_STORAGE_CONFIG = {
 
-    // Supabase
-    supabaseUrl: "https://ipyqydrqctziltcuboop.supabase.co",
+  supabaseUrl:
+    "https://ipyqydrqctziltcuboop.supabase.co",
 
-    // Public browser key (NOT a secret)
-    supabaseKey: "sb_publishable_0PNw-wO6K1oMyb8XhLhgpA_GoXJivQV",
+  supabaseKey:
+    "sb_publishable_0PNw-wO6K1oMyb8XhLhgpA_GoXJivQV",
 
-    // Supabase table
-    endpointTable: "storage_endpoint",
+  endpointTable:
+    "storage_endpoint",
 
-    // Intervals (milliseconds)
-    statusInterval: 15000,
-    endpointInterval: 15000,
-    requestTimeout: 5000,
-    jobInterval: 3000
+  // Проверка сервера
+  statusInterval: 15000,
+
+  // Проверка адреса Supabase
+  endpointInterval: 15000,
+
+  // Ожидание HTTP-запроса
+  requestTimeout: 10000,
+
+  // Прогресс восстановления
+  jobInterval: 3000,
+
+  // Обновление каталога
+  filesInterval: 10000,
+
+  // Повторные попытки
+  reconnectDelay: 3000,
+
+  // Сколько ошибок допускаем,
+  // прежде чем объявить OFFLINE
+  maxConnectionErrors: 3
 
 };
