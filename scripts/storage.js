@@ -9,6 +9,10 @@
 
   const config = window.NP_STORAGE_CONFIG || {};
 
+const connection =
+  window.NP_STORAGE_CONNECTION;
+  
+
   const SUPABASE_URL = (
     config.supabaseUrl || ""
   ).replace(/\/+$/, "");
@@ -940,20 +944,91 @@
     await pollJob();
   }
 
+  connection.subscribe(async state => {
+  const newAPI = state.apiUrl || "";
+
+  if (newAPI !== API) {
+    API = newAPI;
+
+    fileCards.clear();
+    elements.files.replaceChildren();
+
+    const savedJob = loadSavedJob();
+
+    if (
+      savedJob &&
+      savedJob.apiUrl !== API
+    ) {
+      clearSavedJob();
+      currentJob = null;
+      hideTask();
+    }
+  }
+
+  if (
+    state.status === "online" ||
+    state.status === "busy"
+  ) {
+    serverOnline = true;
+
+    setStatus(
+      state.status,
+      state.status === "busy"
+        ? "Сервер занят восстановлением файла."
+        : "Сервер доступен."
+    );
+
+    elements.active.textContent =
+      `ACTIVE TASKS: ${state.activeJobs}`;
+
+    elements.queue.textContent =
+      `QUEUE: ${state.queuedJobs}`;
+
+    updateButtons();
+
+    await loadFiles();
+    await restoreSession();
+
+  } else if (state.status === "offline") {
+    setOffline();
+  }
+});
 
   // ======================================
   // INITIALIZATION
   // ======================================
 
-  async function initialize() {
-    hideTask();
+ async function initialize() {
+  hideTask();
 
-    setOffline(
-      "Поиск сервера Nightmar Storage..."
+  const savedState = connection.getState();
+
+  if (
+    savedState.apiUrl &&
+    (
+      savedState.status === "online" ||
+      savedState.status === "busy"
+    )
+  ) {
+    API = savedState.apiUrl;
+    serverOnline = true;
+
+    setStatus(
+      savedState.status,
+      "Восстановлено последнее подключение. Проверяем доступность..."
     );
 
-    await refreshEndpoint();
+    await loadFiles();
+    await restoreSession();
+  } else {
+    setStatus(
+      "connecting",
+      "Подключение к Nightmar Storage..."
+    );
   }
+
+  await connection.check();
+}
 
   initialize();
 
@@ -962,15 +1037,10 @@
   // TIMERS
   // ======================================
 
-  setInterval(
-    refreshEndpoint,
-    ENDPOINT_INTERVAL
-  );
-
-  setInterval(
-    checkStatus,
-    STATUS_INTERVAL
-  );
+ setInterval(
+  () => connection.check(),
+  STATUS_INTERVAL
+);
 
   setInterval(
     pollJob,
@@ -990,8 +1060,8 @@
   window.addEventListener(
     "online",
     () => {
-      refreshEndpoint();
-      checkStatus();
+      
+      connection.check();
       pollJob();
     }
   );
@@ -1000,8 +1070,8 @@
     "visibilitychange",
     () => {
       if (!document.hidden) {
-        refreshEndpoint();
-        checkStatus();
+
+        connection.check();
         pollJob();
         loadFiles();
       }
