@@ -2,11 +2,12 @@
   "use strict";
 
   // ==========================================
-  // NIGHTMAR STORAGE FRONTEND ALPHA 3.5
+  // NIGHTMAR STORAGE FRONTEND ALPHA 3.6
   //
+  // AUTOMATIC QUEUE
   // SMART CACHE
   // INDEPENDENT DOWNLOADS
-  // PUBLIC FILE SEARCH
+  // SEARCH
   // STABLE CONNECTION
   // ==========================================
 
@@ -405,7 +406,6 @@
       button,
 
       cacheStatusValue: "available",
-      expiresAt: 0,
       searchText: "",
       fileId: ""
     };
@@ -438,8 +438,6 @@
 
     card.cacheStatusValue = cache.status;
 
-    card.expiresAt = Number(cache.expires_at || 0);
-
     card.button.onclick = null;
 
     if (cache.status === "completed") {
@@ -467,8 +465,14 @@
       card.cacheStatus.textContent =
         "● ВОССТАНАВЛИВАЕТСЯ";
 
+      const progress = Math.max(
+        0,
+        Math.min(100, Number(cache.progress || 0))
+      );
+
       card.cacheMessage.textContent =
-        cache.message || "Обработка файла...";
+        `${cache.message || "Обработка файла..."} ` +
+        `(${progress}%)`;
 
       card.button.textContent =
         "ПОДКЛЮЧИТЬСЯ К ЗАДАЧЕ";
@@ -484,8 +488,14 @@
       card.cacheStatus.textContent =
         "● В ОЧЕРЕДИ";
 
+      const position = Number(
+        cache.queue_position || 0
+      );
+
       card.cacheMessage.textContent =
-        "Ожидание свободного декодера.";
+        position > 0
+          ? `Ожидание восстановления. Позиция №${position}`
+          : cache.message || "Ожидание свободного декодера.";
 
       card.button.textContent =
         "ПОДКЛЮЧИТЬСЯ К ОЧЕРЕДИ";
@@ -525,13 +535,16 @@
       return;
     }
 
-    // Готовый файл не зависит от currentJob.
+    // Готовые файлы доступны независимо
+    // от активного восстановления.
+
     if (card.cacheStatusValue === "completed") {
       card.button.disabled = false;
       return;
     }
 
-    // К другой общей задаче можно подключиться.
+    // Можно подключаться к общим задачам.
+
     if (
       card.cacheStatusValue === "processing" ||
       card.cacheStatusValue === "queued"
@@ -540,8 +553,8 @@
       return;
     }
 
-    // Новые восстановления можно отправлять
-    // в очередь, даже когда одно уже выполняется.
+    // Новые задачи разрешено ставить в очередь.
+
     card.button.disabled = restoreStarting;
   }
 
@@ -850,10 +863,21 @@
         return;
       }
 
+      let message = data.message || "Обработка файла...";
+
+      if (
+        data.status === "queued" &&
+        Number(data.queue_position) > 0
+      ) {
+        message =
+          `Ожидание восстановления. ` +
+          `Позиция №${data.queue_position}`;
+      }
+
       updateProgress(
         data.status,
         data.progress,
-        data.message
+        message
       );
 
     } catch (error) {
