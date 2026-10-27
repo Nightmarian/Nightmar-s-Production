@@ -33,8 +33,15 @@
     elements.serverDot.className =
       "dot " + status;
 
-    elements.serverStatus.textContent =
-      status.toUpperCase();
+    const statusNames = {
+  online: "В СЕТИ",
+  busy: "ЗАНЯТ",
+  offline: "НЕ В СЕТИ",
+  connecting: "ПОДКЛЮЧЕНИЕ"
+};
+
+elements.serverStatus.textContent =
+  statusNames[status] || "НЕИЗВЕСТНО";
 
     if (
       (status === "online" || status === "busy") &&
