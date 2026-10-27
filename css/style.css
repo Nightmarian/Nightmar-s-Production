@@ -531,3 +531,26 @@ h1 {
   max-width: 100%;
   overflow: hidden;
 }
+
+/* ======================================
+   HOME SYSTEM STATUS
+====================================== */
+
+.status-box .dot.busy {
+    background: #f0bd4f;
+    box-shadow: 0 0 8px rgba(240, 189, 79, 0.45);
+}
+
+.status-box .dot.online {
+    background: #43d17c;
+    box-shadow: 0 0 8px rgba(67, 209, 124, 0.35);
+}
+
+.status-box .dot.offline {
+    background: #777;
+    box-shadow: none;
+}
+
+.status-line b {
+    margin-left: 4px;
+}
