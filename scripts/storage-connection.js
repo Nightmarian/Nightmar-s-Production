@@ -1,3 +1,8 @@
+// ======================================
+// NIGHTMAR STORAGE
+// ALPHA 3.5 — DUAL ENDPOINT SUPPORT
+// ======================================
+
 (() => {
   "use strict";
 
@@ -24,6 +29,11 @@
   const CACHE_KEY =
     "np_storage_connection_v1";
 
+  // Разрешённые постоянные домены
+  const TRUSTED_DOMAINS = [
+    "nightmarstorage.online"
+  ];
+
   let checking = false;
   let errors = 0;
 
@@ -39,7 +49,7 @@
 
 
   // ======================================
-  // VALIDATION
+  // VALIDATION — DUAL MODE
   // ======================================
 
   function validateEndpoint(value) {
@@ -50,9 +60,17 @@
     try {
       const url = new URL(value);
 
+      const hostname = url.hostname.toLowerCase();
+
+      const isLegacyTunnel =
+        hostname.endsWith(".trycloudflare.com");
+
+      const isPermanentDomain =
+        TRUSTED_DOMAINS.includes(hostname);
+
       if (
         url.protocol !== "https:" ||
-        !url.hostname.endsWith(".trycloudflare.com") ||
+        (!isLegacyTunnel && !isPermanentDomain) ||
         url.pathname !== "/" ||
         url.search ||
         url.hash ||
@@ -63,6 +81,7 @@
       }
 
       return url.origin;
+
     } catch {
       return "";
     }
