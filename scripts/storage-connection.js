@@ -1,6 +1,6 @@
 // ======================================
 // NIGHTMAR STORAGE
-// ALPHA 3.5 — DUAL ENDPOINT SUPPORT
+// ALPHA 3.6 — MULTI-DOMAIN PROXY SUPPORT
 // ======================================
 
 (() => {
@@ -29,9 +29,10 @@
   const CACHE_KEY =
     "np_storage_connection_v1";
 
-  // Разрешённые постоянные домены
+  // Разрешённые постоянные домены и прокси
   const TRUSTED_DOMAINS = [
-    "nightmarstorage.online"
+    "nightmarstorage.online",
+    "superproxy.toksicsofia.workers.dev"
   ];
 
   let checking = false;
@@ -49,7 +50,7 @@
 
 
   // ======================================
-  // VALIDATION — DUAL MODE
+  // VALIDATION — MULTI-DOMAIN MODE
   // ======================================
 
   function validateEndpoint(value) {
