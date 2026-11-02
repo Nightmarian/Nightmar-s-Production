@@ -30,10 +30,11 @@
     "np_storage_connection_v1";
 
   // Разрешённые постоянные домены и прокси
-  const TRUSTED_DOMAINS = [
+ const TRUSTED_DOMAINS = [
     "nightmarstorage.online",
+    "api.nightmarstorage.online",
     "superproxy.toksicsofia.workers.dev"
-  ];
+];
 
   let checking = false;
   let errors = 0;
